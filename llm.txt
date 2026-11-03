@@ -1,0 +1,26 @@
+# kernl
+
+> kernl is a shell that runs small applets in a sealed sandbox. Your identity, contacts, messages and files stay yours; applets borrow them only while you watch.
+
+kernl is alpha software, MIT licensed, built on the open kehto toolkit and the open applet format it hosts. Every page below has a Markdown twin at `index.md` next to it; the links point at the twins.
+
+## Pages
+
+- [kernl](https://kernlize.github.io/index.md): kernl is a shell that runs small applets in a sealed sandbox. Your identity, contacts, messages and files stay yours; applets borrow them only while you watch.
+- [Why](https://kernlize.github.io/why/index.md): The five opinions behind kernl, in plain words: one place for your things, a shell that contains applets, protections on by default, many networks, no ranking.
+- [Guard](https://kernlize.github.io/guard/index.md): What the kernl guard does between an applet and your network: a sealed sandbox, verified bytes, budgets, flood control and a question before anything destructive is signed, loosened only by you.
+- [Messaging](https://kernlize.github.io/messaging/index.md): kernl describes several private-message providers and ranks none. Each is described by what it protects. In this alpha sending works only in the preview; the real backends are not connected yet.
+- [Bridges](https://kernlize.github.io/bridges/index.md): Bridges let kernl reach other networks for you. Web fetch works today; downloads, sharing and mail work by handing off to an app on your device. In-shell backends are planned.
+- [Developers](https://kernlize.github.io/developers/index.md): How to build for kernl: write an applet in the open applet format, learn what the sealed sandbox and strict guard mean for your code, and read the docs first.
+- [Shell](https://kernlize.github.io/app/index.md): The kernl shell. Open an applet by its address and run it in a sealed sandbox, with your identity, contacts and messages on loan only while you watch.
+
+## Docs
+
+- [Documentation index](https://kernlize.github.io/docs/llms.txt): concepts, how-tos and reference for every package, written for developers.
+- [Full documentation text](https://kernlize.github.io/docs/llms-full.txt): every docs page in one file.
+
+## Source
+
+- [Decisions](https://kernlize.github.io/docs/decisions): every architecture decision and its reason. TypeScript, MIT; the source is private during alpha.
+- [kehto toolkit](https://github.com/kehto/web): the unopinionated toolkit kernl composes.
+- [Full site text](https://kernlize.github.io/llms-full.txt): every page of this site in one file.

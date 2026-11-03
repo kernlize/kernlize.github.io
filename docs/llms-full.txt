@@ -67,7 +67,7 @@ kernl is a first draft. This page says what runs, what is a contract without an 
 | --- | --- | --- |
 | Guard | `@kernl/guard` | Three profiles (`createGuardConfig`, `applyNappletRules`), envelope classification, ingress flood control with quarantine, visibility gate, focus-aware firewall over `@kehto/firewall`'s `evaluate()`, the fixed zero-network CSP, a port of kehto's unreleased nested-frame lock ([D-014](https://kernlize.github.io/docs/decisions.md#d-014)), eleven mitigation descriptions for the UI. Pure, fully specified in `packages/guard/features/`. |
 | Messaging | `@kernl/messaging` | `MessagingProvider`, `MessagingBackend`, `MessagingRegistry` with saved-preference restore, the composite backend with `provider:innerId` namespacing, `describeProvider` rows, a complete in-memory backend (`createMemoryBackend`) used by the preview and the tests, and three providers (`private`, `legacy`, `ratchet`) built with `defineProvider` from backends the shell injects. |
-| Bridges | `@kernl/bridges` | `Locator` parsing for the web schemes, `magnet:`, `nzb:`, `slsk:` and `mailto:`, the `Bridge` contract, the registry with its `authorize` hook and outcome events, a complete HTTP bridge with SSRF policy, the four backend-driven bridges up to their backend interface, `createBridgeResourceResolver` for kehto's resource service, and `describeBridge` rows. |
+| Bridges | `@kernl/bridges` | `Locator` parsing for the web schemes, `magnet:`, `nzb:`, `slsk:` and `mailto:`, the `Bridge` contract, the registry with its `authorize` hook and outcome events, a complete HTTP bridge with SSRF policy, the four backend-driven bridges up to their backend interface, `createHandoffBackends`, which serves all four by opening the locator in an app on the user's device, `createBridgeResourceResolver` for kehto's resource service, and `describeBridge` rows. |
 | Composition | `@kernl/core` | `createKernl` over one applesauce `EventStore`, `RelayPool` and `AccountManager`, with kehto's real `createShellBridge` exercised end to end in `kernl.feature`: an applet is decoded, resolved, planned and mounted, binds its port through the guarded `handleWindowMessage`, completes `shell.ready`, is answered by the theme, identity and resource services, and is quarantined and revoked when it floods. Relay tiers, the applesauce adapters, the guard pipeline and runtime firewall rules, grants over `bridge.runtime.aclState`, consent summaries, the default registries and the layouts each have their own feature file. |
 | Shell UI | `apps/web` | Landing site at `/` and the shell at `/app/`: sign-in (browser extension, remote signer, read-only, password-protected local account), open by address with the required and optional domains as choices, windows, a grants panel per window, a shell-wide guard panel with the event log, the provider picker, and the offline preview behind `?preview=1` ([D-011](https://kernlize.github.io/docs/decisions.md#d-011)), hosted at [kernlize.github.io/app/?preview=1](https://kernlize.github.io/app/?preview=1). |
 
@@ -87,14 +87,14 @@ kernl is a first draft. This page says what runs, what is a contract without an 
 
 ## What does not work yet
 
-- **Transfer backends.** `TorrentBackend`, `NzbBackend`, `SoulseekBackend` and `MailBackend` are interfaces. Without a backend the corresponding bridge reports `{ available: false, reason: 'no-backend' }`, rejects with `unavailable:no-backend`, and the shell shows that. See [Bridges](https://kernlize.github.io/docs/concepts/bridges.md#backend-driven-bridges).
+- **In-shell transfer backends.** Downloads, sharing and mail work only by hand-off: `createKernl` passes `host.openLink` to `createDefaultBridges`, so the torrent, NZB, Soulseek and mail bridges open the locator's canonical address in an app on the user's device after the user confirms leaving kernl. kernl makes no connection for these; what the device app then does on its own network is outside kernl's view and control. No backend moves the data inside the shell, and there is no downloads view. A `job` result from a hand-off is an id, not a transfer kernl can track, and it is reported even when the user declines to leave. See [Bridges](https://kernlize.github.io/docs/concepts/bridges.md#hand-off-backends).
 - **Real messaging backends.** The table above. See [Messaging](https://kernlize.github.io/docs/concepts/messaging.md).
 - **Web fetch from the browser shell, beyond the simple case.** The HTTP bridge runs in the page, so it is subject to CORS, and an opaque redirect it cannot inspect is refused with `denied:redirect-unverifiable`. Web fetch works from the shell for `https` origins that permit cross-origin reads and answer without a redirect. Hostnames are checked as literals only; no resolver is wired. See [Bridges](https://kernlize.github.io/docs/concepts/bridges.md#the-http-bridge).
 - **Per-host bridge consent.** `createKernl` builds the bridge registry with `createDefaultBridges()` and no `authorize` hook, so a `resource` request from a granted applet is checked by the HTTP bridge's SSRF policy and nothing else. A host that wants a prompt per host or scheme passes its own registry in `KernlOptions.bridges`.
 - **Per-applet guard profiles.** `GuardFacade.setProfile` rebuilds the pipeline for the whole shell and is not persisted. The per-applet, remembered override [D-003](https://kernlize.github.io/docs/decisions.md#d-003) describes is not in this draft.
-- **Mobile layouts beyond the basics.** The layouts are desktop tilings over `@kehto/wm`. At 720 px wide and below the shell switches to a compact layout: every window fills the desktop, and the bar keeps **Open** and moves the guard, messages, layout, minimised windows, settings and sign-out into a **Menu** sheet; panels open as full-width sheets. There are no gestures.
+- **Mobile layouts beyond the basics.** The layouts are desktop tilings over `@kehto/wm` ([Layouts](https://kernlize.github.io/docs/concepts/layouts.md)). At 720 px wide and below the shell switches to a compact layout: every window fills the desktop, and the bar keeps **Open** and moves the guard, messages, layout, minimised windows, settings and sign-out into a **Menu** sheet; panels open as full-width sheets. There are no gestures.
 - **Multi-account switching.** `AccountManager` holds several accounts and the sign-in panel lists them, but switching means signing out and in.
-- **Grant persistence across devices.** Grants, relay tiers and messaging preferences persist in the host's storage only. There is no sync.
+- **Grant persistence across devices.** Grants, relay tiers and messaging preferences persist in the host's storage only. There is no sync. Every key is listed in [Persistence](https://kernlize.github.io/docs/concepts/persistence.md).
 - **Packages on npm.** The `@kernl/*` packages are not published; they are used from a clone of the source repository, which is private during the alpha. See [Packages](https://kernlize.github.io/docs/packages/index.md#install).
 - **Source links in the API reference.** `typedoc.json` sets `packageOptions.disableSources: true`, so the generated reference has no "Defined in" source links. They would point at the source repository, which is private during the alpha.
 
@@ -133,6 +133,78 @@ One mitigation is carried locally rather than waiting upstream: `@kehto/shell` 0
 | `@napplet/core` | `>=0.37.0 <0.38.0` |
 
 The protocol itself is a draft. NIP-5D is [nostr-protocol/nips PR #2303](https://github.com/nostr-protocol/nips/pull/2303) and the NAP documents live at [napplet/naps](https://github.com/napplet/naps). kernl keeps no local copy of either; see [Spec conformance](https://kernlize.github.io/docs/policies/spec-conformance.md).
+
+---
+
+<!-- https://kernlize.github.io/docs/changelog.md -->
+
+# Changelog
+
+Each entry says what ships, per package and app. [Alpha status](https://kernlize.github.io/docs/alpha-status.md) is the current picture; this page is the history. Versions follow semver on 0.x: a breaking change is a minor bump.
+
+## 0.1.0 — first draft, 2026-11-03
+
+The first version of every package and of the shell. Nothing is published to npm yet; the packages are used from the source repository, which is private during the alpha ([Packages](https://kernlize.github.io/docs/packages/index.md#install)).
+
+### `@kernl/guard` 0.1.0
+
+- Three profiles, `strict`, `balanced` and `relaxed`, from `createGuardConfig`, and `applyNappletRules` for kehto's runtime firewall.
+- Envelope classification, ingress flood control with quarantine, the visibility gate, and the focus-aware firewall over `@kehto/firewall`'s `evaluate()`.
+- The fixed zero-network CSP from `createAppletCsp`, with the Trusted Types directives the frame lock needs.
+- The nested-frame lock: a port of kehto's unreleased `experimental.nestedContextLock` ([D-014](https://kernlize.github.io/docs/decisions.md#d-014)), described under Security below.
+- Eleven mitigation descriptions for the guard panel. Pure; its one dependency is `@kehto/firewall`. See [`@kernl/guard`](https://kernlize.github.io/docs/packages/guard.md).
+
+### `@kernl/messaging` 0.1.0
+
+- The `MessagingProvider`, `MessagingBackend` and `MessagingRegistry` contracts, with saved-preference restore.
+- The composite backend with `provider:innerId` namespacing, and `describeProvider` rows.
+- A complete in-memory backend, `createMemoryBackend`, used by the preview and the tests.
+- Three providers, `private`, `legacy` and `ratchet`, built with `defineProvider` from backends the host injects. No real backend ships, so all three are unavailable in the live shell. See [`@kernl/messaging`](https://kernlize.github.io/docs/packages/messaging.md).
+
+### `@kernl/bridges` 0.1.0
+
+- `parseLocator` for the web schemes, `magnet:`, `nzb:`, `slsk:` and `mailto:`, with `formatLocator` and `isNzbUrl`.
+- The `Bridge` contract, the registry with its `authorize` hook and outcome events, and `describeBridge` rows.
+- A complete HTTP bridge with an SSRF policy: `https` only, private and local destinations blocked, a byte limit on the streamed body, and opaque redirects refused in the browser.
+- The torrent, NZB, Soulseek and mail bridges, and `createHandoffBackends`, which serves all four by opening the locator's canonical address in an app on the user's device ([Bridges](https://kernlize.github.io/docs/concepts/bridges.md#hand-off-backends)).
+- `createBridgeResourceResolver` for kehto's resource service. See [`@kernl/bridges`](https://kernlize.github.io/docs/packages/bridges.md).
+
+### `@kernl/core` 0.1.0
+
+- `createKernl`, the composition root: one applesauce `EventStore`, `RelayPool` and `AccountManager` over kehto's `createShellBridge`, exercised end to end in `kernl.feature`.
+- Applet pointer decoding, manifest resolution, the mount plan and mounting.
+- Grants over `bridge.runtime.aclState`, the restrictive environment resolver, and consent summaries for destructive writes.
+- [Relay tiers](https://kernlize.github.io/docs/concepts/relay-tiers.md), [persistence](https://kernlize.github.io/docs/concepts/persistence.md) under the `kernl:` prefix with plaintext keys refused, the guard pipeline and runtime firewall rules, the default messaging and bridge registries, and four [layouts](https://kernlize.github.io/docs/concepts/layouts.md). See [`@kernl/core`](https://kernlize.github.io/docs/packages/core.md).
+
+### Shell and site (`apps/web`)
+
+- The landing site at `/` and the shell at `/app/`.
+- Sign-in with a browser extension, a remote signer, a read-only address or a password-protected local account.
+- Open an applet by address, with its required and optional domains as choices.
+- Floating and tiled windows, with a compact layout at 720 px and below.
+- A grants panel per window, the shell-wide guard panel with its event log, the provider picker, and Settings for relay tiers.
+- The offline preview behind `?preview=1` ([D-011](https://kernlize.github.io/docs/decisions.md#d-011)), hosted at [kernlize.github.io/app/?preview=1](https://kernlize.github.io/app/?preview=1).
+
+### Docs
+
+These pages, the TypeDoc API reference, `llms.txt` and a Markdown twin of every page, checked by `pnpm docs:check`: TypeDoc in strict mode, the docs audit, and every TypeScript sample compiled against the package sources.
+
+### Security
+
+The nested-frame lock ([D-014](https://kernlize.github.io/docs/decisions.md#d-014)) closes a path an independent review found: applet code could create a child frame whose fresh realm still had a working `RTCPeerConnection`, which reached a public STUN server. `@kehto/shell` 0.29.0 removes the peer-connection globals from the applet's own realm only, and CSP does not govern WebRTC. The lock has three parts:
+
+- **Static markup.** `assertAppletHasNoFrame` refuses frame, object and embed markup in the verified bytes with `denied:nested-frame` before they become a srcdoc.
+- **Creation.** `renderFrameLockScript` installs a Trusted Types `default` policy that refuses frame markup at every HTML string sink, and pins the element factories so they refuse frame tag names. It runs before any applet script.
+- **Insertion.** A second review found four creation routes past the factory pins. Because a frame only gets a realm once it is connected to the document, `appletInsertionLock` pins every DOM insertion method, including `Range.insertNode` and `Range.surroundContents`. It refuses any node that is, or contains, an HTML-namespace frame element. It reads node identity through native getters captured before applet code runs, refuses custom elements that extend frame elements, and removes `XSLTProcessor`.
+
+`tests/e2e/applet-network-sealed.spec.ts` probes every route the reviews found, and thirteen insertion routes, and sees no child realm and no candidate. The cost: every DOM insertion in an applet walks the inserted subtree once.
+
+### Corrections
+
+Recorded in [Alpha status](https://kernlize.github.io/docs/alpha-status.md#corrections), both on 2026-11-03:
+
+- **Rate enforcement.** Earlier drafts said kehto's runtime firewall refused envelopes over the profile's rates. It did not, because `applyRuntimeFirewallRules` also set each applet's runtime policy to `allow`, which passes before any rate is checked. The policy call is removed, the rates and kehto's startup burst guard now refuse before dispatch, and [D-012](https://kernlize.github.io/docs/decisions.md#d-012) is rewritten.
+- **Size caps.** The guard's size matchers were described as able to fire in the shell. The ingress guard rejects the same envelopes first, so they could not. Oversized downloads and queries were reported but still handled; they are now refused before dispatch.
 
 ---
 
@@ -403,7 +475,7 @@ The user sees a bridge before they use it, and what they see is its `BridgeExpos
 | `encryptedInTransit` | Encrypted in transit | Is the transfer encrypted on the wire? |
 | `publicActivity` | Activity visible to others | Can other participants see what the user is fetching? |
 
-`describeBridge(bridge)` returns, in order: `Used for` (the label), `Status` (`ready`, or `not available` followed by a `Reason` row with the bare reason such as `no-backend`), then the three exposure rows as `yes`/`no`. No row names a protocol. These are descriptions, not scores; like messaging providers, bridges are not ranked. See `describe.feature`.
+`describeBridge(bridge)` returns, in order: `Used for` (the label), `Status` (`ready`, or `not available` followed by a `Reason` row with the bare reason such as `no-backend`), then the three exposure rows as `yes`/`no`. A bridge whose availability is `{ available: true, handoff: true }` gets two more rows after `Status: ready`: `Handled by: an app on your device` and `Sent through kernl: no`. The exposure rows stay as they are for a hand-off bridge, because the app on the device speaks the same protocol and exposes the user the same way ([Hand-off backends](#hand-off-backends)). No row names a protocol. These are descriptions, not scores; like messaging providers, bridges are not ranked. See `describe.feature`.
 
 ## The registry and its authorize hook
 
@@ -421,7 +493,7 @@ The shell holds one `BridgeRegistry`, built with `createBridgeRegistry({ authori
 | authorise | `denied:bridge` | the bridge id |
 | resolve | whatever the bridge threw (`denied:…`, `unavailable:…`, `invalid:…`); a non-`Error` rejection is reported as its text | the bridge id |
 
-Every outcome, successful or not, is reported to `onResolve` as `{ bridge, scheme, ok, reason? }`, when the registry was given one. The composed shell gives none, so bridge outcomes reach neither the guard panel nor any other surface the user sees. The authoriser is a `BridgeAuthorizer`: `(locator, bridge, context) => boolean | Promise<boolean>`. Without one, every request is allowed. The composed shell has none: `createKernl` builds its registry with `createDefaultBridges()` and no `authorize`, so a `resource` request from an applet that holds the `resource` grant is checked by the HTTP bridge's policy and nothing else. There is no per-host consent prompt and no per-host grant in this draft ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#what-does-not-work-yet)); wiring one is on the [Roadmap](https://kernlize.github.io/docs/roadmap.md#_6-guard). A host can pass its own registry with an `authorize` hook in `KernlOptions.bridges`. See `registry.feature`.
+Every outcome, successful or not, is reported to `onResolve` as `{ bridge, scheme, ok, reason? }`, when the registry was given one. The composed shell gives none, so bridge outcomes reach neither the guard panel nor any other surface the user sees. The authoriser is a `BridgeAuthorizer`: `(locator, bridge, context) => boolean | Promise<boolean>`. Without one, every request is allowed. The composed shell has none: `createKernl` builds its registry with `createDefaultBridges({ handoff: (uri) => host.openLink(uri) })` and no `authorize`, so a `resource` request from an applet that holds the `resource` grant is checked by the HTTP bridge's policy and nothing else. There is no per-host consent prompt and no per-host grant in this draft ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#what-does-not-work-yet)); wiring one is on the [Roadmap](https://kernlize.github.io/docs/roadmap.md#_6-guard). A host can pass its own registry with an `authorize` hook in `KernlOptions.bridges`. See `registry.feature`.
 
 ## The HTTP bridge
 
@@ -459,16 +531,50 @@ A response whose `content-length` exceeds `maxBytes` fails with `denied:too-larg
 
 ## Backend-driven bridges
 
-Four bridges are complete up to the backend interface they call, and ship without a backend. Without one, `availability()` returns `{ available: false, reason: 'no-backend' }`, `describeBridge` shows `Status: not available` and `Reason: no-backend`, and `resolve()` rejects with `unavailable:no-backend`. Nothing pretends to work.
+Four bridges are complete up to the backend interface they call. Each takes its backend as an optional argument.
 
 | Bridge id | Label | Scheme | Reveals address | Encrypted in transit | Public activity | Backend interface | Call made |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `torrent` | `downloads` | `magnet` | yes | no | yes | `TorrentBackend` | `add(infoHash, trackers, context) → { id, name }` |
+| `torrent` | `downloads` | `magnet` | yes | no | yes | `TorrentBackend` | `add(infoHash, trackers, context, name?) → { id, name }` |
 | `nzb` | `downloads` | `nzb` | yes | yes | no | `NzbBackend` | `add(url, context) → { id, name }` |
 | `soulseek` | `sharing` | `slsk` | yes | no | yes | `SoulseekBackend` | `download(user, path, context) → { id, name }` |
-| `mail` | `mail` | `mailto` | no | yes | no | `MailBackend` | `open(address, subject \| undefined, context) → { id }` |
+| `mail` | `mail` | `mailto` | no | yes | no | `MailBackend` | `open(address, subject \| undefined, context, body?) → { id }` |
 
-The first three return `{ kind: 'job', id, label: name }`; the mail bridge returns `{ kind: 'conversation', id, participants: addresses }`. Fields are read from the locator before the backend is called; a locator missing one rejects with `invalid:locator-missing-<field>` (`backend-bridges.feature`, scenario "a locator missing a required field is rejected before the backend is called"). Supplying a backend is a shell change plus a docs change; see [Add a bridge backend](https://kernlize.github.io/docs/how-tos/add-a-bridge-backend.md). The order in which backends are planned is in the [Roadmap](https://kernlize.github.io/docs/roadmap.md).
+The first three return `{ kind: 'job', id, label: name }`; the mail bridge returns `{ kind: 'conversation', id, participants: addresses }`. Fields are read from the locator before the backend is called; a locator missing one rejects with `invalid:locator-missing-<field>` (`backend-bridges.feature`, scenario "a locator missing a required field is rejected before the backend is called").
+
+Every backend interface extends `BackendTraits`, whose one field is `handoff?: true`. A bridge reports:
+
+| Backend | `availability()` | `resolve()` |
+| --- | --- | --- |
+| none | `{ available: false, reason: 'no-backend' }` | rejects with `unavailable:no-backend` |
+| one that moves data itself | `{ available: true }` | calls the backend |
+| one with `handoff: true` | `{ available: true, handoff: true }` | calls the backend, which opens an app on the device |
+
+Nothing pretends to work: a bridge without a backend says so in its status and reason.
+
+### Hand-off backends
+
+`createHandoffBackends(open)` returns `{ torrent, soulseek, mail, nzb }`, one backend for each bridge, all with `handoff: true`. Each rebuilds the locator's canonical address from the fields kernl parsed, so the address it opens carries only what kernl understood, and passes it to `open` once:
+
+| Backend | Opens | Result |
+| --- | --- | --- |
+| `torrent` | `magnet:?xt=urn:btih:<infoHash>`, then `&dn=<name>` when a name was given and one `&tr=<tracker>` per tracker, each value URL-encoded. Web seeds are dropped. | job labelled with the name, else the hash |
+| `soulseek` | `slsk://<user>/<path>`, with the user and each path segment URL-encoded | job labelled with the last path segment, else the user |
+| `mail` | `mailto:<address>`, then `?subject=…&body=…` for those present | conversation with the parsed addresses |
+| `nzb` | the document's `https` URL itself, so the device's NZB client or browser takes it. A document served over plain `http` is refused with `invalid:nzb-not-https` and nothing is opened. | job labelled with the last path segment, else the host |
+
+The four share one counter, so successive hand-offs get ids `handoff:1`, `handoff:2` and so on. The backend awaits `open` before it reports the result. `HandoffOpener` is `(uri: string) => void | Promise<void>`. See `handoff-backends.feature`.
+
+`createDefaultBridges` takes an optional `handoff` opener. With one, it builds the torrent, NZB, Soulseek and mail bridges over `createHandoffBackends(handoff)`; without one, those four report `no-backend` as before. `createKernl` passes `host.openLink`, so all four are available in the live shell. The shell's `openLink` asks the user to confirm before leaving kernl ("Leave kernl and open this link?") and then opens the address in a new browsing context with `noopener,noreferrer`, which the browser hands to whatever app the device registers for the scheme. If the user declines, nothing is opened, but `openLink` does not report the refusal, so the bridge still returns its job or conversation.
+
+What the user is exposed to:
+
+- **kernl's network sees nothing.** For a hand-off, kernl makes no connection: no swarm, indexer, news server, peer or mail provider is contacted by the shell or by any applet. The address is the only thing that leaves kernl, and it leaves to the device, not to the network.
+- **The device app's behaviour is outside kernl.** The torrent client, the Soulseek client, the mail program or the NZB downloader then does what it does, with its own settings and its own network. The exposure rows describe what that protocol normally exposes, which is why they stay the same as for an in-shell backend, but kernl cannot see, limit or revoke what the app does. If no app is registered for the scheme, the browser decides what happens.
+
+### In-shell backends
+
+A backend that moves the data inside the shell, such as a WebTorrent client, replaces the hand-off backend for its bridge: build the bridge with your backend in place of the hand-off one. The bridge then reports `{ available: true }`, the `Handled by` and `Sent through kernl` rows disappear, and the traffic is the shell's. Supplying one is a shell change plus a docs change; see [Add a bridge backend](https://kernlize.github.io/docs/how-tos/add-a-bridge-backend.md). The order in which in-shell backends are planned is in the [Roadmap](https://kernlize.github.io/docs/roadmap.md#_2-bridge-backends).
 
 ## The resource resolver
 
@@ -481,6 +587,7 @@ kehto's resource service takes a `fetch(url, init)` function. `createBridgeResou
 | `invalid:locator` | `parseLocator` for anything that is not a locator or a malformed web, NZB, Soulseek or mail locator |
 | `invalid:magnet-missing-hash` | `parseLocator` for a magnet without a `urn:btih:` hash |
 | `invalid:locator-missing-<field>` | a backend-driven bridge whose locator lacks `infoHash`, `url`, `user`, `path` or `address` |
+| `invalid:nzb-not-https` | the NZB hand-off backend, for a document not served over `https` |
 | `invalid:duplicate-bridge <id>`, `invalid:scheme-taken <scheme>` | `BridgeRegistry.register` |
 | `invalid:redirect` | HTTP bridge, redirect without a usable `Location` |
 | `unavailable:no-bridge` | `BridgeRegistry.resolve`, no bridge serves the scheme |
@@ -797,6 +904,69 @@ The applet learns its own narrowed environment through `shell.init`. Without the
 
 ---
 
+<!-- https://kernlize.github.io/docs/concepts/layouts.md -->
+
+# Layouts
+
+`@kehto/wm` ships only a contract: a `LayoutStrategy` is a pure `arrange(windows, containerRect)` that returns one `WindowPlacement` (`{ id, rect }`) per window it places. Each `WindowState` it receives has an `id`, `focused`, `minimized` and a `rect` of `{ x, y, w, h }`. kehto leaves the strategies to the shell. `@kernl/core` supplies four in `packages/core/src/wm/layouts.ts`, and the shell app uses tiling of its own, described at the end of this page.
+
+## The four strategies
+
+| Export | Kind | Arrangement |
+| --- | --- | --- |
+| `floatingLayout` | constant | Every window keeps the rectangle it has, copied. Minimised windows are returned too, unchanged. |
+| `createDwindleLayout(options?)` | factory | Each window after the first takes half of the area that is left, splitting into columns, then rows, in turn, so the last window ends in the smallest corner. The last window takes all that remains. |
+| `createColumnsLayout(options?)` | factory | Equal-width columns, full height, in window order. |
+| `createMasterStackLayout(options?)` | factory | One master window on the left, the rest stacked in equal rows on the right. The focused window is the master; with no focused window, the first is. A single window fills the container. |
+
+The three tiling factories take `LayoutOptions`: `gap`, the pixels between windows and from the container edge, default `0`. `createMasterStackLayout` also takes `ratio`, the master's share of the width after the gap, default `0.6`.
+
+Rules shared by the tiling strategies:
+
+- **Minimised windows are left out.** They get no placement, so the visible windows share the whole container. A strategy given only minimised windows returns an empty list.
+- **Rectangles are rounded** to whole pixels.
+- **Order is the caller's.** Dwindle and columns place windows in the order they are passed; only master-stack looks at `focused`.
+
+`packages/core/features/layouts.feature` specifies all four.
+
+```ts
+import { createMasterStackLayout } from '@kernl/core';
+
+const layout = createMasterStackLayout({ ratio: 0.5, gap: 8 });
+const placements = layout.arrange(
+  [
+    { id: 'notes', focused: false, minimized: false, rect: { x: 0, y: 0, w: 400, h: 300 } },
+    { id: 'pulse', focused: true, minimized: false, rect: { x: 0, y: 0, w: 400, h: 300 } },
+    { id: 'clock', focused: false, minimized: true, rect: { x: 0, y: 0, w: 400, h: 300 } },
+  ],
+  { x: 0, y: 0, w: 1200, h: 800 },
+);
+// pulse is the master at { x: 8, y: 8, w: 588, h: 784 }; notes fills the stack at { x: 604, y: 8, w: 588, h: 784 }; clock is not placed
+```
+
+## How the shell lays out windows
+
+The shell app (`apps/web`) does not call the `@kernl/core` strategies. Its window store (`apps/web/src/shell/window-store.svelte.ts`) has two modes, chosen from the bar's layout control and remembered in `kernl:layout:v1` ([Persistence](https://kernlize.github.io/docs/concepts/persistence.md)):
+
+| Mode | Behaviour |
+| --- | --- |
+| `floating` (default) | Each window keeps its own rectangle. New windows cascade from near the top left in 32 px steps, and a moved or resized window, like every window when the desktop resizes, is kept inside the desktop at no less than 280 × 160 px, or the desktop's own size when that is smaller. |
+| `tiled` | The shell's own `dwindle(area, count)` in `apps/web/src/shell/layout.ts` places the windows that are neither minimised nor stopped, in opening order, with an 8 px gap between them and none at the desktop edge. It is the same arrangement as `createDwindleLayout`, written against the shell's `{ x, y, width, height }` rectangle. |
+
+At 720 px wide or less the shell is compact: every window fills the desktop, whatever the mode ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#what-does-not-work-yet)).
+
+Minimising matters beyond layout. A minimised window is hidden, and the guard watches a hidden window more closely: its resource requests are counted against the hidden-window allowance, and the visibility gate holds its first window-level message ([Guard](https://kernlize.github.io/docs/concepts/guard.md)).
+
+An embedding host that renders its own windows can pass any `LayoutStrategy`, including the four above, to whatever arranges them; the core does not hold a layout of its own.
+
+## Related
+
+- [Architecture](https://kernlize.github.io/docs/concepts/architecture.md)
+- [`@kernl/core`](https://kernlize.github.io/docs/packages/core.md)
+- [Embed kernl core](https://kernlize.github.io/docs/how-tos/embed-kernl-core.md)
+
+---
+
 <!-- https://kernlize.github.io/docs/concepts/messaging.md -->
 
 # Messaging
@@ -920,6 +1090,147 @@ An applet that uses `dm` therefore sees one inbox. Which provider carries a give
 
 ---
 
+<!-- https://kernlize.github.io/docs/concepts/persistence.md -->
+
+# Persistence
+
+kernl keeps the user's choices in the browser they made them in, and nowhere else. There is no kernl server, no sync and no account to log in to. This page lists every key kernl writes, what each holds, and what is deliberately never written.
+
+## Where values go
+
+`@kernl/core` never touches `localStorage` itself. It writes to `KernlHost.storage`, a `StorageLike` (`getItem`, `setItem`, `removeItem`) the host supplies. The shell app supplies `pickStorage()` from `apps/web/src/shell/host.ts`: `localStorage` when a probe write succeeds, otherwise a `Map` that lives as long as the page. In a private window that refuses storage, the shell still works and forgets everything on reload.
+
+Inside the core, every key goes through `createNamespacedStore(storage, 'kernl')`, which prefixes each key with `kernl:` and stores JSON:
+
+| Method | Behaviour |
+| --- | --- |
+| `getJson(key, fallback)` | Reads `kernl:<key>` and parses it. Returns `fallback` when the key is absent or the JSON is corrupt; it never throws, so a damaged value cannot stop the shell from booting. |
+| `setJson(key, value)` | Serialises and writes `kernl:<key>`. |
+| `remove(key)` | Removes `kernl:<key>`. |
+
+The prefix keeps kernl's keys apart from kehto's and from the host app's in the same storage. Every key carries a `:v1` suffix so a future format can move to `:v2` without reading the old one wrongly.
+
+## Keys the core writes
+
+| Key | Written by | Holds |
+| --- | --- | --- |
+| `kernl:accounts:v1` | `createKernlAccounts` | applesauce's `AccountManager.toJSON(true)`: the serialised accounts, minus any that cannot be serialised. Rewritten whenever the account list changes. |
+| `kernl:active-account:v1` | `createKernlAccounts` | The active account's id. Removed when no account is active. |
+| `kernl:grants:v1` | `createGrants` | One record per verified applet build, keyed `<dTag>:<hash>`: `{ dTag, hash, domains, blocked }`. See [Identity and grants](https://kernlize.github.io/docs/concepts/identity-and-grants.md). |
+| `kernl:relays:v1` | `createRelayTiers` | The four relay tiers, each a list of URLs. See [Relay tiers](https://kernlize.github.io/docs/concepts/relay-tiers.md). |
+| `kernl:messaging:v1` | `createDefaultMessaging` | `MessagingPreferences`: the `enabled` provider ids and the optional `defaultProvider`. See [Messaging](https://kernlize.github.io/docs/concepts/messaging.md). |
+
+On boot, `createKernlAccounts` restores the accounts and makes the stored id active if that account still exists. `createGrants` loads its records, and `createRelayTiers` and `createDefaultMessaging` start from the stored value when there is one.
+
+## Keys the shell app writes
+
+| Key | Written by | Holds |
+| --- | --- | --- |
+| `kernl:recent:v1` | `recent.ts`, through the host storage | The recently opened applets: up to eight `{ address, title, publisher, openedAt }`, newest first. Opening an applet moves it to the front; the launcher can forget one. |
+| `kernl:layout:v1` | `window-store.svelte.ts`, to `localStorage` directly | `floating` or `tiled`, as a plain string. A refused write is ignored and the layout applies to the current page only. See [Layouts](https://kernlize.github.io/docs/concepts/layouts.md). |
+| `kernl:preview:grants:v1`, `kernl:preview:relays:v1`, `kernl:preview:messaging:v1` | the offline preview (`?preview=1`) | The preview's own grants, tiers and messaging preferences, kept apart so that trying the preview never changes the live shell's state. |
+
+The public website also remembers its colour scheme as `kernl-theme` (`light` or `dark`). That key belongs to the site pages, not to the shell.
+
+## Keys kehto writes
+
+kernl passes no persistence hooks of its own to `createShellBridge`, so kehto uses its defaults from `@kehto/shell`, which write to `localStorage` directly rather than to `host.storage`. In `@kehto/shell` 0.29.0 those are `napplet:acl` (the runtime ACL, which `kernl:grants:v1` mirrors per applet build), `napplet:manifest-cache`, `napplet-shell-secret`, `napplet-guid:<windowId>`, and the scoped keys behind the `storage` NAP domain, where an applet's own data lives. kernl does not read or migrate these keys; their format is kehto's.
+
+## What is never persisted
+
+- **Plaintext private keys.** `KernlAccountManager.addAccount` refuses the account types whose serialised form carries a raw secret (`PLAINTEXT_KEY_ACCOUNT_TYPES`: `nsec` and `seed-words`) with `denied:plaintext-key-persistence`, and restore drops any such entry it finds in storage. The only stored form of a local key is applesauce's `PasswordAccount`, whose `ncryptsec` is NIP-49 encrypted with the user's password. The password itself is never stored.
+- **The preview account.** "Try the preview" creates a throwaway key account in a plain `AccountManager` that is not connected to storage, so it disappears on reload.
+- **The guard profile.** `GuardFacade.setProfile` changes the profile for the running shell only. Every boot starts `strict` ([D-003](https://kernlize.github.io/docs/decisions.md#d-003)).
+- **Open windows.** The window store persists only the layout. Applets are not reopened on reload; the recent list is how the user gets back to them.
+
+Some stored values are sensitive even though they are not the user's key. A browser-extension account stores only its public key, because the extension holds the secret. A remote-signer account stores what applesauce needs to reconnect: the remote signer's public key, its relays, the pairing secret when there is one, and the client key of the pairing session in hex. That client key is not the user's identity key, but anyone who reads it from this browser's storage can talk to the remote signer as this session until the user revokes the pairing in the signer.
+
+## Clearing it
+
+Signing out clears the active account and keeps the account in the list, so it can be picked again. **Forget** on the sign-in screen removes a stored account. Removing everything kernl stored means clearing the site's storage in the browser. Nothing is held anywhere else, so there is nothing else to delete.
+
+## Related
+
+- [Identity and grants](https://kernlize.github.io/docs/concepts/identity-and-grants.md)
+- [Relay tiers](https://kernlize.github.io/docs/concepts/relay-tiers.md)
+- [Alpha status](https://kernlize.github.io/docs/alpha-status.md#what-does-not-work-yet)
+
+---
+
+<!-- https://kernlize.github.io/docs/concepts/relay-tiers.md -->
+
+# Relay tiers
+
+The shell, not the applet, decides which relays a request goes to. It sorts its relays into four tiers, routes each request to one tier by the kinds it asks for, and lets the user edit every tier in Settings. Applets never name a relay for an ordinary query or publish; the one exception is a scoped relay a window opens for itself, described at the end of this page.
+
+## The four tiers
+
+kehto's `RelayConfigHooks` knows three tiers: `discovery`, `super` and `outbox`. kernl adds a fourth, `apps`, for applet manifests. The `RelayTier` type is the union of the four names.
+
+| Tier | Settings label | What it serves | Default relays (`DEFAULT_RELAY_TIERS`) |
+| --- | --- | --- | --- |
+| `discovery` | Discovery | Profiles, follow lists and relay lists (kinds `0`, `3`, `10002`) | `wss://purplepag.es`, `wss://relay.nos.social` |
+| `apps` | Applet catalogue | Applet manifests (kehto's `NAPPLET_KINDS`, `5129`, `15129` and `35129`, plus the legacy catalogue kind `32267`) | `wss://relay.napplet.soy` |
+| `outbox` | Your connections | Where what the user publishes is delivered | none |
+| `super` | General | Everything that is not discovery or manifests | `wss://relay.damus.io`, `wss://nos.lol`, `wss://relay.primal.net` |
+
+`DEFAULT_RELAY_TIERS` is exported from `@kernl/core` as a frozen `TierMap`, each tier a frozen array. The outbox tier starts empty: kernl does not guess where the user publishes.
+
+## How a request picks a tier
+
+`selectRelayTier(tiers, filters)` in `packages/core/src/applesauce/relay-hooks.ts` collects the kinds of every filter and chooses:
+
+1. If any filter has no `kinds`, or an empty `kinds`, the request cannot be classified and takes the general path.
+2. If every kind is `0`, `3` or `10002`, the request goes to the `discovery` tier.
+3. If every kind is an applet-manifest kind, the request goes to the `apps` tier.
+4. Otherwise it goes to `super` and `outbox` together.
+
+The result is deduplicated. A request that mixes a profile kind and a note kind is not split; it takes the general path as a whole.
+
+<!-- sample:skip illustrative calls; the tiers object comes from createKernl or createRelayTiers -->
+```ts
+selectRelayTier(tiers, [{ kinds: [0], authors: [pubkey] }]); // tiers.get().discovery
+selectRelayTier(tiers, [{ kinds: [35129] }]);                 // tiers.get().apps
+selectRelayTier(tiers, [{ kinds: [1] }]);                     // super, then outbox
+selectRelayTier(tiers, [{ ids: [id] }]);                      // super, then outbox: no kinds
+```
+
+The same function is used everywhere the shell picks relays on its own:
+
+- kehto's relay service asks `RelayPoolHooks.selectRelayTier`, which `createRelayPoolHooks` answers with this function.
+- kernl's applesauce relay backend (`relay-backend.ts`) uses it for a subscription or query that names no relays, and for every publish, by the published event's kind. A published profile therefore goes to the discovery tier, and a published note to `super` plus `outbox`.
+- Manifest lookups (`fetchManifestEvent`) ask the relays named in the applet's address plus the whole `apps` tier.
+- The destructive-write consent lookup, which fetches the current version of a replaceable event before the user is asked, asks `outbox` plus `discovery`.
+
+## Where the configuration lives
+
+`createRelayTiers(storage, defaults?)` builds the configuration and returns a `RelayTiers`: `get()`, `add(tier, url)`, `remove(tier, url)` and `changes$`. `createKernl` calls it with `host.storage` and `KernlOptions.relays`, and exposes it as `kernl.relays`.
+
+- **Persistence key.** The whole map is written as JSON to `kernl:relays:v1` (the key `relays:v1` in a `createNamespacedStore` with prefix `kernl`) on every change. See [Persistence](https://kernlize.github.io/docs/concepts/persistence.md).
+- **Start-up.** When `kernl:relays:v1` holds a value, each tier it names replaces the default for that tier and any tier it lacks keeps `DEFAULT_RELAY_TIERS`. The host's `KernlOptions.relays` is applied over the defaults only when nothing is persisted, so once the user has edited a tier, the host's overrides no longer apply on that device. A corrupt value reads as absent.
+- **Validation.** `add` accepts only `ws://` or `wss://` followed by non-space characters and throws `invalid:relay-url` for anything else. Adding a URL a tier already holds does nothing. `remove` of a URL the tier does not hold does nothing.
+- **Observation.** `changes$` is an RxJS `BehaviorSubject`, so a new subscriber receives the current map at once. Every value it emits is frozen.
+
+## How Settings edits them
+
+The shell's Settings panel (`apps/web/src/shell/SettingsPanel.svelte`) has a Network section with one block per tier, labelled as in the table above. It subscribes to `kernl.relays.changes$`, lists each server by name with a Remove button that calls `kernl.relays.remove`, and has a "Server address" field that calls `kernl.relays.add`. A bare hostname is given the secure scheme before it is added (`serverAddress` in `servers.ts`), so typing `relay.example` stores `wss://relay.example`. When `add` throws an `invalid:` reason the panel asks for a server address; any other failure says the server could not be added.
+
+The panel never shows the word relay or a protocol scheme to the user ([Public vocabulary](https://kernlize.github.io/docs/policies/public-vocabulary.md)). A change takes effect for the next request; subscriptions already open keep the relays they were opened with.
+
+The offline preview keeps its own tier state at `kernl:preview:relays:v1`, so editing tiers in the preview never changes the live shell's.
+
+## Scoped relays
+
+kehto lets a window open one relay of its own choosing, the NIP-29 group pattern. `createRelayPoolHooks` keeps this minimal: one open subscription per window, replaced when the window opens another, closed with the window, and events delivered to that window's port only. Publishing to the scoped relay goes to that one relay. Tiers do not apply to scoped relays.
+
+## Related
+
+- [Architecture](https://kernlize.github.io/docs/concepts/architecture.md)
+- [Persistence](https://kernlize.github.io/docs/concepts/persistence.md)
+- [`@kernl/core`](https://kernlize.github.io/docs/packages/core.md)
+
+---
+
 <!-- https://kernlize.github.io/docs/decisions.md -->
 
 # Decisions
@@ -959,7 +1270,7 @@ Format: `D-NNN · title` → Context, Decision, Consequences, Reversal cost.
 
 **Context.** Opinion three in `SOUL.md`.
 
-**Decision.** `@kernl/guard` exposes three profiles, `strict`, `balanced` and `relaxed`. The hosted shell boots in `strict`. The profile can be loosened per applet by the user through the grants panel, never by a developer flag in the hosted shell. An embedding host may choose the starting profile (`KernlOptions.guard.profile`), which changes limits only; the sandbox, the CSP, the frame lock and consent are fixed. The mitigations and their defaults are listed in `docs/concepts/guard.md` and surfaced in the UI as a readable list with reasons.
+**Decision.** `@kernl/guard` exposes three profiles, `strict`, `balanced` and `relaxed`. The hosted shell boots in `strict`. The target is that the user loosens the profile per applet; in this draft the user changes one shell-wide profile from the guard panel (see Status below), never a developer flag in the hosted shell. An embedding host may choose the starting profile (`KernlOptions.guard.profile`), which changes limits only; the sandbox, the CSP, the frame lock and consent are fixed. The mitigations and their defaults are listed in `docs/concepts/guard.md` and surfaced in the UI as a readable list with reasons.
 
 **Consequences.** Some applets will hit limits in `strict`. The guard emits an event for every rejection and deferral so the user can see what happened and decide.
 
@@ -1169,18 +1480,18 @@ pnpm site:dev
 
 # Add a bridge backend
 
-The four non-HTTP bridges are complete up to the backend interface they call. Supplying a backend turns `unavailable` into a working bridge without touching the parser or the registry, both of which the HTTP bridge already exercises. This how-to supplies a `TorrentBackend`; the others follow the same shape.
+The four non-HTTP bridges are complete up to the backend interface they call. In the composed shell each already has a backend: the hand-off backend from `createHandoffBackends`, which opens the locator in an app on the user's device and moves no data through kernl ([Bridges](https://kernlize.github.io/docs/concepts/bridges.md#hand-off-backends)). Hand-off is the default. An in-shell backend, one that does the transfer inside the shell, replaces the hand-off backend for its bridge, without touching the parser or the registry, both of which the HTTP bridge already exercises. This how-to supplies an in-shell `TorrentBackend`; the others follow the same shape.
 
 ## 1. Pick the interface
 
 | Bridge | Label | Interface | Method | Locator fields used |
 | --- | --- | --- | --- | --- |
-| `torrent` | `downloads` | `TorrentBackend` | `add(infoHash, trackers, context) → Promise<{ id, name }>` | `infoHash`, `trackers` (may be empty) |
+| `torrent` | `downloads` | `TorrentBackend` | `add(infoHash, trackers, context, name?) → Promise<{ id, name }>` | `infoHash`, `trackers` (may be empty), `name` (`undefined` when absent) |
 | `nzb` | `downloads` | `NzbBackend` | `add(url, context) → Promise<{ id, name }>` | `url` |
 | `soulseek` | `sharing` | `SoulseekBackend` | `download(user, path, context) → Promise<{ id, name }>` | `user`, `path` |
-| `mail` | `mail` | `MailBackend` | `open(address, subject, context) → Promise<{ id }>` | `address`, `subject` (`undefined` when absent) |
+| `mail` | `mail` | `MailBackend` | `open(address, subject, context, body?) → Promise<{ id }>` | `address`, `subject` and `body` (`undefined` when absent) |
 
-`context` is the `BridgeContext` the registry passes through: the requester identity (or `'shell'`), an optional `AbortSignal` and optional headers. Honour the signal when it is present. The bridge reads the fields before calling you and rejects with `invalid:locator-missing-<field>` if one is missing, so inside the backend they are guaranteed strings; `trackers` is always a list.
+`context` is the `BridgeContext` the registry passes through: the requester identity (or `'shell'`), an optional `AbortSignal` and optional headers. Honour the signal when it is present. The bridge reads the fields before calling you and rejects with `invalid:locator-missing-<field>` if one is missing, so inside the backend they are guaranteed strings; `trackers` is always a list. Leave `handoff` unset: it is the trait that tells the user the bridge opens an app on the device, and an in-shell backend does not.
 
 ## 2. Implement it outside the published packages
 
@@ -1211,41 +1522,44 @@ Return a stable `id`: it is the job's identity in the `202` body the applet rece
 
 ## 3. Hand it to the bridge
 
-`createTorrentBridge(backend?)` takes the backend as an optional argument. Without one it reports `{ available: false, reason: 'no-backend' }` and rejects every `resolve()` with `unavailable:no-backend`; with one it reports available and routes `resolve()` to `backend.add`.
+`createTorrentBridge(backend?)` takes the backend as an optional argument. Without one it reports `{ available: false, reason: 'no-backend' }` and rejects every `resolve()` with `unavailable:no-backend`; with a hand-off backend it reports `{ available: true, handoff: true }`; with yours it reports `{ available: true }` and routes `resolve()` to `backend.add`.
 
-The shell's bridges are registered by `createDefaultBridges` in `packages/core/src/bridges/default-registry.ts`, which `createKernl` calls when `KernlOptions.bridges` is absent. Its signature is `createDefaultBridges(options?: DefaultBridgesOptions)`, where the options are the registry's `authorize` and `onResolve` plus `http` for the web bridge. It takes no backends, and a registry cannot replace a bridge it already holds (a second `torrent` throws `invalid:duplicate-bridge torrent`). So a host that supplies a backend builds the same five registrations itself, with its backend in place, and passes the registry as `KernlOptions.bridges`:
+The shell's bridges are registered by `createDefaultBridges` in `packages/core/src/bridges/default-registry.ts`, which `createKernl` calls when `KernlOptions.bridges` is absent. Its options are the registry's `authorize` and `onResolve`, `http` for the web bridge, and an optional `handoff` opener; `createKernl` passes `host.openLink` as that opener, so the four bridges hand off by default. It takes no other backends, and a registry cannot replace a bridge it already holds (a second `torrent` throws `invalid:duplicate-bridge torrent`). So a host that supplies an in-shell backend builds the same five registrations itself, with its backend in place and hand-off backends for the rest, and passes the registry as `KernlOptions.bridges`:
 
 <!-- sample:continues -->
 ```ts
 import { createKernl, type KernlHost } from '@kernl/core';
 import {
   createBridgeRegistry,
+  createHandoffBackends,
   createHttpBridge,
   createMailBridge,
   createNzbBridge,
   createSoulseekBridge,
   createTorrentBridge,
   type BridgeRegistry,
+  type HandoffOpener,
 } from '@kernl/bridges';
 
 declare const host: KernlHost;
 declare const client: WebTorrentLike;
 
-export function createBridgesWithTorrent(torrent: TorrentBackend): BridgeRegistry {
+export function createBridgesWithTorrent(torrent: TorrentBackend, open: HandoffOpener): BridgeRegistry {
+  const handoff = createHandoffBackends(open);
   const registry = createBridgeRegistry({ onResolve: (event) => console.info('bridge', event) });
   registry.register(createHttpBridge());
   registry.register(createTorrentBridge(torrent));
-  registry.register(createNzbBridge());
-  registry.register(createSoulseekBridge());
-  registry.register(createMailBridge());
+  registry.register(createNzbBridge(handoff.nzb));
+  registry.register(createSoulseekBridge(handoff.soulseek));
+  registry.register(createMailBridge(handoff.mail));
   return registry;
 }
 
-const kernl = createKernl({ host, bridges: createBridgesWithTorrent(createWebTorrentBackend(client)) });
+const kernl = createKernl({ host, bridges: createBridgesWithTorrent(createWebTorrentBackend(client), (uri) => host.openLink(uri)) });
 kernl.bridges.forScheme('magnet')?.availability(); // { available: true }
 ```
 
-The web, NZB, Soulseek and mail bridges are the same as the defaults. To ship the backend inside kernl itself, change the torrent registration in `createDefaultBridges` instead.
+The web, NZB, Soulseek and mail bridges are the same as the defaults: the web bridge as before, the other three handing off through the host's confirm-before-leaving opener. To ship the backend inside kernl itself, change the torrent registration in `createDefaultBridges` instead.
 
 Check the bridge's `exposure`. The torrent bridge declares `revealsAddress: true`, `encryptedInTransit: false`, `publicActivity: true`, which is the truth for a client in a public swarm. The factory does not take an exposure argument, so if your backend changes the truth of any field (a backend that tunnels through a seedbox does not reveal the user's address), register a bridge object with the same `resolve` and a corrected `exposure`:
 
@@ -1265,14 +1579,14 @@ These three booleans are what the user reads about the bridge: `describeBridge` 
 
 ## 4. What already applies, and what does not yet
 
-`BridgeRegistry.resolve` checks `availability()`, then calls the registry's `authorize` hook if one was given, before any bridge runs; a denial rejects with `denied:bridge`. The composed shell wires no `BridgeAuthorizer`: `createKernl` uses `createDefaultBridges()` without `authorize`, so a request from an applet that holds the `resource` grant reaches your bridge without a per-request prompt. A host that wants one passes `authorize` to `createBridgeRegistry` in the sample above; a consent prompt per host in the shell is on the [Roadmap](https://kernlize.github.io/docs/roadmap.md#_6-guard) ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#what-does-not-work-yet)).
+`BridgeRegistry.resolve` checks `availability()`, then calls the registry's `authorize` hook if one was given, before any bridge runs; a denial rejects with `denied:bridge`. The composed shell wires no `BridgeAuthorizer`: `createKernl` uses `createDefaultBridges({ handoff: (uri) => host.openLink(uri) })` without `authorize`, so a request from an applet that holds the `resource` grant reaches your bridge without a per-request prompt. A host that wants one passes `authorize` to `createBridgeRegistry` in the sample above; a consent prompt per host in the shell is on the [Roadmap](https://kernlize.github.io/docs/roadmap.md#_6-guard) ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#what-does-not-work-yet)).
 
 The guard's `resource:bytes` rate and hidden-window allowance apply to `resource.*` envelopes. A `job` result reaches kehto's resource service as a `202 Accepted` JSON body through `createBridgeResourceResolver`; the applet that asked receives it. The shell has no downloads list yet, so nothing shows job state to the user; that UI is roadmap work. Every outcome is also reported to the registry's `onResolve` as a `BridgeResolveEvent`, when your registry passes one, as the sample does; the shell's default registry passes none, and no outcome reaches the guard panel.
 
 ## 5. Specify and document
 
 - `packages/bridges/features/backend-bridges.feature` already covers the contract with a fake backend: unavailable without a backend, fields handed through, missing fields rejected. Add scenarios for what your backend adds: an aborted context cancels the job; the engine's failure reasons surface unchanged.
-- Move the backend's row from "unavailable" to "available" in [Bridges](https://kernlize.github.io/docs/concepts/bridges.md#backend-driven-bridges) and strike it from the [Roadmap](https://kernlize.github.io/docs/roadmap.md).
+- Say in [Bridges](https://kernlize.github.io/docs/concepts/bridges.md#in-shell-backends) that the bridge now has an in-shell backend, and what it changes for the user, and strike it from the [Roadmap](https://kernlize.github.io/docs/roadmap.md#_2-bridge-backends).
 - Add a changeset.
 
 The slop gate and the coverage threshold apply to the backend if it lives in `packages/`. If it lives in `apps/web`, the Playwright suite in `pnpm test:e2e` covers it.
@@ -1833,7 +2147,7 @@ A shell has two jobs. It gives the user a place where their identity, relays, co
 
 > **Alpha**
 >
-> kernl is a first draft. The four packages build, the contracts are stable enough to document, and the shell runs. Several backends are contracts without implementations. Read [Alpha status](https://kernlize.github.io/docs/alpha-status.md) before depending on anything here.
+> kernl is a first draft. The four packages build, the contracts are stable enough to document, and the shell runs. Several backends are contracts without implementations, and downloads, sharing and mail work by handing off to apps on the device. Read [Alpha status](https://kernlize.github.io/docs/alpha-status.md) before depending on anything here.
 
 ## What kernl decides that kehto leaves open
 
@@ -1844,7 +2158,7 @@ kehto ships `@kehto/{acl,firewall,runtime,shell,services,nip,wm}` and deliberate
 | Event layer | [applesauce](https://applesauce.build) v7 only. One `EventStore`, one `RelayPool`, one `AccountManager` per shell. `nostr-tools` is never imported by kernl source. |
 | Containment | Opaque-origin `srcdoc` iframe, `sandbox="allow-scripts"`, zero-network CSP, every network path through a shell service the user can see, rate-limit and revoke. |
 | Mitigations | Every kehto mitigation ships on, in the `strict` [guard](https://kernlize.github.io/docs/concepts/guard.md) profile. kehto's runtime firewall refuses requests over the profile's rates and a startup burst, and refuses the oversized downloads and queries kernl measures; kernl's own layers observe every port message just before dispatch, report what they see and quarantine floods, which stops the message that crossed the limit. kehto's not-yet-released nested-frame lock is applied through a port in `@kernl/guard` ([D-014](https://kernlize.github.io/docs/decisions.md#d-014)). The hosted shell boots `strict`, and only the user loosens it there: shell-wide in this draft, reset to `strict` on every boot, per applet later. An embedding host may choose the starting profile (`KernlOptions.guard.profile`), which changes limits only; the sandbox, the CSP, the frame lock and consent are fixed. |
-| Protocols | One identity layer, many [bridges](https://kernlize.github.io/docs/concepts/bridges.md) named by what they do for the user, never by the wire format. |
+| Protocols | One identity layer, many [bridges](https://kernlize.github.io/docs/concepts/bridges.md) named by what they do for the user, never by the wire format. Web fetch runs in the shell behind an SSRF policy. Downloads, sharing and mail hand the address to an app on the user's device after the user confirms leaving kernl: kernl connects to nothing for them, and the device app's own network behaviour is outside kernl. |
 | Messaging | Any reasonable private-messaging protocol, exposed through one contract. [Providers](https://kernlize.github.io/docs/concepts/messaging.md) describe their security properties truthfully and the shell does not rank them. No real backend ships in this alpha: the live shell supplies none, so every provider is unavailable there, and the preview runs them over the in-memory backend. |
 
 kernl does not fork kehto ([D-001](https://kernlize.github.io/docs/decisions.md#d-001)). When kehto lacks a hook kernl needs, kernl composes around it and takes the gap upstream. The four gaps found so far, still to be filed upstream, are listed in [Alpha status](https://kernlize.github.io/docs/alpha-status.md#upstream-gaps).
@@ -1861,13 +2175,14 @@ kernl does not fork kehto ([D-001](https://kernlize.github.io/docs/decisions.md#
 
 | Section | What you find there |
 | --- | --- |
-| [Concepts](https://kernlize.github.io/docs/concepts/architecture.md) | Why the shell is shaped the way it is: layering, guard, identity, messaging, bridges, and what an applet meets. |
+| [Concepts](https://kernlize.github.io/docs/concepts/architecture.md) | Why the shell is shaped the way it is: layering, guard, identity, messaging, bridges, [relay tiers](https://kernlize.github.io/docs/concepts/relay-tiers.md), [persistence](https://kernlize.github.io/docs/concepts/persistence.md), [layouts](https://kernlize.github.io/docs/concepts/layouts.md), and what an applet meets. |
 | [Tutorials](https://kernlize.github.io/docs/tutorials/run-the-shell.md) | End-to-end walkthroughs that leave you with something running. |
 | [How-tos](https://kernlize.github.io/docs/how-tos/index.md) | One task each, with the exact calls. |
 | [Troubleshooting](https://kernlize.github.io/docs/guides/troubleshooting.md) | Failures people hit with this draft, and their fixes. |
 | [Packages](https://kernlize.github.io/docs/packages/index.md) | One page per package: version, install, exports, scope. |
 | [API reference](https://kernlize.github.io/docs/reference/api.md) and [error reasons](https://kernlize.github.io/docs/reference/errors.md) | Generated from source JSDoc by TypeDoc; every reason string the packages throw. |
 | [Decisions](https://kernlize.github.io/docs/decisions.md) | The `D-NNN` decision log these pages cite. |
+| [Changelog](https://kernlize.github.io/docs/changelog.md) | What each release ships, per package and app, with its security changes and corrections. |
 | [Policies](https://kernlize.github.io/docs/policies/index.md) | Rules the repository enforces mechanically: vocabulary, security posture, spec conformance. |
 
 Protocol vocabulary is used freely in these pages because they are written for developers. The public website and the shell UI follow a different rule, described in [Public vocabulary](https://kernlize.github.io/docs/policies/public-vocabulary.md).
@@ -1884,7 +2199,7 @@ kernl is free software under the MIT licence. Every package and the shell cost $
 
 # @kernl/bridges
 
-Locator parsing, the bridge contract, the registry that routes and authorises, an HTTP bridge with an SSRF policy, four backend-driven bridges for downloads, sharing and mail, the adapter that feeds a resource service, and user-facing descriptions. Zero dependencies.
+Locator parsing, the bridge contract, the registry that routes and authorises, an HTTP bridge with an SSRF policy, four backend-driven bridges for downloads, sharing and mail, hand-off backends that open an app on the user's device, the adapter that feeds a resource service, and user-facing descriptions. Zero dependencies.
 
 | Field | Value |
 | --- | --- |
@@ -1905,7 +2220,7 @@ Locator parsing, the bridge contract, the registry that routes and authorises, a
 
 ## Purpose
 
-A bridge resolves a protocol-specific locator to bytes, a job or a conversation on the user's behalf, behind the same grant and quota as everything else (the composed shell wires no per-request consent), and is named by what it does rather than by its protocol. The HTTP bridge is complete; the torrent, NZB, Soulseek and mail bridges are complete up to the backend interface they call and report `unavailable` until one is supplied. The concepts are in [Bridges](https://kernlize.github.io/docs/concepts/bridges.md); the opinion is [D-010](https://kernlize.github.io/docs/decisions.md#d-010).
+A bridge resolves a protocol-specific locator to bytes, a job or a conversation on the user's behalf, behind the same grant and quota as everything else (the composed shell wires no per-request consent), and is named by what it does rather than by its protocol. The HTTP bridge is complete. The torrent, NZB, Soulseek and mail bridges are complete up to the backend interface they call; `createHandoffBackends` supplies all four by handing the locator to an app on the user's device, and without any backend they report `unavailable`. The concepts are in [Bridges](https://kernlize.github.io/docs/concepts/bridges.md); the opinion is [D-010](https://kernlize.github.io/docs/decisions.md#d-010).
 
 ## Exports
 
@@ -1926,7 +2241,7 @@ A bridge resolves a protocol-specific locator to bytes, a job or a conversation 
 | `BridgeContext` | interface | `{ requester: { dTag; hash } \| 'shell'; signal?: AbortSignal; headers?: Readonly<Record<string, string>> }`. |
 | `BridgeResult` | union | `{ kind: 'bytes'; response: Response }`, `{ kind: 'job'; id; label }` or `{ kind: 'conversation'; id; participants: readonly string[] }`. |
 | `BridgeExposure` | interface | `{ revealsAddress; encryptedInTransit; publicActivity }`, three booleans `describeBridge` renders for the user in the shell settings. |
-| `BridgeAvailability` | union | `{ available: true }` or `{ available: false; reason: string }`. The reason is a bare word such as `no-backend`. |
+| `BridgeAvailability` | union | `{ available: true; handoff?: true }` or `{ available: false; reason: string }`. `handoff` is set when resolving opens an app on the user's device instead of kernl moving the data. The reason is a bare word such as `no-backend`. |
 | `BridgeAuthorizer` | type | `(locator, bridge, context) => boolean \| Promise<boolean>`; the registry's consent hook. The composed shell supplies none in this draft. |
 
 ### Registry
@@ -1957,12 +2272,23 @@ A bridge resolves a protocol-specific locator to bytes, a job or a conversation 
 | `createNzbBridge` | `(backend?: NzbBackend) => Bridge` | Id `nzb`, label `downloads`, scheme `nzb`. Exposure: reveals address, encrypted, not public. |
 | `createSoulseekBridge` | `(backend?: SoulseekBackend) => Bridge` | Id `soulseek`, label `sharing`, scheme `slsk`. Exposure: reveals address, not encrypted, public activity. |
 | `createMailBridge` | `(backend?: MailBackend) => Bridge` | Id `mail`, label `mail`, scheme `mailto`. Exposure: does not reveal address, encrypted, not public. |
-| `TorrentBackend` | interface | `add(infoHash: string, trackers: readonly string[], context: BridgeContext): Promise<{ id: string; name: string }>`. |
+| `BackendTraits` | interface | `{ handoff?: true }`. Every backend interface extends it; a hand-off backend sets it, and its bridge then reports `{ available: true, handoff: true }`. |
+| `TorrentBackend` | interface | `add(infoHash: string, trackers: readonly string[], context: BridgeContext, name?: string): Promise<{ id: string; name: string }>`. `name` is the magnet's display name when it has one. |
 | `NzbBackend` | interface | `add(url: string, context: BridgeContext): Promise<{ id: string; name: string }>`. |
 | `SoulseekBackend` | interface | `download(user: string, path: string, context: BridgeContext): Promise<{ id: string; name: string }>`. |
-| `MailBackend` | interface | `open(address: string, subject: string \| undefined, context: BridgeContext): Promise<{ id: string }>`. |
+| `MailBackend` | interface | `open(address: string, subject: string \| undefined, context: BridgeContext, body?: string): Promise<{ id: string }>`. |
 
 Without a backend each of the four reports `{ available: false, reason: 'no-backend' }` and `resolve()` rejects with `unavailable:no-backend`. A locator missing a field the backend needs rejects with `invalid:locator-missing-<field>` before the backend is called.
+
+### Hand-off backends
+
+| Export | Signature | Description |
+| --- | --- | --- |
+| `createHandoffBackends` | `(open: HandoffOpener) => HandoffBackends` | One backend per bridge, each with `handoff: true`. Each rebuilds the canonical address from the parsed fields (a `magnet:` link with hash, name and trackers; an `slsk://` address; a `mailto:` address with subject and body; the NZB document's `https` URL) and passes it to `open` once. Ids come from one shared counter, `handoff:1`, `handoff:2`, and so on. The NZB backend throws `invalid:nzb-not-https` for a document not served over `https`. |
+| `HandoffOpener` | type | `(uri: string) => void \| Promise<void>`. The shell passes `host.openLink`, which asks the user before leaving kernl. |
+| `HandoffBackends` | interface | `{ torrent: TorrentBackend; soulseek: SoulseekBackend; mail: MailBackend; nzb: NzbBackend }`. |
+
+A hand-off makes no connection from kernl; the app on the device does the transfer with its own network, which kernl cannot see or limit. See [Bridges](https://kernlize.github.io/docs/concepts/bridges.md#hand-off-backends).
 
 ### Resource resolver
 
@@ -1977,13 +2303,13 @@ Without a backend each of the four reports `{ available: false, reason: 'no-back
 
 | Export | Signature | Description |
 | --- | --- | --- |
-| `describeBridge` | `(bridge: Bridge) => readonly DescriptionRow[]` | Rows for the user: `Used for`, `Status` (`ready` or `not available` plus a `Reason` row), `Shares your network address`, `Encrypted in transit`, `Activity visible to others`. No row names a protocol. |
+| `describeBridge` | `(bridge: Bridge) => readonly DescriptionRow[]` | Rows for the user: `Used for`, `Status` (`ready` or `not available` plus a `Reason` row; a hand-off bridge adds `Handled by: an app on your device` and `Sent through kernl: no`), `Shares your network address`, `Encrypted in transit`, `Activity visible to others`. No row names a protocol. |
 | `DescriptionRow` | interface | `{ label: string; value: string }`. |
 
 ## Example
 
 ```ts
-import { createBridgeRegistry, createBridgeResourceResolver, createHttpBridge, createTorrentBridge, formatLocator, type ResourceResolveInit } from '@kernl/bridges';
+import { createBridgeRegistry, createBridgeResourceResolver, createHandoffBackends, createHttpBridge, createTorrentBridge, formatLocator, type ResourceResolveInit } from '@kernl/bridges';
 
 declare const lookupAddresses: (host: string) => Promise<string[]>; // the shell's DNS lookup
 declare const identityFor: (init: ResourceResolveInit) => { dTag: string; hash: string } | 'shell'; // the shell's window-to-identity map
@@ -1993,7 +2319,10 @@ const registry = createBridgeRegistry({
   onResolve: (event) => console.log(event),
 });
 registry.register(createHttpBridge({ resolveHost: lookupAddresses }));
-registry.register(createTorrentBridge()); // unavailable until a TorrentBackend is supplied
+const handoff = createHandoffBackends((uri) => {
+  if (confirm(`Leave and open ${uri}?`)) window.open(uri, '_blank', 'noopener,noreferrer');
+});
+registry.register(createTorrentBridge(handoff.torrent)); // { available: true, handoff: true }
 
 const result = await registry.resolve('https://example.com/file.bin', { requester: 'shell' });
 if (result.kind === 'bytes') result.response.status;
@@ -2004,14 +2333,14 @@ const fetchLike = createBridgeResourceResolver(registry, { requesterFor: (init) 
 
 ## Scope
 
-- Does not implement any transfer protocol. Backends live in the shell app or in packages of their own.
+- Does not implement any transfer protocol. The hand-off backends only build an address and open it; backends that move data live in the shell app or in packages of their own.
 - Does not prompt. Consent is a `BridgeAuthorizer` the host can supply to the registry; `createKernl`'s default registry has none.
 - Does not apply the guard. Rate limits and the hidden-window allowance run in `@kernl/guard` before a request reaches the registry.
 - Does not know about NAP envelopes. `@kernl/core` maps `resource.*` requests onto `createBridgeResourceResolver(registry)`.
 
 ## Specification
 
-`packages/bridges/features/`: `locators.feature`, `registry.feature`, `http-bridge.feature`, `backend-bridges.feature`, `resource-resolver.feature`, `describe.feature`.
+`packages/bridges/features/`: `locators.feature`, `registry.feature`, `http-bridge.feature`, `backend-bridges.feature`, `handoff-backends.feature`, `resource-resolver.feature`, `describe.feature`.
 
 ## API reference
 
@@ -2941,9 +3270,10 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 | `invalid:locator` | `@kernl/bridges` | `parseLocator` | Not a locator, or a malformed web, NZB, Soulseek or mail locator. |
 | `invalid:magnet-missing-hash` | `@kernl/bridges` | `parseLocator` | A magnet without a `urn:btih:` hash. |
 | `invalid:locator-missing-<field>` | `@kernl/bridges` | the torrent, NZB, Soulseek and mail bridges | The locator lacks `infoHash`, `url`, `user`, `path` or `address`. |
+| `invalid:nzb-not-https` | `@kernl/bridges` | the NZB backend from `createHandoffBackends` | The NZB document is not served over `https`, so it is not handed off and nothing is opened. |
 | `invalid:duplicate-bridge <id>`, `invalid:scheme-taken <scheme>` | `@kernl/bridges` | `BridgeRegistry.register` | A bridge with this id, or one serving this scheme, is already registered. |
 | `unavailable:no-bridge` | `@kernl/bridges` | `BridgeRegistry.resolve` | No bridge serves the scheme. |
-| `unavailable:no-backend` | `@kernl/bridges` | the four backend-driven bridges | The bridge was created without a backend. `availability().reason` is the bare `no-backend`. |
+| `unavailable:no-backend` | `@kernl/bridges` | the four backend-driven bridges | The bridge was created without a backend. `availability().reason` is the bare `no-backend`. In the composed shell the four have hand-off backends; a registry built from `createDefaultBridges()` without a `handoff` opener reports this. |
 | `denied:bridge` | `@kernl/bridges` | `BridgeRegistry.resolve` | The registry's `authorize` hook returned false. The composed shell has none. |
 | `denied:scheme <protocol>` | `@kernl/bridges` | HTTP bridge | The URL's scheme is not in `allowedSchemes`. |
 | `denied:private-address <host>`, `denied:private-address <host> -> <ip>` | `@kernl/bridges` | HTTP bridge | The host is a blocked name or a private literal; the second form comes from a `resolveHost` result. |
@@ -3007,16 +3337,16 @@ None is filed yet. Each item shrinks kernl when it lands; see [Alpha status](htt
 
 ## 2. Bridge backends
 
-Each backend plugs into the path the HTTP bridge already exercises end to end. Order reflects how much of the user's exposure each one changes; see [Bridges](https://kernlize.github.io/docs/concepts/bridges.md).
+Today the torrent, NZB, Soulseek and mail bridges hand the locator to an app on the user's device ([Bridges](https://kernlize.github.io/docs/concepts/bridges.md#hand-off-backends)). An in-shell backend replaces the hand-off for its bridge and plugs into the path the HTTP bridge already exercises end to end. In-shell transfers would put the traffic under the shell's grants, guard and revocation, and would also make it the shell's to expose, so each needs its exposure description checked. Order reflects how much of the user's exposure each one changes.
 
 | Backend | Interface | Notes |
 | --- | --- | --- |
-| Mail | `MailBackend` | Opens or creates a conversation for a `mailto:` locator. Candidate for a shell-side IMAP/JMAP client or a hand-off to a configured mail account. |
-| NZB | `NzbBackend` | Hands an `nzb:` locator to a configured downloader. The downloader runs outside the browser; the bridge reports job state. |
-| Torrent | `TorrentBackend` | Adds an info hash with its trackers. WebTorrent in the shell, or a configured external client. Marked as public activity in the exposure description. |
-| Soulseek | `SoulseekBackend` | Requests one file from one peer. Requires a daemon; the bridge reports job state. |
+| Mail | `MailBackend` | Opens or creates a conversation for a `mailto:` locator inside the shell. Candidate for a shell-side IMAP/JMAP client. Today the device's mail program opens. |
+| NZB | `NzbBackend` | Hands an `nzb:` locator to a configured downloader the shell can query. The downloader runs outside the browser; the bridge reports job state. Today the `https` document URL opens on the device. |
+| Torrent | `TorrentBackend` | Adds an info hash with its trackers. WebTorrent in the shell, or a configured external client the shell can query. Marked as public activity in the exposure description. Today the magnet link opens on the device. |
+| Soulseek | `SoulseekBackend` | Requests one file from one peer. Requires a daemon; the bridge reports job state. Today the `slsk://` address opens on the device. |
 
-The shell also needs a downloads view that shows the state of each `job` result and lets the user cancel it; there is none today.
+The shell also needs a downloads view that shows the state of each `job` result and lets the user cancel it; there is none today. A hand-off job cannot be tracked at all, because the transfer belongs to the device app.
 
 ## 3. Messaging
 

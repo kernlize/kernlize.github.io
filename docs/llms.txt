@@ -9,6 +9,7 @@ Markdown twins of every docs page, served at the HTML path with `.md` instead of
 - [kernl](https://kernlize.github.io/docs/index.md): kernl is an opinionated shell for sandboxed web applets.
 - [Alpha status](https://kernlize.github.io/docs/alpha-status.md): kernl is a first draft.
 - [Roadmap](https://kernlize.github.io/docs/roadmap.md): Ordered by the tie-breakers in SOUL.md: the user's safety and agency first, protocol conformance second, the applet developer's ability to build third.
+- [Changelog](https://kernlize.github.io/docs/changelog.md): Each entry says what ships, per package and app.
 - [Agent access](https://kernlize.github.io/docs/agent-access.md): How an AI agent should read these docs.
 - [Decisions](https://kernlize.github.io/docs/decisions.md): The architecture decisions behind kernl, one entry per D-NNN.
 
@@ -19,6 +20,9 @@ Markdown twins of every docs page, served at the HTML path with `.md` instead of
 - [Identity and grants](https://kernlize.github.io/docs/concepts/identity-and-grants.md): An applet is not a name.
 - [Messaging](https://kernlize.github.io/docs/concepts/messaging.md): No encrypted messaging protocol is inherently superior.
 - [Bridges](https://kernlize.github.io/docs/concepts/bridges.md): Nostr is kernl's identity and resolution layer.
+- [Relay tiers](https://kernlize.github.io/docs/concepts/relay-tiers.md): The shell, not the applet, decides which relays a request goes to.
+- [Persistence](https://kernlize.github.io/docs/concepts/persistence.md): kernl keeps the user's choices in the browser they made them in, and nowhere else.
+- [Layouts](https://kernlize.github.io/docs/concepts/layouts.md): @kehto/wm ships only a contract: a LayoutStrategy is a pure arrange(windows, containerRect) that returns one WindowPlacement ({ id, rect }) per window it places.
 - [Applets under kernl](https://kernlize.github.io/docs/concepts/applets-under-kernl.md): kernl adds nothing to the applet format.
 
 ## Tutorials
@@ -46,7 +50,7 @@ Markdown twins of every docs page, served at the HTML path with `.md` instead of
 - [Packages](https://kernlize.github.io/docs/packages/index.md): kernl has four packages under the @kernl scope, not yet published to npm (see Install).
 - [@kernl/guard](https://kernlize.github.io/docs/packages/guard.md): Ingress flood control, visibility gating, focus-aware firewall, CSP profile and nested-frame lock for the kernl shell.
 - [@kernl/messaging](https://kernlize.github.io/docs/packages/messaging.md): Messaging provider contract, registry, composite direct-message backend and an in-memory backend for the kernl shell.
-- [@kernl/bridges](https://kernlize.github.io/docs/packages/bridges.md): Locator parsing, the bridge contract, the registry that routes and authorises, an HTTP bridge with an SSRF policy, four backend-driven bridges for downloads, sharing and mail, the adapter that feed…
+- [@kernl/bridges](https://kernlize.github.io/docs/packages/bridges.md): Locator parsing, the bridge contract, the registry that routes and authorises, an HTTP bridge with an SSRF policy, four backend-driven bridges for downloads, sharing and mail, hand-off backends tha…
 - [@kernl/core](https://kernlize.github.io/docs/packages/core.md): Opinionated shell composition over kehto and applesauce.
 
 ## Reference

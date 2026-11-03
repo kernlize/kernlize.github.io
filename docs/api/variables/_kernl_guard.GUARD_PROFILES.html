@@ -13,8 +13,14 @@
 <h1>Variable GUARD_PROFILES<code class="tsd-tag">Const</code></h1></div>
 <div class="tsd-signature"><span class="tsd-kind-variable">GUARD_PROFILES</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-keyword">readonly</span> <a href="../types/_kernl_guard.GuardProfile.html" class="tsd-signature-type tsd-kind-type-alias">GuardProfile</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol"> = ...</span></div>
 <div class="tsd-comment tsd-typography"><p>Every profile, tightest first. <code>strict</code> is the shell default (D-003); the
-other two exist so a user can loosen one applet from the grants panel.</p>
-</div></div>
+other two let a user loosen the whole shell from the guard panel.</p>
+</div>
+<div class="tsd-comment tsd-typography">
+<div class="tsd-tag-example">
+<h4 class="tsd-anchor-link" id="example">Example<a href="#example" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="ts"><span class="hl-0">GUARD_PROFILES</span><span class="hl-1">; </span><span class="hl-3">// [&#39;strict&#39;, &#39;balanced&#39;, &#39;relaxed&#39;]</span><br/><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-0">configs</span><span class="hl-1"> = </span><span class="hl-0">GUARD_PROFILES</span><span class="hl-1">.</span><span class="hl-5">map</span><span class="hl-1">((</span><span class="hl-2">profile</span><span class="hl-1">) </span><span class="hl-4">=&gt;</span><span class="hl-1"> </span><span class="hl-5">createGuardConfig</span><span class="hl-1">(</span><span class="hl-2">profile</span><span class="hl-1">));</span>
+</code><button type="button">Copy</button></pre>
+
+</div></div></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">

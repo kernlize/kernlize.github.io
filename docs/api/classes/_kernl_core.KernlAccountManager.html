@@ -14,8 +14,14 @@
 <section class="tsd-panel tsd-comment">
 <div class="tsd-comment tsd-typography"><p>An <code>AccountManager</code> that refuses accounts whose persistence would write a
 plaintext key, and persists the rest to kernl's storage.</p>
-</div></section>
-<section class="tsd-panel tsd-hierarchy" data-refl="2007">
+</div>
+<div class="tsd-comment tsd-typography">
+<div class="tsd-tag-example">
+<h4 class="tsd-anchor-link" id="example">Example<a href="#example" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="ts"><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-0">manager</span><span class="hl-1"> = </span><span class="hl-4">new</span><span class="hl-1"> </span><span class="hl-5">KernlAccountManager</span><span class="hl-1">();</span><br/><span class="hl-2">manager</span><span class="hl-1">.</span><span class="hl-5">addAccount</span><span class="hl-1">(</span><span class="hl-2">PasswordAccount</span><span class="hl-1">.</span><span class="hl-5">fromNcryptsec</span><span class="hl-1">(</span><span class="hl-2">pubkey</span><span class="hl-1">, </span><span class="hl-2">ncryptsec</span><span class="hl-1">));</span><br/><span class="hl-2">manager</span><span class="hl-1">.</span><span class="hl-5">addAccount</span><span class="hl-1">(</span><span class="hl-2">PrivateKeyAccount</span><span class="hl-1">.</span><span class="hl-5">fromKey</span><span class="hl-1">(</span><span class="hl-2">secretKey</span><span class="hl-1">)); </span><span class="hl-3">// throws &#39;denied:plaintext-key-persistence&#39;</span>
+</code><button type="button">Copy</button></pre>
+
+</div></div></section>
+<section class="tsd-panel tsd-hierarchy" data-refl="2050">
 <h4>Hierarchy</h4>
 <ul class="tsd-hierarchy">
 <li class="tsd-hierarchy-item"><span class="tsd-signature-type">AccountManager</span>

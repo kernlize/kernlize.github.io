@@ -1,8 +1,8 @@
 # Named by what they do for you.
 
-> Bridges let kernl reach other networks for you. Web fetch works today; downloads, sharing and mail have their contracts in place and wait for their backends.
+> Bridges let kernl reach other networks for you. Web fetch works today; downloads, sharing and mail work by handing off to an app on your device. In-shell backends are planned.
 
-A bridge is a service the shell owns that turns a link into bytes or a conversation on another network. An applet never talks to the other network itself; it asks the shell, and the shell answers. **In this alpha there is no consent prompt for bridges yet**: web fetch refuses private and local addresses by policy, and the other bridges are not connected to anything.
+A bridge is a service the shell owns that turns a link into bytes or a conversation on another network. An applet never talks to the other network itself; it asks the shell, and the shell answers. **In this alpha web fetch has no consent prompt yet** and refuses private and local addresses by policy. Downloads, sharing and mail hand the link to an app on your device, and the shell asks you before it leaves kernl.
 
 ## What works today, and what is waiting.
 
@@ -12,25 +12,25 @@ A bridge is a service the shell owns that turns a link into bytes or a conversat
 
 Fetches a web address for an applet, through the shell, with a policy that refuses private and local addresses so an applet cannot use you to look inside your own network.
 
-*Needs a backend*
+*Hands off to your device*
 
 ### Downloads
 
-Understands the links people already share for large files and newsgroup posts. The parsing and the contract exist; the part that actually moves bytes does not yet.
+Understands the links people already share for large files and newsgroup posts, and hands each one to the download app on your device after asking you. kernl itself moves no bytes for it; an in-shell backend is planned.
 
-*Needs a backend*
+*Hands off to your device*
 
 ### Sharing
 
-Person-to-person file sharing between people who choose each other. Same story: the contract is in place and tested, the backend is on the roadmap.
+Person-to-person file sharing between people who choose each other. The shell opens the sharing app on your device with the file the link names; an in-shell backend is on the roadmap.
 
-*Needs a backend*
+*Hands off to your device*
 
 ### Mail
 
-Turns a mail link into a conversation. The locator is parsed and the contract is defined; sending and receiving wait for a backend you would run or trust.
+Turns a mail link into a new message in the mail app on your device, with the subject and text the link carries. Sending and receiving inside the shell wait for a backend you would run or trust.
 
-A bridge without a backend reports itself as unavailable, and the shell shows exactly that. It will not pretend, and an applet cannot tell the difference between "unavailable" and "you said no".
+Handing off is honest about what happens: the app on your device does the transfer, so what that app shares with the other side is what Settings lists for the bridge, and nothing goes through kernl's own connections. Where no app is set up, nothing opens. A bridge with nothing to hand off to reports itself as unavailable, and an applet cannot tell the difference between "unavailable" and "you said no".
 
 ## Every bridge, the same way.
 

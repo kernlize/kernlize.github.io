@@ -45,7 +45,7 @@ It is built on [kehto](https://github.com/kehto/web), an open toolkit that leave
 
 ## Alpha, and said so.
 
-kernl is alpha software. The sandbox and the guard work today. Private messaging providers are described and you can choose one, and sending works in the preview; the real messaging backends are not connected yet. Bridges for downloads, sharing and mail have their contracts in place and wait for backends too. The shell shows anything without a backend as unavailable rather than pretending.
+kernl is alpha software. The sandbox and the guard work today. Private messaging providers are described and you can choose one, and sending works in the preview; the real messaging backends are not connected yet. Downloads, sharing and mail work by handing off to an app on your device; in-shell backends are planned. The shell shows anything it cannot do as unavailable rather than pretending.
 
 Applets are verified by content hash before they run and re-checked on every read from cache. If the bytes change, the applet's grants die with them.
 
@@ -95,4 +95,4 @@ Yes. The preview runs the whole shell in your browser with sample applets and a 
 
 ### Is it ready for daily use?
 
-Not yet. kernl is alpha software. The sandbox and the guard work. Private messaging is half done: the shell describes each provider and lets you pick one, and sending works in the preview, but the real backends are not connected yet. Downloads, sharing and mail are waiting for their backends too, and the shell says so.
+Not yet. kernl is alpha software. The sandbox and the guard work. Private messaging is half done: the shell describes each provider and lets you pick one, and sending works in the preview, but the real backends are not connected yet. Downloads, sharing and mail work by handing off to an app on your device, after the shell asks you; in-shell backends are planned.

@@ -11,9 +11,16 @@
 <li><a href="../modules/_kernl_bridges.html">@kernl/bridges</a></li>
 <li><a href="" aria-current="page">BridgeAvailability</a></li></ul>
 <h1>Type Alias BridgeAvailability</h1></div>
-<div class="tsd-signature"><span class="tsd-kind-type-alias">BridgeAvailability</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">available</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">true</span> <span class="tsd-signature-symbol">}</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">available</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">false</span><span class="tsd-signature-symbol">;</span> <span class="tsd-kind-property">reason</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span> <span class="tsd-signature-symbol">}</span></div>
+<div class="tsd-signature"><span class="tsd-kind-type-alias">BridgeAvailability</span><span class="tsd-signature-symbol">:</span><br/>    <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">available</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">true</span><span class="tsd-signature-symbol">;</span> <span class="tsd-kind-property">handoff</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">true</span> <span class="tsd-signature-symbol">}</span><br/>    <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">available</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">false</span><span class="tsd-signature-symbol">;</span> <span class="tsd-kind-property">reason</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span> <span class="tsd-signature-symbol">}</span></div>
 <div class="tsd-comment tsd-typography"><p>Why a bridge cannot serve right now.</p>
-</div></div>
+</div>
+<div class="tsd-type-declaration">
+<h4>Type Declaration</h4>
+<ul>
+<li><span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">available</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">true</span><span class="tsd-signature-symbol">;</span> <span class="tsd-kind-property">handoff</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">true</span> <span class="tsd-signature-symbol">}</span>
+<div class="tsd-comment tsd-typography"><p><code>handoff</code> is true when resolving opens an app on the user's device instead of kernl doing the transfer.</p>
+</div></li>
+<li><span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">available</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">false</span><span class="tsd-signature-symbol">;</span> <span class="tsd-kind-property">reason</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span> <span class="tsd-signature-symbol">}</span></li></ul></div></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">

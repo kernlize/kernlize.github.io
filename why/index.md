@@ -39,7 +39,7 @@ When the toolkit offers a privacy or safety mitigation, kernl turns it on, in it
 
 ## One account, many networks, no brand names.
 
-Your account is how you are known, how applets are found and verified, and how you reach other people. It is not the only network kernl speaks. Downloads, sharing and mail are meant to plug in as [bridges](https://kernlize.github.io/bridges/). Today only web fetch works; the others wait for backends, and there is no consent prompt or per-applet allowance for bridges yet.
+Your account is how you are known, how applets are found and verified, and how you reach other people. It is not the only network kernl speaks. Downloads, sharing and mail are meant to plug in as [bridges](https://kernlize.github.io/bridges/). Today web fetch works inside the shell, and downloads, sharing and mail work by handing off to an app on your device after the shell asks you; in-shell backends are planned. There is no per-applet allowance for bridges yet.
 
 - Bridges are named by what they do for you, not by the wire format they speak.
 - This site does not name protocols. The protocol is the plumbing. The person is the point.
