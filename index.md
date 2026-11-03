@@ -12,7 +12,7 @@ Pass, slow down, or cut off. Each line is a decision you can see.
 
 ### A window of its own
 
-Each applet runs in a sealed frame with no address of its own and no way to call out. It can draw and compute; it cannot reach anything you did not hand it.
+Each applet runs in a sealed frame with no address of its own and no way to call out, and it cannot open a frame of its own inside it. It can draw and compute; it cannot reach anything you did not hand it.
 
 *Borrowed*
 
@@ -24,7 +24,7 @@ Contacts, messages, files and your account are read by the shell on the applet's
 
 ### A network it reaches through you
 
-Everything an applet sends or fetches goes through the guard, which records what it refuses, reports and stops. You can block an applet, take back any grant, or make the guard stricter for the whole shell, at any time.
+Everything an applet sends or fetches goes through the shell. The guard shows you what it reports, refuses or quarantines; some refusals made deeper inside the shell are not listed yet. You can block an applet, take back any grant, or make the guard stricter for the whole shell, at any time.
 
 ## kernl is opinionated so you don't have to be.
 

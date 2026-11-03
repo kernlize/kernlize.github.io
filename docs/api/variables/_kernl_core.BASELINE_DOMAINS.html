@@ -13,7 +13,9 @@
 <h1>Variable BASELINE_DOMAINS<code class="tsd-tag">Const</code></h1></div>
 <div class="tsd-signature"><span class="tsd-kind-variable">BASELINE_DOMAINS</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-keyword">readonly</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol"> = ...</span></div>
 <div class="tsd-comment tsd-typography"><p>Domains every applet gets without asking: the handshake, in-shell messaging,
-the theme, a read-only view of the identity and scoped storage. No network.</p>
+the theme and scoped storage. No network, and not the identity: which
+account is signed in is the user's to reveal, so an applet learns it only
+after the user grants &quot;your account&quot; (SOUL opinion 2).</p>
 </div></div>
 <div class="col-sidebar">
 <div class="page-menu">

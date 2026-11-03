@@ -20,9 +20,9 @@ Your messages, contacts, files and account live in one store inside the shell, r
 
 A shell has two jobs. It gives you a place where your identity and your things are yours and portable. And it gives an untrusted program a place to run where the worst it can do is bounded. kernl cannot protect you from everything. It does all of it that it can.
 
-- Applets run in a sealed frame with no network of their own.
-- They never hold keys and never see text you did not ask to show them.
-- Every write the shell makes for an applet is shown to you as what it changes, not as code.
+- Applets run in a sealed frame with no network of their own, and cannot open another frame inside it.
+- They never hold keys, never see text you did not ask to show them, and learn which account you use only if you grant it.
+- Before the shell signs anything for an applet that overwrites or erases part of your record, it shows you what changes, not code.
 - An applet's identity is bound to the exact bytes you verified. Changed bytes are a new applet, with no grants.
 
 03

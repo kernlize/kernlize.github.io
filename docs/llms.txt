@@ -43,7 +43,7 @@ Markdown twins of every docs page, served at the HTML path with `.md` instead of
 ## Packages
 
 - [Packages](https://kernlize.github.io/docs/packages/index.md): kernl has four packages under the @kernl scope, not yet published to npm (see Install).
-- [@kernl/guard](https://kernlize.github.io/docs/packages/guard.md): Ingress flood control, visibility gating, focus-aware firewall and CSP profile for the kernl shell.
+- [@kernl/guard](https://kernlize.github.io/docs/packages/guard.md): Ingress flood control, visibility gating, focus-aware firewall, CSP profile and nested-frame lock for the kernl shell.
 - [@kernl/messaging](https://kernlize.github.io/docs/packages/messaging.md): Messaging provider contract, registry, composite direct-message backend and an in-memory backend for the kernl shell.
 - [@kernl/bridges](https://kernlize.github.io/docs/packages/bridges.md): Locator parsing, the bridge contract, the registry that routes and authorises, an HTTP bridge with an SSRF policy, four backend-driven bridges for downloads, sharing and mail, the adapter that feed…
 - [@kernl/core](https://kernlize.github.io/docs/packages/core.md): Opinionated shell composition over kehto and applesauce.

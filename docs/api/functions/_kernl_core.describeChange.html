@@ -17,14 +17,16 @@
 <div class="tsd-signature tsd-anchor-link" id="describechange"><span class="tsd-kind-call-signature">describeChange</span><span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">event</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">NostrEvent</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">before</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">NostrEvent</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">applet</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/_kernl_core.AppletIdentity.html" class="tsd-signature-type tsd-kind-interface">AppletIdentity</a><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/_kernl_core.ConsentSummary.html" class="tsd-signature-type tsd-kind-interface">ConsentSummary</a><a href="#describechange" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
 <div class="tsd-comment tsd-typography"><p>Describe a write the shell is asked to sign as what it changes.</p>
-<p>Profiles diff field by field; follow, relay and list changes count what was
-added and removed and name the first few entries by hex prefix; any other
+<p>Profiles diff field by field; follow, connection and list changes count
+what was added and removed and name the first few entries in plain words
+(a person by key prefix, a server by its name); any other
 replaceable or addressable record diffs its tags and says when its content
 is replaced, without copying it; deletions list the events and addresses
 that disappear; a request to vanish names the services asked. Those kinds
 are <code>destructive</code> because they replace or erase the account's public record. Everything else is <code>routine</code> and shows
 a content preview. Nothing here is protocol vocabulary the user has to know,
-and nothing secret is copied out of the event.</p>
+and nothing secret is copied out of the event; the event itself rides along
+unchanged for the record view.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>

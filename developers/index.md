@@ -20,16 +20,16 @@ The open, unopinionated toolkit kernl is built on. If you want to build a differ
 
 *Format*
 
-### [The applet format's site](https://napplet.run/)
+### [Applets under kernl](https://kernlize.github.io/docs/concepts/applets-under-kernl)
 
-How applets are packaged, addressed and verified, and the message domains an applet can ask a shell for. kernl hosts this format without changing it.
+How applets are packaged, addressed and verified, and the message domains an applet can ask a shell for. kernl hosts this format without changing it; the full specification lives on [the applet format's site](https://napplet.run/).
 
 ## What your applet gets, and does not.
 
 1. **A sealed window**
    Your code runs in a frame with no origin and a policy that blocks every direct network call. Draw, compute, and talk to the shell over its message port.
 2. **Grants, not permissions**
-   Ask for the domains you need. The shell narrows what it advertises to what the user has granted, shows every write as what it changes, and lets the user take a grant back.
+   Ask for the domains you need. The shell narrows what it advertises to what the user has granted, shows every overwrite or deletion as what it changes before signing it, and lets the user take a grant back. Knowing who is signed in is a grant too: ask for the user's account if you need it.
 3. **The strict profile**
    Rate limits, size caps, a hidden-window download allowance and focus-aware tightening are on. Design for them: batch requests, do less when hidden, and expect a refusal to carry a stable reason you can show.
 4. **Verified bytes**

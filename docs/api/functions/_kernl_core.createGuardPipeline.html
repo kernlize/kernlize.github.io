@@ -29,7 +29,9 @@ disposition with an effect on the envelope itself: the shell revokes the
 window inside the callback, kehto then finds no session for it, and the
 envelope that crossed the limit is dropped along with everything after it.
 Pre-dispatch limits for port traffic come from the runtime firewall
-configured by <code>applyRuntimeFirewallRules</code>.</p>
+configured by <code>applyRuntimeFirewallRules</code>; <code>createKernl</code> also turns each
+<code>size:</code> rejection into a runtime refusal of that one envelope with
+<code>refuseCurrentDispatch</code>.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
