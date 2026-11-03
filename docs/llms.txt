@@ -1,0 +1,52 @@
+# kernl docs
+
+> Developer documentation for kernl, an opinionated shell for sandboxed web applets built on the kehto toolkit.
+
+Markdown twins of every docs page, served at the HTML path with `.md` instead of `.html`. These docs describe one shell; the protocol authority is NIP-5D (https://github.com/nostr-protocol/nips/pull/2303) and the NAPs (https://github.com/napplet/naps).
+
+## Start
+
+- [kernl](https://kernlize.github.io/docs/index.md): kernl is an opinionated shell for sandboxed web applets.
+- [Alpha status](https://kernlize.github.io/docs/alpha-status.md): kernl is a first draft.
+- [Roadmap](https://kernlize.github.io/docs/roadmap.md): Ordered by the tie-breakers in SOUL.md: the user's safety and agency first, protocol conformance second, the applet developer's ability to build third.
+- [Agent access](https://kernlize.github.io/docs/agent-access.md): How an AI agent should read these docs.
+
+## Concepts
+
+- [Architecture](https://kernlize.github.io/docs/concepts/architecture.md): kernl is three layers.
+- [Guard](https://kernlize.github.io/docs/concepts/guard.md): The guard is everything that stands between an applet and the user.
+- [Identity and grants](https://kernlize.github.io/docs/concepts/identity-and-grants.md): An applet is not a name.
+- [Messaging](https://kernlize.github.io/docs/concepts/messaging.md): No encrypted messaging protocol is inherently superior.
+- [Bridges](https://kernlize.github.io/docs/concepts/bridges.md): Nostr is kernl's identity and resolution layer.
+
+## Tutorials
+
+- [Run the shell](https://kernlize.github.io/docs/tutorials/run-the-shell.md): This tutorial takes you from a clone to an applet running in a window, signed in with your own account, and shows the Kernl calls behind each step.
+- [Build an applet for kernl](https://kernlize.github.io/docs/tutorials/build-an-applet-for-kernl.md): kernl adds nothing to the applet format.
+
+## How-tos
+
+- [Change the guard profile](https://kernlize.github.io/docs/how-tos/change-guard-profile.md): The shell boots every applet in strict.
+- [Add a messaging provider](https://kernlize.github.io/docs/how-tos/add-a-messaging-provider.md): A provider is a package change plus a docs page.
+- [Add a bridge backend](https://kernlize.github.io/docs/how-tos/add-a-bridge-backend.md): The four non-HTTP bridges are complete up to the backend interface they call.
+- [Grant and revoke](https://kernlize.github.io/docs/how-tos/grant-and-revoke.md): A grant is something the user gave and can take back.
+- [Deploy](https://kernlize.github.io/docs/how-tos/deploy.md): kernl deploys as one static artifact: the landing site at the root, the shell at /app/, the docs at /docs/ and the generated API reference at /docs/api/.
+
+## Packages
+
+- [Packages](https://kernlize.github.io/docs/packages/index.md): kernl publishes four packages under the @kernl scope.
+- [@kernl/guard](https://kernlize.github.io/docs/packages/guard.md): Ingress flood control, visibility gating, focus-aware firewall and CSP profile for the kernl shell.
+- [@kernl/messaging](https://kernlize.github.io/docs/packages/messaging.md): Messaging provider contract, registry, composite direct-message backend and an in-memory backend for the kernl shell.
+- [@kernl/bridges](https://kernlize.github.io/docs/packages/bridges.md): Locator parsing, the bridge contract, the registry that routes and authorises, an HTTP bridge with an SSRF policy, four backend-driven bridges for downloads, sharing and mail, the adapter that feed…
+- [@kernl/core](https://kernlize.github.io/docs/packages/core.md): Opinionated shell composition over kehto and applesauce.
+
+## Reference
+
+- [API reference](https://kernlize.github.io/docs/reference/api.md): The API reference is generated from source JSDoc by TypeDoc 0.28 with entryPointStrategy: packages over the four workspaces in typedoc.json.
+
+## Policies
+
+- [Policies](https://kernlize.github.io/docs/policies/index.md): Rules the repository enforces mechanically.
+- [Public vocabulary](https://kernlize.github.io/docs/policies/public-vocabulary.md): The public website and the shell UI never name a protocol.
+- [Security posture](https://kernlize.github.io/docs/policies/security-posture.md): The rules the shell keeps when it runs untrusted code next to the user's identity.
+- [Spec conformance](https://kernlize.github.io/docs/policies/spec-conformance.md): kernl conforms to specifications it does not own.

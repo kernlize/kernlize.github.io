@@ -1,0 +1,1 @@
+var e=()=>{let e=document.documentElement.dataset.theme;return e===`light`||e===`dark`?e:matchMedia(`(prefers-color-scheme: light)`).matches?`light`:`dark`};function t(){let t=e()===`dark`?`light`:`dark`;document.documentElement.dataset.theme=t;try{localStorage.setItem(`kernl-theme`,t)}catch{}}function n(e){e.addEventListener(`click`,t)}export{t as n,n as t};

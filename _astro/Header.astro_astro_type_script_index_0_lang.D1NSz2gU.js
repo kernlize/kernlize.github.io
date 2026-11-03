@@ -1,0 +1,1 @@
+import{t as e}from"./theme.DErPj-CT.js";var t=document.querySelector(`[data-theme-toggle]`);t&&e(t);
