@@ -14,9 +14,7 @@
 <section class="tsd-panel tsd-comment">
 <div class="tsd-comment tsd-typography"><p>Hooks the shell wires into a registry.</p>
 </div></section>
-<div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">BridgeRegistryOptions</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#authorize">authorize</a><span class="tsd-signature-symbol">?:</span> <a href="../types/_kernl_bridges.BridgeAuthorizer.html" class="tsd-signature-type tsd-kind-type-alias">BridgeAuthorizer</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#onresolve">onResolve</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">event</span><span class="tsd-signature-symbol">:</span> <a href="_kernl_bridges.BridgeResolveEvent.html" class="tsd-signature-type tsd-kind-interface">BridgeResolveEvent</a><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/kernlize/web/blob/main/packages/bridges/src/registry.ts#L15">registry.ts:15</a></li></ul></aside>
+<div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">BridgeRegistryOptions</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#authorize">authorize</a><span class="tsd-signature-symbol">?:</span> <a href="../types/_kernl_bridges.BridgeAuthorizer.html" class="tsd-signature-type tsd-kind-type-alias">BridgeAuthorizer</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#onresolve">onResolve</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">event</span><span class="tsd-signature-symbol">:</span> <a href="_kernl_bridges.BridgeResolveEvent.html" class="tsd-signature-type tsd-kind-interface">BridgeResolveEvent</a><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -34,16 +32,12 @@
 <h3 class="tsd-anchor-link" id="authorize"><code class="tsd-tag">Optional</code> <code class="tsd-tag">Readonly</code><span>authorize</span><a href="#authorize" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">authorize</span><span class="tsd-signature-symbol">?:</span> <a href="../types/_kernl_bridges.BridgeAuthorizer.html" class="tsd-signature-type tsd-kind-type-alias">BridgeAuthorizer</a></div>
 <div class="tsd-comment tsd-typography"><p>Consent check run before every resolution. Absent means every request is allowed.</p>
-</div><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/kernlize/web/blob/main/packages/bridges/src/registry.ts#L17">registry.ts:17</a></li></ul></aside></section>
+</div></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="onresolve"><code class="tsd-tag">Optional</code> <code class="tsd-tag">Readonly</code><span>on<wbr/>Resolve</span><a href="#onresolve" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">onResolve</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">event</span><span class="tsd-signature-symbol">:</span> <a href="_kernl_bridges.BridgeResolveEvent.html" class="tsd-signature-type tsd-kind-interface">BridgeResolveEvent</a><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span></div>
 <div class="tsd-comment tsd-typography"><p>Observer for every outcome, successful or not.</p>
-</div><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/kernlize/web/blob/main/packages/bridges/src/registry.ts#L19">registry.ts:19</a></li></ul></aside></section></section></details></div>
+</div></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">

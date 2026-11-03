@@ -59,7 +59,7 @@ They are also not the public website. The landing site at `/` follows the [publi
 
 # Alpha status
 
-kernl is a first draft. This page says what runs, what is a contract without an implementation, and which gaps have been filed against upstream. It is updated in the same pull request as the code it describes.
+kernl is a first draft. This page says what runs, what is a contract without an implementation, and which upstream gaps are still to be filed. It is updated in the same pull request as the code it describes.
 
 ## What works
 
@@ -69,7 +69,7 @@ kernl is a first draft. This page says what runs, what is a contract without an 
 | Messaging | `@kernl/messaging` | `MessagingProvider`, `MessagingBackend`, `MessagingRegistry` with saved-preference restore, the composite backend with `provider:innerId` namespacing, `describeProvider` rows, a complete in-memory backend (`createMemoryBackend`) used by the preview and the tests, and three providers (`private`, `legacy`, `ratchet`) built with `defineProvider` from backends the shell injects. |
 | Bridges | `@kernl/bridges` | `Locator` parsing for the web schemes, `magnet:`, `nzb:`, `slsk:` and `mailto:`, the `Bridge` contract, the registry with its `authorize` hook and outcome events, a complete HTTP bridge with SSRF policy, the four backend-driven bridges up to their backend interface, `createBridgeResourceResolver` for kehto's resource service, and `describeBridge` rows. |
 | Composition | `@kernl/core` | `createKernl` over one applesauce `EventStore`, `RelayPool` and `AccountManager`, with kehto's real `createShellBridge` exercised end to end in `kernl.feature`: an applet is decoded, resolved, planned and mounted, binds its port through the guarded `handleWindowMessage`, completes `shell.ready`, is answered by the theme, identity and resource services, and is quarantined and revoked when it floods. Relay tiers, the applesauce adapters, the guard pipeline and runtime firewall rules, grants over `bridge.runtime.aclState`, consent summaries, the default registries and the layouts each have their own feature file. |
-| Shell UI | `apps/web` | Landing site at `/` and the shell at `/app/`: sign-in (browser extension, remote signer, read-only, password-protected local account), open by address with the required and optional domains as choices, windows, a grants panel per window, a shell-wide guard panel with the event log, the provider picker, and the offline preview behind `?preview=1` (D-011). |
+| Shell UI | `apps/web` | Landing site at `/` and the shell at `/app/`: sign-in (browser extension, remote signer, read-only, password-protected local account), open by address with the required and optional domains as choices, windows, a grants panel per window, a shell-wide guard panel with the event log, the provider picker, and the offline preview behind `?preview=1` ([D-011](https://kernlize.github.io/docs/decisions.md#d-011)), hosted at [kernlize.github.io/app/?preview=1](https://kernlize.github.io/app/?preview=1). |
 
 "Works" means the behaviour has a scenario in `features/`, the scenario passes, and the page describing it exists. It does not mean the API is stable. Every package is `0.1.0`; on 0.x a breaking change is a minor bump.
 
@@ -90,17 +90,18 @@ kernl is a first draft. This page says what runs, what is a contract without an 
 - **Transfer backends.** `TorrentBackend`, `NzbBackend`, `SoulseekBackend` and `MailBackend` are interfaces. Without a backend the corresponding bridge reports `{ available: false, reason: 'no-backend' }`, rejects with `unavailable:no-backend`, and the shell shows that. See [Bridges](https://kernlize.github.io/docs/concepts/bridges.md#backend-driven-bridges).
 - **Real messaging backends.** The table above. See [Messaging](https://kernlize.github.io/docs/concepts/messaging.md).
 - **Per-host bridge consent.** `createKernl` builds the bridge registry with `createDefaultBridges()` and no `authorize` hook, so a `resource` request from a granted applet is checked by the HTTP bridge's SSRF policy and nothing else. A host that wants a prompt per host or scheme passes its own registry in `KernlOptions.bridges`.
-- **Per-applet guard profiles.** `GuardFacade.setProfile` rebuilds the pipeline for the whole shell and is not persisted. The per-applet, remembered override D-003 describes is not in this draft.
+- **Per-applet guard profiles.** `GuardFacade.setProfile` rebuilds the pipeline for the whole shell and is not persisted. The per-applet, remembered override [D-003](https://kernlize.github.io/docs/decisions.md#d-003) describes is not in this draft.
 - **Mobile layouts.** The layouts are desktop tilings over `@kehto/wm`. Narrow viewports get a single stacked window without gestures.
 - **Multi-account switching.** `AccountManager` holds several accounts and the sign-in panel lists them, but switching means signing out and in.
 - **Grant persistence across devices.** Grants, relay tiers and messaging preferences persist in the host's storage only. There is no sync.
-- **Source links in the API reference.** TypeDoc source links point at the repository only once a git remote is configured in the build environment.
+- **Packages on npm.** The `@kernl/*` packages are not published; they are used from a clone of the source repository, which is private during the alpha. See [Packages](https://kernlize.github.io/docs/packages/index.md#install).
+- **Source links in the API reference.** `typedoc.json` points TypeDoc's source links at the source repository, which is private, so they return 404 for readers until it is public.
 
 The [Roadmap](https://kernlize.github.io/docs/roadmap.md) orders this list.
 
 ## Upstream gaps
 
-kernl composes kehto rather than forking it ([D-001](https://github.com/kernlize/web/blob/main/DECISIONS.md)). Four seams in kehto are narrower than kernl wants. All four are filed against `kehto/web` rather than patched locally, and each has a kernl layer that shrinks when it lands (D-012):
+kernl composes kehto rather than forking it ([D-001](https://kernlize.github.io/docs/decisions.md#d-001)). Four seams in kehto are narrower than kernl wants. All four are to be filed upstream against `kehto/web`, rather than patched locally; no upstream issue exists for them yet. Each has a kernl layer that shrinks when it lands ([D-012](https://kernlize.github.io/docs/decisions.md#d-012)):
 
 1. **`ShellAdapter` does not forward `getFocusContext`, `onFirewallEvent` or `firewallPersistence` to the runtime.** kernl runs its focus-aware firewall in `@kernl/guard`, in front of the bridge for the window-level `hello` and reactively for port traffic, using the pure `evaluate()` engine with visibility supplied by the host. Because that layer never supplies `initElapsedMs`, kehto's init-burst guard does not fire there; the per-second burst is the ingress guard's, and `createGuardConfig` sets `firewall.burstGuard` to match.
 2. **`createRuntime` hardcodes the ACL default policy to `'permissive'`.** kernl produces its restrictive posture with `KernlGrants.ensure`, which writes an explicit grant or revoke for every capability of every applet it plans, plus `capabilities.resolveEnvironment`, which narrows the advertised domains to the baseline and the user's grants. The permissive default is never reached for an applet kernl runs.
@@ -127,6 +128,112 @@ The protocol itself is a draft. NIP-5D is [nostr-protocol/nips PR #2303](https:/
 
 ---
 
+<!-- https://kernlize.github.io/docs/concepts/applets-under-kernl.md -->
+
+# Applets under kernl
+
+kernl adds nothing to the applet format. An applet that conforms to NIP-5D and the NAPs runs in kernl. What kernl changes is the posture the applet meets: fewer domains until the user grants them, budgets that tighten while the window is hidden or unfocused, and a quarantine for applets that flood the shell. This page explains that posture from the applet's side and how to test against it.
+
+## Use the applet SDK, not this repository
+
+The applet side of the protocol is maintained at [napplet.run](https://napplet.run/docs/). Start there:
+
+- [`@napplet/sdk`](https://www.npmjs.com/package/@napplet/sdk) gives you typed named exports over `window.napplet` for bundler-based projects.
+- [`@napplet/conformance`](https://www.npmjs.com/package/@napplet/conformance) is the framework-agnostic conformance engine: a reference mock shell, per-NAP envelope validators, a manifest validator and reporters. `@napplet/conformance-cli` runs it from the command line.
+- The [napplet.run getting-started guide](https://napplet.run/docs/guide/getting-started.html) and the [NAP documents](https://github.com/napplet/naps) are the authority on wire format and domain semantics.
+
+kernl's packages are shell-side. You do not import them in an applet.
+
+## What kernl advertises
+
+`shell.init`, the shell's reply to your applet's `hello`, carries the domains this shell offers your applet's identity. In kernl that set is the shell's live domains narrowed by the user's grants (see [Identity and grants](https://kernlize.github.io/docs/concepts/identity-and-grants.md)), so read it rather than assuming. The sets come from `BASELINE_DOMAINS` and `DOMAIN_CAPABILITIES` in `packages/core/src/grants/domain-capabilities.ts`, the services `createKernlServices` registers (`packages/core/src/kernl-services.ts`), and the domains kehto's runtime serves itself; [Architecture](https://kernlize.github.io/docs/concepts/architecture.md#where-each-nap-domain-is-served-from) has the same table from the shell's side.
+
+| Posture | Domains | Notes |
+| --- | --- | --- |
+| Baseline, advertised without a grant | `shell`, `inc`, `theme`, `identity`, `storage` | `BASELINE_DOMAINS`. No network. A blocked applet sees `shell` alone. |
+| Offered, advertised once the user grants it | `relay`, `outbox`, `resource`, `dm`, `notify`, `link` | Backed by the services `createKernlServices` registers. In the live shell `dm` has no available provider yet ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#messaging-providers-in-the-live-shell)). |
+| Offered, advertised once granted, nothing wired behind it | `keys`, `media` | kehto's runtime serves these domains natively, so the shell offers them; kernl wires no host behaviour (hotkeys are not forwarded). |
+| Not offered | `config`, `cvm`, `upload`, `intent`, `fs`, `llm`, `cache`, and every other domain | They have a row in `DOMAIN_CAPABILITIES` (or none), but no service is registered, so they are never advertised. |
+
+Put a domain in `requires` only if your applet is useless without it. The launcher lists every domain you name in `requires` or `optional` as a switch that starts off on a first run, marks the required ones "the applet says it needs this", and warns when one is still off; the user can run your applet anyway, and then it sees the domain as unavailable. A user who switches on a domain this shell does not offer gets an error (`invalid:domain`) instead of your applet. Prefer `optional` and a graceful fallback.
+
+## Where the guard acts on your traffic
+
+kehto's bridge owns the port your applet talks over, and kernl sees that traffic only after the runtime has dispatched it ([D-012](https://kernlize.github.io/docs/decisions.md#d-012)). Two layers follow from that, and they behave differently:
+
+- **Before dispatch**, kehto's own runtime firewall enforces the profile's per-class rates, which `kernl.mount` installs for your applet's `dTag`. An over-budget envelope is refused by the runtime with an error that starts `firewall:`.
+- **After dispatch**, kernl's guard observes the same traffic with the shell's knowledge of visibility and focus. It records guard events and can quarantine your applet, but it cannot hold or refuse a single envelope.
+
+The window-level `hello` is the one message kernl filters before kehto sees it.
+
+## What the strict profile means for you
+
+The shell boots in `strict`. The numbers are in [Guard](https://kernlize.github.io/docs/concepts/guard.md#profiles); the behaviours you will notice:
+
+**Hidden windows are not paused.** While your window is minimised or the page is hidden, your envelopes are still dispatched; nothing is queued for later. The visibility gate holds only a window-level `hello` sent while hidden. What hiding changes is your budget: hidden implies unfocused, so the reactive firewall counts you at the unfocused capacity, and resource requests count against the hidden allowance below. Still design as if delivery can stall: do not time out a request after a few seconds, and do not assume a subscription delivers while you are hidden. A true pre-dispatch hold is requested upstream ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#upstream-gaps)).
+
+**Hidden resource allowance.** A hidden window may make 8 `resource.*` requests; the ninth quarantines it with `flood:hidden-resource`. The count resets as soon as the window is visible again. Fetch what you need while visible.
+
+**Rate limits by operation class.** Each class has its own token bucket, keyed by your applet's `dTag`, so two windows of your applet share one budget. In `strict`: 30 `relay.subscribe` and 20 `relay.publish` per minute, 5 deletions (kind 5) per minute, 20 `dm.send` and 10 `intent.*` per minute, 120 `resource.*` and 60 `storage.set`/`storage.remove` per 10 seconds. Before dispatch, deletions share the `relay.publish` budget and the runtime applies kehto's default unfocused multiplier. After dispatch, kernl's firewall multiplies capacity by 0.25 while your window is not focused and reports each overrun as a guard event such as `rate:relay:publish`.
+
+**Ingress flood control.** kernl counts 8 messages per second per window. Above that it reports `flood:burst` (and `flood:queue-full` once 64 are counted as waiting); for port traffic these are events only. The hard limit is real: 300 messages inside any rolling 10 seconds quarantines the window with `flood:quarantine`. Batch your writes and coalesce your subscriptions.
+
+**Quarantine stops your applet.** A quarantined window has its binding revoked and its frame removed. The user sees "This applet was stopped." and can open your applet again in a fresh window; nothing resumes on its own.
+
+**Envelope caps.** `resource.*` envelopes over 64 KiB and `relay.subscribe`/`outbox.subscribe` (including `outbox.query`) envelopes over 256 KiB are reported as `size:<class>`. In this draft port traffic is observed after dispatch, so the cap is not enforced on the port; do not rely on that. Large filters are a smell; split them.
+
+**No init-burst exemption.** kehto's own init-burst guard is not what runs here: kernl counts the same 8 messages per second from the first message your applet sends. Load lazily: request the first screen, render, then fetch the rest.
+
+**Consent for destructive kinds.** Publishing kind 0, 3, 5 or 10002 shows the user a summary of what changes and waits. Expect the publish to take as long as a person takes to read, and to fail if they refuse.
+
+None of this changes the wire format. A refusal is a normal NAP error envelope; a guard event is visible to the user, not to your applet.
+
+## Test against the guard
+
+You can exercise the guard's layers without the full shell, because `@kernl/guard` is pure. The packages are not yet on npm, so this needs a clone of the kernl source ([Packages](https://kernlize.github.io/docs/packages/index.md#install)). The visibility gate below is the layer that holds a hidden window's `hello`; the ingress guard is the one that counts and quarantines.
+
+```ts
+import { createGuardConfig, createIngressGuard, createVisibilityGate, type GuardEvent } from '@kernl/guard';
+
+const events: GuardEvent[] = [];
+const config = createGuardConfig('strict');
+const guard = createIngressGuard({ config, onEvent: (event) => events.push(event) });
+const gate = createVisibilityGate({ config, onEvent: (event) => events.push(event) });
+
+gate.setVisibility('w1', { visible: false, focused: false });
+if (gate.shouldDefer('w1', 'relay:subscribe')) gate.defer('w1', { type: 'relay.subscribe', size: 512 });
+// held; gate.drain('w1') returns it once the window is visible again
+
+gate.setVisibility('w1', { visible: true, focused: true });
+for (let i = 0; i < 9; i += 1) {
+  guard.admit('w1', 'my-applet', { type: 'relay.publish', kind: 1 }, gate.getVisibility('w1'));
+}
+// the ninth call inside one second returns 'defer' and emits { disposition: 'defer', reason: 'flood:burst' }
+```
+
+Pass `now: () => clock` to both factories to drive time from the test instead of the wall clock. `createFocusFirewall({ config })` adds the per-class rates on top; its `observe()` returns kehto's `EvaluateResult`.
+
+Scenarios worth writing for your own applet:
+
+1. Mount hidden, then show: your UI settles whether replies arrived while hidden or after.
+2. Lose focus mid-operation: your publish completes or fails cleanly; nothing is retried twice.
+3. Hit a rate limit on purpose: your applet shows the user something useful instead of a stack trace.
+4. Be declined: require nothing you cannot explain in the one line the launcher shows.
+5. New build, old user: your applet's new hash has no grants. Make the first run after an update as good as the first run ever.
+
+## Run it in kernl
+
+Follow [Run the shell](https://kernlize.github.io/docs/tutorials/run-the-shell.md), publish your applet with the napplet tooling to a relay in the shell's `apps` tier (by default `wss://relay.napplet.soy`), click **Open an applet** and paste its address. The launcher shows which switches your `requires` and `optional` produced. The guard panel (*Guard · strict · N* in the desktop bar) lists every guard event your applet triggered as a sentence that names the applet, what happened and why ("Applet … was refused: too many publishes" for `rate:relay:publish`); the window's grants panel shows how many guard events it has had this session. Together they are the fastest feedback you will get on posture.
+
+## Related
+
+- [Guard](https://kernlize.github.io/docs/concepts/guard.md)
+- [Identity and grants](https://kernlize.github.io/docs/concepts/identity-and-grants.md)
+- [Spec conformance](https://kernlize.github.io/docs/policies/spec-conformance.md)
+- [Troubleshooting](https://kernlize.github.io/docs/guides/troubleshooting.md)
+
+---
+
 <!-- https://kernlize.github.io/docs/concepts/architecture.md -->
 
 # Architecture
@@ -147,11 +254,12 @@ kernl is three layers. kehto supplies the primitives, four kernl packages supply
 │  focus firewall,   registry, composite  registry, HTTP bridge        │
 │  CSP, profiles     dm adapter           with SSRF policy             │
 ├──────────────────────────────────────────────────────────────────────┤
-│  kehto   @kehto/shell · runtime · acl · firewall · services · nip · wm │
-│  applesauce   EventStore · RelayPool · AccountManager · signers ·     │
-│               loaders                                                 │
+│  kehto   @kehto/shell · runtime · acl · firewall · services · nip ·  │
+│          wm                                                          │
+│  applesauce   EventStore · RelayPool · AccountManager · signers ·    │
+│               loaders                                                │
 ├──────────────────────────────────────────────────────────────────────┤
-│  @napplet/core   NAP wire types, NapDomain, envelope dispatch         │
+│  @napplet/core   NAP wire types, NapDomain, envelope dispatch        │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -169,11 +277,11 @@ kehto is the runtime authority for how a NIP-5D shell composes. kernl uses these
 | `@kehto/nip` | `resolveNapplet`, `openNappletArtifactCache` and `NAPPLET_KINDS` from `@kehto/nip/5d`. |
 | `@kehto/wm` | `LayoutStrategy`, `WindowState`, `Rect` and `WindowPlacement`, which the layouts implement. |
 
-kernl never re-implements a kehto primitive. When a seam is too narrow, kernl composes in front of it and files the gap; the four open gaps are in [Alpha status](https://kernlize.github.io/docs/alpha-status.md#upstream-gaps).
+kernl never re-implements a kehto primitive. When a seam is too narrow, kernl composes in front of it and takes the gap upstream; the four gaps found so far, still to be filed, are in [Alpha status](https://kernlize.github.io/docs/alpha-status.md#upstream-gaps).
 
 ## One event layer
 
-Every relay connection, event store, signer, account and loader goes through applesauce v7 (D-002). `createKernl` creates exactly one of each per shell, or uses the one the host passes in:
+Every relay connection, event store, signer, account and loader goes through applesauce v7 ([D-002](https://kernlize.github.io/docs/decisions.md#d-002)). `createKernl` creates exactly one of each per shell, or uses the one the host passes in:
 
 | Instance | Role | Adapted by |
 | --- | --- | --- |
@@ -196,7 +304,7 @@ The three leaf packages have zero framework dependencies and import nothing from
 
 ## Where each NAP domain is served from
 
-An applet reaches the shell through the NAP domains in `window.napplet`. `createKernlServices` (`kernl-services.ts`) registers eight kehto services; `shell`, `inc` and `storage` are routed by kehto's runtime itself. What one applet sees is `buildShellCapabilities(adapter).domains` narrowed by `createEnvironmentResolver(grants)`.
+An applet reaches the shell through the NAP domains in `window.napplet`. `createKernlServices` (`kernl-services.ts`) registers eight kehto services; `shell`, `inc`, `storage`, `keys` and `media` are routed by kehto's runtime itself. What one applet sees is `buildShellCapabilities(adapter).domains` narrowed by `createEnvironmentResolver(grants)`.
 
 | NAP domain | Served by | kernl supplies | Guarded by |
 | --- | --- | --- | --- |
@@ -210,8 +318,9 @@ An applet reaches the shell through the NAP domains in `window.napplet`. `create
 | `dm` | `createDmService` | `messaging.composite()` | grant; rate `dm:send`; provider availability |
 | `notify` | `createNotifyService` | `host.notify` with tone `info` | grant |
 | `link` | `createLinkService` | `host.openLink` after `LINK_PROTOCOLS` (`https:`, `mailto:`) allowed it | grant |
+| `keys`, `media` | kehto runtime | nothing: hotkeys are not forwarded and no media hook is wired | grant |
 
-Domains kernl does not register (`keys`, `media`, `config`, `cvm`, `upload`, `intent`, `fs`, `llm`, `cache`) have a row in `DOMAIN_CAPABILITIES` so a grant can be expressed, but the shell does not offer them and `grants.allowDomain` refuses them with `invalid:domain`. [Identity and grants](https://kernlize.github.io/docs/concepts/identity-and-grants.md) explains how the set is narrowed.
+So the shell offers thirteen domains: the baseline `shell`, `inc`, `theme`, `identity` and `storage`, and `relay`, `outbox`, `resource`, `dm`, `notify`, `link`, `keys` and `media` behind a grant. Domains kernl does not serve (`config`, `cvm`, `upload`, `intent`, `fs`, `llm`, `cache`) have a row in `DOMAIN_CAPABILITIES` so a grant can be expressed, but the shell does not offer them and `grants.allowDomain` refuses them with `invalid:domain`. [Identity and grants](https://kernlize.github.io/docs/concepts/identity-and-grants.md) explains how the set is narrowed.
 
 ## The mount path
 
@@ -226,7 +335,7 @@ Every revocation reason (`window-message`, `second-hello`, `invalid-hello`, `sec
 
 ## The app
 
-`apps/web` is Astro 7 with Svelte 5 islands. It owns the landing site at `/`, the shell at `/app/`, and the `KernlHost` that gives `@kernl/core` a page: `localStorage`, the consent dialog, notices, link confirmation and window visibility. It creates the iframes, wires `window.addEventListener('message', kernl.handleWindowMessage)` once, and renders the launcher, the grants panel per window, the guard panel and the provider picker. The published packages contain none of this; the app is the only framework-dependent workspace (D-004). `?preview=1` swaps in `preview-kernl.ts`, which implements the same `Kernl` contract without a network (D-011).
+`apps/web` is Astro 7 with Svelte 5 islands. It owns the landing site at `/`, the shell at `/app/`, and the `KernlHost` that gives `@kernl/core` a page: `localStorage`, the consent dialog, notices, link confirmation and window visibility. It creates the iframes, wires `window.addEventListener('message', kernl.handleWindowMessage)` once, and renders the launcher, the grants panel per window, the guard panel and the provider picker. The published packages contain none of this; the app is the only framework-dependent workspace ([D-004](https://kernlize.github.io/docs/decisions.md#d-004)). `?preview=1` swaps in `preview-kernl.ts`, which implements the same `Kernl` contract without a network ([D-011](https://kernlize.github.io/docs/decisions.md#d-011)).
 
 ---
 
@@ -234,7 +343,7 @@ Every revocation reason (`window-message`, `second-hello`, `invalid-hello`, `sec
 
 # Bridges
 
-Nostr is kernl's identity and resolution layer. It is not the only protocol kernl speaks. A bridge is a shell-owned service that resolves a protocol-specific locator to bytes, a job or a conversation, behind the same consent and quota model as everything else. Bridges are named by what they do for the user, never by the protocol they speak (D-010).
+Nostr is kernl's identity and resolution layer. It is not the only protocol kernl speaks. A bridge is a shell-owned service that resolves a protocol-specific locator to bytes, a job or a conversation, behind the same consent and quota model as everything else. Bridges are named by what they do for the user, never by the protocol they speak ([D-010](https://kernlize.github.io/docs/decisions.md#d-010)).
 
 ## Locators
 
@@ -300,7 +409,7 @@ The shell holds one `BridgeRegistry`, built with `createBridgeRegistry({ authori
 | authorise | `denied:bridge` | the bridge id |
 | resolve | whatever the bridge threw (`denied:…`, `unavailable:…`, `invalid:…`); a non-`Error` rejection is reported as its text | the bridge id |
 
-Every outcome, successful or not, is reported to `onResolve` as `{ bridge, scheme, ok, reason? }`. The authoriser is a `BridgeAuthorizer`: `(locator, bridge, context) => boolean | Promise<boolean>`. Without one, every request is allowed. kernl's shell wires a consent prompt here that shows the user the locator's label, the bridge's description rows and which applet asked. Allowing a request from an applet is a grant keyed by that applet's identity and the locator's host, and it is listed and revocable like every other grant. See `registry.feature`.
+Every outcome, successful or not, is reported to `onResolve` as `{ bridge, scheme, ok, reason? }`. The authoriser is a `BridgeAuthorizer`: `(locator, bridge, context) => boolean | Promise<boolean>`. Without one, every request is allowed. The composed shell has none: `createKernl` builds its registry with `createDefaultBridges()` and no `authorize`, so a `resource` request from an applet that holds the `resource` grant is checked by the HTTP bridge's policy and nothing else. There is no per-host consent prompt and no per-host grant in this draft ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#what-does-not-work-yet)); wiring one is on the [Roadmap](https://kernlize.github.io/docs/roadmap.md#_6-guard). A host can pass its own registry with an `authorize` hook in `KernlOptions.bridges`. See `registry.feature`.
 
 ## The HTTP bridge
 
@@ -316,7 +425,7 @@ Every outcome, successful or not, is reported to `onResolve` as `{ bridge, schem
 
 The bridge's `schemes` and `exposure` follow the policy: with the default it serves `https` only and declares `revealsAddress: true`, `encryptedInTransit: true`, `publicActivity: false`. A shell that adds `'http:'` to `allowedSchemes` gets a bridge that serves `https` and `http` and declares `encryptedInTransit: false` (`http-bridge.feature`, scenario "the shell can admit the unencrypted scheme and the bridge says so").
 
-Before every request, including every redirect hop, the bridge checks the URL. A scheme outside the policy fails with `denied:scheme <protocol>`. A host that `isBlockedHostname` or `isPrivateAddress` recognises fails with `denied:private-address <host>`, unless it is listed in `allowPrivateHosts`. When `resolveHost` is supplied, the host's addresses are checked too and a private one fails with `denied:private-address <host> -> <ip>`. The fetch API cannot pin a connection to a validated address, so the resolver check narrows the DNS-rebinding window without closing it; the shell closes it by also fetching through a guard that resolves names once.
+Before every request, including every redirect hop, the bridge checks the URL. A scheme outside the policy fails with `denied:scheme <protocol>`. A host that `isBlockedHostname` or `isPrivateAddress` recognises fails with `denied:private-address <host>`, unless it is listed in `allowPrivateHosts`. When `resolveHost` is supplied, the host's addresses are checked too and a private one fails with `denied:private-address <host> -> <ip>`. No caller supplies it in this draft: `createDefaultBridges()` creates the HTTP bridge without `http.resolveHost`, so the composed shell judges a hostname by `isBlockedHostname` and `isPrivateAddress` on the literal alone. A public name that resolves to a private address is not caught, and there is no DNS-rebinding protection. Even with a resolver, the fetch API cannot pin a connection to the validated address, so the check would narrow the rebinding window without closing it.
 
 | Check | Blocked |
 | --- | --- |
@@ -324,7 +433,7 @@ Before every request, including every redirect hop, the bridge checks the URL. A
 | `isPrivateAddress`, IPv6 | `::` and `::1`, `fe80::/10`, `fc00::/7`, `ff00::/8`; brackets are stripped; an IPv4-mapped address (`::ffff:127.0.0.1`) is judged as its IPv4 part |
 | `isBlockedHostname` | `localhost` and any name under `.localhost`, `.local` or `.internal`, case-insensitively, trailing dot ignored |
 
-Strings that are neither a valid IPv4 nor a valid IPv6 literal (`1.2.3`, `256.1.1.1`, `1::2::3`, `example.com`) are not addresses and pass `isPrivateAddress`; a hostname is judged by `isBlockedHostname` and, if a resolver is present, by what it resolves to.
+Strings that are neither a valid IPv4 nor a valid IPv6 literal (`1.2.3`, `256.1.1.1`, `1::2::3`, `example.com`) are not addresses and pass `isPrivateAddress`; a hostname is judged by `isBlockedHostname` and, only if a resolver was supplied, by what it resolves to.
 
 Redirects (`301`, `302`, `303`, `307`, `308`) are followed manually, so each hop passes the same checks. More than `maxRedirects` hops fails with `denied:too-many-redirects`; a redirect without a usable `Location` fails with `invalid:redirect`. Requests race `AbortSignal.timeout(timeoutMs)` and the caller's signal: the time limit fails with `unavailable:timeout`, a caller cancel with `unavailable:aborted`, any other fetch failure with `unavailable:network <message>`. Caller headers are forwarded on every hop.
 
@@ -364,7 +473,7 @@ kehto's resource service takes a `fetch(url, init)` function. `createBridgeResou
 
 ## Why bridges are shell-owned
 
-An applet could, in principle, be given a WebRTC or WebSocket path and speak these protocols itself. kernl does not allow that, because the CSP [never loosens](https://kernlize.github.io/docs/concepts/guard.md#why-csp-never-loosens). Routing every protocol through a shell service means every protocol gets the same consent prompt, the same quota, the same exposure description and the same revocation. The applet asks for a locator; the user decides; the shell does the talking.
+An applet could, in principle, be given a WebRTC or WebSocket path and speak these protocols itself. kernl does not allow that, because the CSP [never loosens](https://kernlize.github.io/docs/concepts/guard.md#why-csp-never-loosens). Routing every protocol through a shell service means every protocol gets the same grant, the same quota, the same exposure description and the same revocation, and a consent prompt per request can be added in one place. The applet asks for a locator; the user decides; the shell does the talking.
 
 ## Related
 
@@ -379,7 +488,7 @@ An applet could, in principle, be given a WebRTC or WebSocket path and speak the
 
 The guard is everything that stands between an applet and the user. Some of it is kehto's and kernl turns it on; some of it is kernl's and runs in front of kehto's bridge. The user sees it as one list of mitigations with reasons. This page is that list, with the numbers.
 
-The rule from `SOUL.md`: if kehto ships a mitigation, kernl enables it by default and documents how to loosen it. Loosening is per applet and done by the user, never globally and never by a developer flag (D-003).
+The rule from `SOUL.md`: if kehto ships a mitigation, kernl enables it by default and documents how to loosen it. Loosening is per applet and done by the user, never globally and never by a developer flag ([D-003](https://kernlize.github.io/docs/decisions.md#d-003)).
 
 ## The eleven mitigations
 
@@ -474,7 +583,7 @@ Three stateful objects, each built from the same `GuardConfig`, each keyed by `w
 
 ## Where enforcement happens
 
-kehto's bridge owns the `MessagePort` an applet speaks over and shows the host that traffic only through the observe-only `ShellAdapter.onNappletMessage` hook, so kernl cannot sit between the port and the runtime (D-001). Enforcement is therefore layered (D-012):
+kehto's bridge owns the `MessagePort` an applet speaks over and shows the host that traffic only through the observe-only `ShellAdapter.onNappletMessage` hook, so kernl cannot sit between the port and the runtime ([D-001](https://kernlize.github.io/docs/decisions.md#d-001)). Enforcement is therefore layered ([D-012](https://kernlize.github.io/docs/decisions.md#d-012)):
 
 | Traffic | Where | How |
 | --- | --- | --- |
@@ -546,7 +655,7 @@ It is not an access control list. Whether an applet may use a domain is a grant,
 
 - [`@kernl/guard`](https://kernlize.github.io/docs/packages/guard.md)
 - [Change the guard profile](https://kernlize.github.io/docs/how-tos/change-guard-profile.md)
-- [Build an applet for kernl](https://kernlize.github.io/docs/tutorials/build-an-applet-for-kernl.md)
+- [Applets under kernl](https://kernlize.github.io/docs/concepts/applets-under-kernl.md)
 
 ---
 
@@ -630,7 +739,7 @@ The applet learns its own narrowed environment through `shell.init`. It does not
 
 # Messaging
 
-No encrypted messaging protocol is inherently superior. Each one trades metadata exposure, forward secrecy and reach against the others, and the right trade depends on who the user is writing to. kernl therefore supports several and ranks none (D-009). A provider describes its own properties truthfully; the shell shows the description and lets the user choose.
+No encrypted messaging protocol is inherently superior. Each one trades metadata exposure, forward secrecy and reach against the others, and the right trade depends on who the user is writing to. kernl therefore supports several and ranks none ([D-009](https://kernlize.github.io/docs/decisions.md#d-009)). A provider describes its own properties truthfully; the shell shows the description and lets the user choose.
 
 ## The provider contract
 
@@ -658,11 +767,11 @@ interface ProviderDeps {
 }
 ```
 
-The three built-in factories (`createPrivateMessagesProvider`, `createLegacyMessagesProvider`, `createRatchetMessagesProvider`) take the same `ProviderDeps` and supply the definition themselves. In the shell, `@kernl/core` closes `createBackend` over the applesauce store, pool and active signer; in tests it returns `createMemoryBackend()`. See `providers.feature`, scenario "availability and the backend come from the shell".
+The three built-in factories (`createPrivateMessagesProvider`, `createLegacyMessagesProvider`, `createRatchetMessagesProvider`) take the same `ProviderDeps` and supply the definition themselves. In the shell, `@kernl/core`'s `createDefaultMessaging` builds each provider's `ProviderDeps` from `KernlOptions.messagingBackends` and nothing else: `createBackend` calls the factory the host supplied, and a provider without one reports itself unavailable. `apps/web` supplies none today, so all three are unavailable in the live shell ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#messaging-providers-in-the-live-shell)). In tests and the preview, `createBackend` returns `createMemoryBackend()`. See `providers.feature`, scenario "availability and the backend come from the shell".
 
 ## Security properties
 
-`SecurityProperties` is a fixed set of fields. Every provider fills in every field, and the shell renders them verbatim with no summary score:
+`SecurityProperties` is a fixed set of fields. Every field except `specification` is required, and the shell renders them verbatim with no summary score:
 
 | Field | Meaning |
 | --- | --- |
@@ -671,18 +780,18 @@ The three built-in factories (`createPrivateMessagesProvider`, `createLegacyMess
 | `metadataProtection` | `none`, `partial` or `strong`: how much a network observer learns about who talks to whom and when. |
 | `requiresSameClient` | The correspondent must use a client that speaks this provider. |
 | `groups` | Conversations with more than two participants are supported. |
-| `specification` | Where the protocol is specified. Shown in these docs, not in the public UI. |
+| `specification` | Optional. Where the protocol is specified. Shown in these docs, not in the public UI. |
 | `experimental` | The provider is still changing and may lose history between versions. |
 
-`describeProvider(provider)` turns them into the six rows the picker shows, in this order and with these labels: `Forward secrecy`, `Recovers after a key compromise`, `Metadata protection`, `Correspondent needs the same app`, `Group conversations`, `Experimental`. Booleans render as `yes`/`no`; `metadataProtection` renders as is; `specification` is left out so no protocol name reaches the UI (D-006).
+`describeProvider(provider)` turns them into the six rows the picker shows, in this order and with these labels: `Forward secrecy`, `Recovers after a key compromise`, `Metadata protection`, `Correspondent needs the same app`, `Group conversations`, `Experimental`. Booleans render as `yes`/`no`; `metadataProtection` renders as is; `specification` is left out so no protocol name reaches the UI ([D-006](https://kernlize.github.io/docs/decisions.md#d-006)).
 
 ## The three providers
 
-| Provider id | Name | Protocol (`specification`) | Forward secrecy | Post-compromise security | Metadata protection | Same client required | Groups | Experimental |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `private` | Private messages | NIP-17 gift-wrapped private messages (kind 14 rumours sealed in kind 13, wrapped in kind 1059 with a random key) | no | no | `partial`: the wrap hides sender and timing from relays, the recipient's inbox relays still see delivery | no | yes | no |
-| `legacy` | Legacy messages | NIP-04 direct messages (kind 4, shared-secret encryption) | no | no | `none`: sender, recipient and timing are public on the event | no | no | no |
-| `ratchet` | Ratchet sessions | nostr-double-ratchet (draft) | yes | yes | `partial`: per-message ephemeral keys hide the long-term identities, relays still see timing | yes | no | yes |
+| Provider id | Name | `specification` | What the specification is | Forward secrecy | Post-compromise security | Metadata protection | Same client required | Groups | Experimental |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `private` | Private messages | `'NIP-17'` | Gift-wrapped private messages: kind 14 rumours sealed in kind 13, wrapped in kind 1059 with a random key | no | no | `partial`: the wrap hides sender and timing from relays, the recipient's inbox relays still see delivery | no | yes | no |
+| `legacy` | Legacy messages | `'NIP-04'` | Direct messages: kind 4, shared-secret encryption | no | no | `none`: sender, recipient and timing are public on the event | no | no | no |
+| `ratchet` | Ratchet sessions | `'nostr-double-ratchet (draft)'` | A double-ratchet session protocol over nostr, still a draft | yes | yes | `partial`: per-message ephemeral keys hide the long-term identities, relays still see timing | yes | no | yes |
 
 The descriptions the picker shows: `private` "Sealed messages that hide who is talking to whom from the network."; `legacy` "The original direct-message format. Readable by the widest range of apps, but who you talk to is visible on the network."; `ratchet` "Per-session keys that change with every message. Both sides need an app that supports it."
 
@@ -743,6 +852,226 @@ An applet that uses `dm` therefore sees one inbox. Which provider carries a give
 
 ---
 
+<!-- https://kernlize.github.io/docs/decisions.md -->
+
+# Decisions
+
+The architecture decisions behind kernl, one entry per `D-NNN`. Every `D-NNN` mentioned in these docs links to its entry here, at the anchor `#d-nnn`. The log is `DECISIONS.md` at the root of the source repository, which is private during the alpha; this page includes that file verbatim when the docs are built, so it is never a second copy that can drift.
+
+Architecture decisions for kernl, newest last. Each entry records what was decided, why, and what it would take to reverse it. A decision stays here after it is reversed; it gets a `Superseded by` line instead of being deleted.
+
+Format: `D-NNN · title` → Context, Decision, Consequences, Reversal cost.
+
+---
+
+## D-001 · kernl composes kehto; it does not fork it
+
+**Context.** kehto publishes `@kehto/{acl,firewall,runtime,shell,services,nip,wm}` as the unopinionated NIP-5D toolkit. kernl is the opinionated shell. Two of kehto's seams are narrower than kernl wants: `ShellAdapter` does not forward `getFocusContext`, `onFirewallEvent` or `firewallPersistence` to the runtime, and `createRuntime` hardcodes the ACL default policy to `'permissive'`. The transport internals (`createNip5dTransport`, `createShellReadyState`) are not exported, so kernl cannot assemble its own bridge from kehto parts.
+
+**Decision.** kernl depends on the published `@kehto/*` packages at pinned minor ranges and uses `createShellBridge` unchanged. Behaviour kehto does not expose is built in front of the bridge, not inside a fork:
+
+- Focus-aware rate limiting runs in `@kernl/guard` using the pure `@kehto/firewall` `evaluate()` engine with focus supplied by kernl's window manager. The runtime's built-in firewall is additionally tightened through `bridge.runtime.firewallState`.
+- A restrictive grant posture is produced with `capabilities.resolveEnvironment`, which narrows the advertised domains per applet identity until the user grants them, plus explicit `aclState.grant` calls. The runtime's permissive default is never reached for a domain the user has not granted.
+
+**Consequences.** Four upstream gaps are recorded against kehto/web rather than patched locally: (1) forward the firewall hooks through `ShellAdapter`; (2) let the host choose the ACL default policy; (3) offer a pre-dispatch hook on port traffic, since `onNappletMessage` is observe-only; (4) expose a setter for the runtime firewall's `unfocusedMultiplier`. When any of them lands, the corresponding kernl layer shrinks (see D-012).
+
+**Reversal cost.** Low. Both local layers sit behind interfaces in `@kernl/guard` and `@kernl/core` and can be deleted when upstream provides the hook.
+
+## D-002 · applesauce v7 is the only event layer
+
+**Context.** kehto's reference runtime (Paja) uses `nostr-tools` `SimplePool`. kernl's first opinion is that applesauce is the event layer.
+
+**Decision.** `applesauce-core` (`EventStore`), `applesauce-relay` (`RelayPool`), `applesauce-signers`, `applesauce-accounts` (`AccountManager`), `applesauce-loaders` and `applesauce-factory` are the only libraries kernl source imports for events, relays, signing and accounts. `nostr-tools` stays a transitive peer dependency required by kehto and applesauce; kernl source does not import it. kehto's `RelayPoolLike`, `RelayPoolServiceOptions` and `DmRelayPool` contracts are satisfied by thin adapters over one shared `RelayPool` in `@kernl/core/applesauce`.
+
+**Consequences.** One pool, one store, one account manager per shell. A guard test fails the build if `nostr-tools` is imported from kernl source.
+
+**Reversal cost.** High by design. The adapters are small, but the opinion is the point.
+
+## D-003 · Every kehto mitigation ships on, in its strict profile
+
+**Context.** Opinion three in `SOUL.md`.
+
+**Decision.** `@kernl/guard` exposes three profiles, `strict`, `balanced` and `relaxed`. The shell boots in `strict`. The profile can be loosened per applet by the user through the grants panel, never globally by configuration. The mitigations and their defaults are listed in `docs/concepts/guard.md` and surfaced in the UI as a readable list with reasons.
+
+**Consequences.** Some applets will hit limits in `strict`. The guard emits an event for every rejection and deferral so the user can see what happened and decide.
+
+**Status in the first draft.** The profile is shell-wide and not persisted: `GuardFacade.setProfile` rebuilds the single pipeline, and windows already open keep the runtime rates installed at mount. Per-applet, remembered loosening is the target this decision describes and is tracked in `docs/roadmap.md`. The default remains `strict` on every boot, so the gap errs toward the user.
+
+**Reversal cost.** A one-line profile change for a user; a `SOUL.md` amendment for the project.
+
+## D-004 · Four packages, one app, one docs site
+
+**Context.** The repository needs a shape that lets docs, tests and publishing stay per-package without forcing the shell UI into a framework-free constraint.
+
+**Decision.**
+
+| Workspace | Name | Role | Framework |
+|---|---|---|---|
+| `packages/guard` | `@kernl/guard` | Ingress flood control, visibility gate, focus-aware firewall, CSP profile, mitigation descriptions. Pure. | none |
+| `packages/messaging` | `@kernl/messaging` | Messaging provider contract, registry, composite NAP-DM adapter, provider descriptions. Pure. | none |
+| `packages/bridges` | `@kernl/bridges` | Locator parsing, bridge contract, registry, resource resolver with SSRF policy. Pure. | none |
+| `packages/core` | `@kernl/core` | Composition root: applesauce adapters, applet resolution and mount plan, consent summaries, layouts, persistence. Browser-agnostic. | none |
+| `apps/web` | `@kernl/web` | Landing site at `/` and the shell at `/app/`. | Astro 7, Svelte 5 islands |
+| `docs` | `@kernl/docs` | Documentation at `/docs/`. | VitePress |
+
+Published packages have zero framework dependencies, matching kehto's rule. The app is free to use Svelte.
+
+**Consequences.** TypeDoc runs over the four packages. Each has a `docs/packages/<name>.md` page with a version row, enforced by `scripts/audit-docs.mjs`.
+
+**Reversal cost.** Medium. Merging packages is cheap; splitting the app later is not.
+
+## D-005 · Behaviour is specified in Gherkin and executed by vitest
+
+**Context.** The requirement is BDD with full coverage. kehto and napplet both use plain vitest.
+
+**Decision.** Every package has a `features/` directory of `.feature` files run by [quickpickle](https://github.com/dnotes/quickpickle) inside vitest, with step definitions in `features/steps/`. Coverage thresholds are 100% for statements, branches, functions and lines over `packages/*/src`. Plain `*.test.ts` files are allowed only for property-style checks that do not read as behaviour; they do not substitute for a feature.
+
+**Consequences.** A behaviour without a scenario is not merged. Coverage is enforced in CI through `vitest run --coverage`.
+
+**Reversal cost.** Low mechanically, high culturally.
+
+## D-006 · The public site never names a protocol
+
+**Context.** Requirement five: the website is gorgeous and does not say the protocol's name.
+
+**Decision.** `apps/web` output is scanned by `scripts/check-public-vocabulary.mjs` for a denylist (`nostr`, `nip-`, `napplet`, `relay`, `pubkey`, `npub`, `nsec`) and the build fails on a hit. The denylist applies to the landing pages and the shell UI copy. It does not apply to `docs/`, which is written for developers and must name things precisely.
+
+**Consequences.** UI copy says "applet", "account", "network", "provider", "guard". Developer-facing terms live in the docs.
+
+**Reversal cost.** Low.
+
+## D-007 · The site is agent-readable by construction
+
+**Context.** Requirement: an agent-readiness score of 84 or higher, `llms.txt`, WebMCP where sensible.
+
+**Decision.** The Astro build emits `/llms.txt`, `/llms-full.txt`, a Markdown twin for every page with `<link rel="alternate" type="text/markdown">`, `/robots.txt` that allows the common AI crawlers and references the sitemap, JSON-LD (`WebApplication`, `SoftwareSourceCode`), Open Graph and canonical metadata, and semantic forms with WebMCP declarative attributes plus a guarded `navigator.modelContext.registerTool` registration. The docs build emits `/docs/llms.txt` and `/docs/llms-full.txt`. `scripts/audit-agent-readiness.mjs` checks the built artifact for every item.
+
+**Consequences.** Agent discovery is part of the build contract, not a later task.
+
+**Reversal cost.** Low.
+
+## D-008 · Repository and deployment
+
+**Context.** The GitHub organisation is `kernlize`; the repository is `kernlize/web`. No custom domain is decided.
+
+**Decision.** URLs in package metadata point at `https://github.com/kernlize/web`. The Pages artifact is built with a configurable `SITE_BASE` (default `/`) and `SITE_URL`; the Pages workflow reads both from repository variables and falls back to `/web/` and `https://kernlize.github.io/web/`. When a domain is chosen, only the variables change. See D-013 for why production should be a domain root.
+
+**Consequences.** Absolute URLs in `llms.txt`, sitemap, canonical tags and JSON-LD are derived from `SITE_URL` at build time.
+
+**Reversal cost.** Low.
+
+## D-009 · Messaging providers describe themselves; the shell does not rank them
+
+**Context.** Opinion five.
+
+**Decision.** `MessagingProvider.properties` is a fixed, truthful set of fields (forward secrecy, post-compromise security, metadata protection, same-client requirement, group support, specification reference). The shell renders these fields verbatim in the provider picker. There is no "recommended" flag. The first draft ships three providers: `private` (gift-wrapped private messages), `legacy` (the original direct-message format, marked as metadata-exposing), and `ratchet` (double-ratchet sessions, marked experimental and available only when its runtime is supplied).
+
+**Consequences.** Adding a provider is a package change plus a docs page. Removing the ranking is not possible because there is none.
+
+**Reversal cost.** Low.
+
+## D-010 · Bridges are named by what they do
+
+**Context.** Opinion four.
+
+**Decision.** `@kernl/bridges` defines a `Bridge` with a user-facing `label` (`downloads`, `mail`) and a list of locator schemes (`magnet:`, `nzb:`, `slsk:`, `mailto:`). The first draft ships a complete HTTP bridge with SSRF policy and four parsers with backend interfaces (`TorrentBackend`, `NzbBackend`, `SoulseekBackend`, `MailBackend`). Without a backend, a bridge reports `unavailable` and the shell shows that honestly. Backends are out of scope for this draft and are tracked in `docs/roadmap.md`.
+
+**Consequences.** The bridge contract is exercised end to end by the HTTP bridge, so later backends plug into a tested path.
+
+**Reversal cost.** Low.
+
+## D-011 · Preview mode is a product feature, not a test double
+
+**Context.** The shell needs to be usable without an account, a network or a published applet: for people evaluating it, for the Playwright suite, and for the landing page's "open" form when nothing real is reachable.
+
+**Decision.** `apps/web/src/shell/preview-kernl.ts` implements the same `Kernl` contract as `@kernl/core` using the real `@kernl/guard`, `@kernl/messaging` (memory backend with a scripted correspondent) and `@kernl/bridges` packages, a real applesauce `AccountManager`, and two sample applets whose `srcdoc` carries the guard's CSP and exercises consent, notifications, flooding and link opening. `?preview=1` selects it; the live path falls back to it only when `createKernl` is unavailable, and says so in a notice.
+
+**Consequences.** Preview behaviour is held to the same vocabulary and accessibility rules as the live shell. Sample applets are the first place a new mitigation is demonstrated.
+
+**Reversal cost.** Low; the preview is one module behind the contract.
+
+## D-012 · Guard enforcement is layered: configured before dispatch, reactive after
+
+**Context.** kehto's bridge owns the `MessagePort` an applet speaks over, and exposes applet traffic to the host only through the observe-only `onNappletMessage` hook. kernl cannot sit between the port and the runtime (D-001).
+
+**Decision.** Two layers. Before dispatch, kernl configures kehto's own runtime firewall from the guard profile when an applet is mounted (`applyRuntimeFirewallRules`, translating op classes through `RUNTIME_OP_CLASSES`), so kehto rejects over-budget envelopes itself. After dispatch, kernl's ingress guard, visibility gate and focus firewall observe the same traffic with the shell's focus and visibility; a `quarantine` disposition revokes the applet's binding, and every other non-pass disposition is surfaced to the user as a guard event. The window-level `hello` is the one message kernl filters before kehto sees it.
+
+**Consequences.** Deferral while hidden is advisory in this draft: the applet's envelope has already reached the runtime by the time the gate observes it, so the gate's effect is the tightened budget and the event trail, not a held queue. The upstream request that would make it a true pre-dispatch hook is recorded with D-001's gaps.
+
+**Reversal cost.** Low; the pipeline sits behind `createGuardPipeline` and shrinks when kehto exposes a pre-dispatch hook.
+
+## D-013 · The site is served at a domain root
+
+**Context.** D-007 sets an agent-readiness score of 84 or higher. Measured with amiagentready on 2026-11-03, the scanner works on the **origin**: it scores the domain's homepage whatever path it is given, and reads `robots.txt` and `llms.txt` from the domain root. The scoring is reproducible from its response: each scored check contributes its weight, pass at full, warn at half, fail at zero.
+
+**Measurement.** The Pages artifact served at the root of a temporary public origin, through `scripts/serve-pages.mjs`, scored **92** (12 pass, 2 warn, 0 fail; WebMCP detected). The two warns are "online booking" (kernl has none) and "schema coverage" (asks for local-business types such as opening hours and ratings, which do not apply). The same origin hosts `/docs/`, so the one score covers the website and the docs.
+
+**Decision.** Production serves the Pages artifact at the root of its own domain, and the host answers `Accept: text/markdown` with the page's Markdown twin (`Vary: Accept`), as `scripts/serve-pages.mjs` does. The Pages workflow reads `SITE_URL` and `SITE_BASE` from repository variables, so a custom domain needs no code change.
+
+**Consequences.** Served from the project subpath `kernlize.github.io/web/` (D-008's default), the score drops to about 82 because the origin has no `robots.txt` or `llms.txt`. A static host without content negotiation scores 90 at a root. Both regressions are visible in `docs/how-tos/deploy.md`.
+
+**Production, 2026-11-03.** The artifact is published to the public `kernlize/kernlize.github.io` repository (built output only; this repository stays private) and served at https://kernlize.github.io/. Live amiagentready score: **90**, no failing checks; the site and `/docs/` share the score because the tool grades the origin. The browser suite, including the public-vocabulary walk-through, passes against the live URL (`PLAYWRIGHT_BASE_URL=https://kernlize.github.io`).
+
+**Publishing is manual, by the maintainer's choice (2026-11-03).** `pnpm site:publish` builds, runs the vocabulary and agent-readiness gates, and pushes `.pages/` to the site repository. CI builds and audits on every push; it would publish only if a scoped `SITE_PUBLISH_TOKEN` were added, and none is.
+
+**Reversal cost.** Low; only deployment configuration.
+
+---
+
+<!-- https://kernlize.github.io/docs/guides/troubleshooting.md -->
+
+# Troubleshooting
+
+The failures people actually hit with this draft, what each one looks like, and what fixes it. Reason strings are listed in [Error reasons](https://kernlize.github.io/docs/reference/errors.md).
+
+## `pnpm site:dev` before `pnpm build`
+
+**Symptom.** The dev server starts, but the shell at `/app/` fails to load: Vite reports that it cannot resolve an `@kernl/…` import, or the shell opens the preview with the notice "Running the preview: The live shell could not start (…)".
+
+**Cause.** `apps/web` depends on the four packages with `workspace:^`, and each package's `exports` point at `dist/index.js`. A fresh clone has no `dist/`; `pnpm install` links the packages but does not build them.
+
+**Fix.** Build once, then start the site. Rebuild after changing a package.
+
+```bash
+pnpm install
+pnpm build
+pnpm site:dev
+```
+
+## TypeDoc fails on the git remote
+
+**Symptom.** `pnpm docs:api` (and therefore `pnpm docs:check` and `pnpm site:build`) stops with `The provided git remote "origin" was not valid. Source links will be broken`, raised to an error by `treatWarningsAsErrors` in `typedoc.json`.
+
+**Cause.** When neither `disableSources` nor `sourceLinkTemplate` is configured, TypeDoc derives source links from the remote named `origin` and warns when it is missing.
+
+**Fix.** The repository's `typedoc.json` sets `packageOptions.disableSources`, which makes TypeDoc skip the remote lookup; if you see the warning, check that a local change did not remove it. `entryPointStrategy` is `packages`, so command-line flags such as `--disableSources` do not reach the per-package converters; set options under `packageOptions`. Alternatively add the remote with `git remote add origin <url>`.
+
+## `localStorage` warnings under Node 25 and later
+
+**Symptom.** Running `pnpm test` prints `ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.`, or a test that uses `localStorage` throws because it is `undefined`.
+
+**Cause.** Newer Node versions define a global `localStorage` that is empty unless Node is started with `--localstorage-file`. On Node 26, reading it prints the warning and returns `undefined`. kehto's shell persists its ACL and manifest cache through `localStorage`.
+
+**Fix.** Nothing, for the shipped suites: `packages/core/features/steps/world.ts` installs an in-memory `localStorage` when the global has no `getItem`, and the warning is harmless. In your own tests, pass a `StorageLike` (a `Map` behind `getItem`, `setItem` and `removeItem`) as `KernlHost.storage`, and install a stand-in before importing kehto if your test reaches its persistence.
+
+## An applet opens but never gets past its first screen
+
+**Symptom.** The window shows the applet, which waits forever, shows its own "not available" state, or gets refusals.
+
+**Cause.** A domain the applet `requires` is not granted. kernl never grants a domain because an applet asked for it: the launcher shows the required domains as switches that start off, warns "Without …, this applet may not work. You can still run it.", and `plan.missingRequired` names what is missing. The applet's `shell.init` lists only the baseline and the domains you turned on.
+
+**Fix.** Open the window's **Grants** panel and turn the domain on. The grant reaches the ACL at once, but the domains the applet was told about at mount do not change until it is opened again, so close the window and open the applet again. If the launcher instead says "Could not open the applet (invalid:domain).", you switched on a domain this shell does not offer; turn that switch off and click **Run** again. A domain the shell does not offer has no switch in the grants panel (for example `config`, `intent` or `upload`; see [Architecture](https://kernlize.github.io/docs/concepts/architecture.md#where-each-nap-domain-is-served-from)), and the applet cannot get it in kernl. A new build of an applet has a new hash, so it starts with no grants; see [Applets under kernl](https://kernlize.github.io/docs/concepts/applets-under-kernl.md).
+
+## An applet was quarantined
+
+**Symptom.** A notice says "… was stopped", the window shows "This applet was stopped." with the reason `quarantine`, and the guard panel (*Guard · strict · N*) lists "Applet … was quarantined: it kept flooding the shell" (`flood:quarantine`) or "…: too many web fetches while hidden" (`flood:hidden-resource`).
+
+**Cause.** The applet sent more messages than the profile allows in the rolling window, or used up its `resource.*` allowance while hidden. The guard revokes the applet's binding and removes its frame; the guard state for that window is dropped.
+
+**Fix.** A stopped window does not restart. The window's **Grants** panel offers **Release from quarantine**, which calls `kernl.guard.release(windowId)` and clears the window's quarantine mark; to run the applet again, close the stopped window and open the applet again. It gets a fresh window and fresh guard counters, and its grants are unchanged, because quarantine does not block. If it floods again, either block it (**Block applet**) or, for an applet you trust, switch the guard panel's profile; that applies to every window and resets to `strict` on reload ([Change the guard profile](https://kernlize.github.io/docs/how-tos/change-guard-profile.md)).
+
+---
+
 <!-- https://kernlize.github.io/docs/how-tos/add-a-bridge-backend.md -->
 
 # Add a bridge backend
@@ -762,7 +1091,7 @@ The four non-HTTP bridges are complete up to the backend interface they call. Su
 
 ## 2. Implement it outside the published packages
 
-A backend talks to something: a WebTorrent client, a downloader daemon, a mail account. That belongs in `apps/web` (or in a package of its own with its own dependencies), not in `@kernl/bridges`, which stays dependency-free.
+A backend talks to something: a WebTorrent client, a downloader daemon, a mail account. That belongs in the host app (`apps/web`, or your own page) or in a package of its own with its own dependencies, not in `@kernl/bridges`, which stays dependency-free. The samples on this page type-check against the built packages.
 
 ```ts
 import type { BridgeContext, TorrentBackend } from '@kernl/bridges';
@@ -785,21 +1114,45 @@ export function createWebTorrentBackend(client: WebTorrentLike): TorrentBackend 
 }
 ```
 
-Return a stable `id`: the shell uses it to show job state and to let the user cancel. The `name` becomes the job's `label`. Reject with stable reasons (`unavailable:engine-offline`, `denied:…`); the registry reports and rethrows them unchanged (`registry.feature`, scenario "a bridge failure is reported and rethrown").
+Return a stable `id`: it is the job's identity in the `202` body the applet receives, and what a future downloads view would use to show state and cancel. The `name` becomes the job's `label`. Reject with stable reasons (`unavailable:engine-offline`, `denied:…`); the registry reports and rethrows them unchanged (`registry.feature`, scenario "a bridge failure is reported and rethrown").
 
 ## 3. Hand it to the bridge
 
-`createTorrentBridge(backend?)` takes the backend as an optional argument. Without one it reports `{ available: false, reason: 'no-backend' }` and rejects every `resolve()` with `unavailable:no-backend`; with one it reports available and routes `resolve()` to `backend.add`. In `createKernl`, replace the bare registration:
+`createTorrentBridge(backend?)` takes the backend as an optional argument. Without one it reports `{ available: false, reason: 'no-backend' }` and rejects every `resolve()` with `unavailable:no-backend`; with one it reports available and routes `resolve()` to `backend.add`.
+
+The shell's bridges are registered by `createDefaultBridges` in `packages/core/src/bridges/default-registry.ts`, which `createKernl` calls when `KernlOptions.bridges` is absent. Its signature is `createDefaultBridges(options?: DefaultBridgesOptions)`, where the options are the registry's `authorize` and `onResolve` plus `http` for the web bridge. It takes no backends, and a registry cannot replace a bridge it already holds (a second `torrent` throws `invalid:duplicate-bridge torrent`). So a host that supplies a backend builds the same five registrations itself, with its backend in place, and passes the registry as `KernlOptions.bridges`:
 
 ```ts
-import { createBridgeRegistry, createTorrentBridge, formatLocator } from '@kernl/bridges';
+import { createKernl, type KernlHost } from '@kernl/core';
+import {
+  createBridgeRegistry,
+  createHttpBridge,
+  createMailBridge,
+  createNzbBridge,
+  createSoulseekBridge,
+  createTorrentBridge,
+  type BridgeRegistry,
+  type TorrentBackend,
+} from '@kernl/bridges';
 
-const registry = createBridgeRegistry({
-  authorize: (locator, bridge) => confirm(`Open ${formatLocator(locator)} with ${bridge.label}?`),
-  onResolve: (event) => log.push(event),
-});
-registry.register(createTorrentBridge(createWebTorrentBackend(client)));
+declare const host: KernlHost;
+declare const client: Parameters<typeof createWebTorrentBackend>[0];
+
+export function createBridgesWithTorrent(torrent: TorrentBackend): BridgeRegistry {
+  const registry = createBridgeRegistry({ onResolve: (event) => console.info('bridge', event) });
+  registry.register(createHttpBridge());
+  registry.register(createTorrentBridge(torrent));
+  registry.register(createNzbBridge());
+  registry.register(createSoulseekBridge());
+  registry.register(createMailBridge());
+  return registry;
+}
+
+const kernl = createKernl({ host, bridges: createBridgesWithTorrent(createWebTorrentBackend(client)) });
+kernl.bridges.forScheme('magnet')?.availability(); // { available: true }
 ```
+
+The web, NZB, Soulseek and mail bridges are the same as the defaults. To ship the backend inside kernl itself, change the torrent registration in `createDefaultBridges` instead.
 
 Check the bridge's `exposure`. The torrent bridge declares `revealsAddress: true`, `encryptedInTransit: false`, `publicActivity: true`, which is the truth for a client in a public swarm. The factory does not take an exposure argument, so if your backend changes the truth of any field (a backend that tunnels through a seedbox does not reveal the user's address), register a bridge object with the same `resolve` and a corrected `exposure`:
 
@@ -808,11 +1161,15 @@ const stock = createTorrentBridge(createWebTorrentBackend(client));
 registry.register({ ...stock, exposure: { ...stock.exposure, revealsAddress: false } });
 ```
 
+Register that object in place of `createTorrentBridge(torrent)` in `createBridgesWithTorrent`.
+
 The user reads these three booleans, rendered by `describeBridge`, before consenting; they must be right.
 
-## 4. Consent and quota are already there
+## 4. What already applies, and what does not yet
 
-You do not add a prompt. `BridgeRegistry.resolve` checks `availability()`, then calls the shell's `BridgeAuthorizer`, before any bridge runs; a denial rejects with `denied:bridge`. The guard's `resource:bytes` bucket and hidden-window allowance apply before the registry is reached. A `job` result reaches kehto's resource service as a `202 Accepted` JSON body through `createBridgeResourceResolver`, and shows up in the shell's downloads list with the bridge's label. Every outcome is also reported to `onResolve` as a `BridgeResolveEvent`.
+`BridgeRegistry.resolve` checks `availability()`, then calls the registry's `authorize` hook if one was given, before any bridge runs; a denial rejects with `denied:bridge`. The composed shell wires no `BridgeAuthorizer`: `createKernl` uses `createDefaultBridges()` without `authorize`, so a request from an applet that holds the `resource` grant reaches your bridge without a per-request prompt. A host that wants one passes `authorize` to `createBridgeRegistry` in the sample above; a consent prompt per host in the shell is on the [Roadmap](https://kernlize.github.io/docs/roadmap.md#_6-guard) ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#what-does-not-work-yet)).
+
+The guard's `resource:bytes` rate and hidden-window allowance apply to `resource.*` envelopes. A `job` result reaches kehto's resource service as a `202 Accepted` JSON body through `createBridgeResourceResolver`; the applet that asked receives it. The shell has no downloads list yet, so nothing shows job state to the user; that UI is roadmap work. Every outcome is also reported to `onResolve` as a `BridgeResolveEvent`.
 
 ## 5. Specify and document
 
@@ -832,7 +1189,7 @@ A provider is a package change plus a docs page. This how-to adds a provider cal
 
 ## 1. Describe it truthfully
 
-Start with the properties, because they are the contract with the user. Every field is required and the shell shows all of them through `describeProvider`.
+Start with the properties, because they are the contract with the user. Every field except `specification` is required, and the shell shows all of them except `specification` through `describeProvider`.
 
 ```ts
 import type { ProviderDefinition, SecurityProperties } from '@kernl/messaging';
@@ -909,7 +1266,7 @@ export function createExampleBackend(deps: ExampleDeps): MessagingBackend {
 
 Rules the backend must keep:
 
-- Read from the shell's shared `EventStore`; do not open a second relay connection outside the shared `RelayPool`. The shell passes both to your deps.
+- Use the shell's shared `EventStore` and `RelayPool` (`kernl.eventStore`, `kernl.pool`); do not open a second relay connection. The shell does not inject anything into your backend: `@kernl/core` calls only the factory you register, so you build `ExampleDeps` yourself from those instances, as `exampleDeps(resolve)` below does.
 - Sign only through the function the shell injects. Never touch key bytes.
 - Reject with stable reasons: `denied:`, `invalid:`, `unavailable:`.
 - `subscribe` returns `{ subscriptionId }`; `unsubscribe` of an unknown id returns `{ ok: false }`; `close` drops every subscription. Every method except `send` may be synchronous.
@@ -944,11 +1301,22 @@ The three built-ins (`createPrivateMessagesProvider`, `createLegacyMessagesProvi
 
 ## 4. Register it
 
-In `@kernl/core`, `createKernl` builds the registry and registers the three existing providers. Add yours there:
+The three built-in providers are registered by `createDefaultMessaging` in `packages/core/src/messaging/default-registry.ts`, which `createKernl` calls when `KernlOptions.messaging` is absent. You do not edit `createKernl`. A host has two options-based paths:
+
+- **A backend for a built-in provider.** Pass `KernlOptions.messagingBackends`, a `MessagingBackendFactories` (`{ private?, legacy?, ratchet? }`, each `() => MessagingBackend`). The provider whose factory you supply reports itself available.
+- **A new provider.** Build the default registry yourself, register yours on it, and pass it as `KernlOptions.messaging`. The defaults stay registered:
 
 ```ts
-registry.register(provider);
+import { createDefaultMessaging, createKernl, type KernlHost } from '@kernl/core';
+
+declare const host: KernlHost;
+
+const messaging = createDefaultMessaging({ storage: host.storage });
+messaging.register(provider);
+const kernl = createKernl({ host, messaging });
 ```
+
+When `messaging` is supplied, `createKernl` uses it as is and ignores `messagingBackends`; pass any built-in backends to `createDefaultMessaging({ storage, backends })` instead. To ship a provider inside kernl itself, register it in `createDefaultMessaging` next to the three built-ins.
 
 Registration does not enable, unless the user's saved preferences already list `example`; then it is enabled on registration if `available()` agrees, and left disabled otherwise. The user enables it in the provider picker, which calls `registry.enable('example')`. Registering the same id twice throws `invalid:duplicate-provider`. See `registry.feature`, scenarios "a registered provider starts disabled" and "saved preferences enable providers as they register".
 
@@ -957,7 +1325,7 @@ Registration does not enable, unless the user's saved preferences already list `
 - Add the provider to the `Scenario Outline` in `packages/messaging/features/providers.feature` ("the built-in providers carry fixed copy and properties") with its name, description, six properties and specification, and a scenario that `describeProvider` rows name no protocol. Step definitions live in `packages/messaging/features/steps/`.
 - If the backend lives in a package, give it a feature file modelled on `memory-backend.feature`: sends create conversations, delivered messages are unread, subscriptions filter by conversation, cursors resume.
 - Add a row to the providers table in [Messaging](https://kernlize.github.io/docs/concepts/messaging.md#the-three-providers) and a line to the providers table on the [package page](https://kernlize.github.io/docs/packages/messaging.md#providers).
-- Add a changeset for `@kernl/messaging` (and `@kernl/core` if you touched registration).
+- Add a changeset for `@kernl/messaging` (and `@kernl/core` if you touched `createDefaultMessaging`).
 
 `pnpm test` must stay at 100% coverage over `packages/*/src`, and `pnpm docs:check` must pass. A provider without the feature rows or the docs rows is not shipped.
 
@@ -967,7 +1335,7 @@ Registration does not enable, unless the user's saved preferences already list `
 
 # Change the guard profile
 
-The shell boots every applet in `strict`. A user can loosen one applet to `balanced` or `relaxed`. There is no way to loosen every applet at once, and that is the point (D-003).
+The shell boots every applet in `strict`. A user can loosen one applet to `balanced` or `relaxed`. There is no way to loosen every applet at once, and that is the point ([D-003](https://kernlize.github.io/docs/decisions.md#d-003)).
 
 ## In the shell
 
@@ -975,7 +1343,7 @@ The shell boots every applet in `strict`. A user can loosen one applet to `balan
 2. Under *Profile*, pick `balanced` or `relaxed`. The list of mitigations updates to show the new limit for each one. The CSP does not change; it never does.
 3. The change calls `kernl.guard.setProfile(profile)`, which rebuilds every guard layer for every open window at once; held messages are dropped and counters restart, so a quarantined window is released. It is not persisted: a reload starts in `strict` again.
 
-In this draft the profile is shell-wide. The per-applet, remembered override that D-003 describes is listed under [Alpha status](https://kernlize.github.io/docs/alpha-status.md#what-does-not-work-yet).
+In this draft the profile is shell-wide. The per-applet, remembered override that [D-003](https://kernlize.github.io/docs/decisions.md#d-003) describes is listed under [Alpha status](https://kernlize.github.io/docs/alpha-status.md#what-does-not-work-yet).
 
 ## In code
 
@@ -1041,31 +1409,21 @@ kernl deploys as one static artifact: the landing site at the root, the shell at
 | `SITE_BASE` | Astro site | Path prefix the site is served under. | `/` | `/` |
 | `VITEPRESS_BASE` | Docs site | Path prefix the docs are served under. Always `SITE_BASE` plus `docs/`. | `/docs/` | `/docs/` |
 
-The Pages workflow reads `SITE_URL` and `SITE_BASE` from repository variables (`vars.SITE_URL`, `vars.SITE_BASE`) and falls back to the project subpath. When a custom domain is chosen, set those two variables; nothing in the source references a host (D-008).
+The Pages workflow reads `SITE_URL` and `SITE_BASE` from repository variables (`vars.SITE_URL`, `vars.SITE_BASE`) and falls back to the domain root: `https://kernlize.github.io/` and `/`. It sets `VITEPRESS_BASE` to `SITE_BASE` followed by `docs/`. When a custom domain is chosen, set those two variables; nothing in the source references a host ([D-008](https://kernlize.github.io/docs/decisions.md#d-008)).
 
 ## Serve at a domain root
 
-Agent-readiness scanners such as amiagentready score the **origin**: they read the domain's homepage, `robots.txt` and `llms.txt` at the root, whatever path they are given (D-013). Measured on 2026-11-03:
+The site is served at the root of its own origin, **https://kernlize.github.io/**, because agent-readiness scanners grade the origin: they read `robots.txt` and `llms.txt` from the domain root whatever path they are given, and a project subpath such as `kernlize.github.io/web/` has neither ([D-013](https://kernlize.github.io/docs/decisions.md#d-013)).
 
-| Hosting | `robots.txt` / `llms.txt` at the root | `Accept: text/markdown` | Score |
-| --- | --- | --- | --- |
-| Domain root, host negotiates Markdown (`scripts/serve-pages.mjs`) | yes | yes | **92** |
-| Domain root, plain static host | yes | no | 90 |
-| Project subpath `kernlize.github.io/web/` | no | no | about 82 |
-
-So production is a domain root: **https://kernlize.github.io/**, scored **90** live on 2026-11-03 (no failing checks; GitHub Pages cannot negotiate Markdown). The source repository is private and on the free plan, so it cannot serve Pages itself. The built `.pages/` artifact is published to the public `kernlize/kernlize.github.io` repository, which holds nothing else.
-
-Publishing is manual by decision (D-013): one command builds, runs the vocabulary and agent-readiness gates, and pushes the artifact.
+The source repository is private, so it does not serve Pages itself. The built `.pages/` artifact is published to the public `kernlize/kernlize.github.io` repository, which holds nothing else. Publishing is manual by decision ([D-013](https://kernlize.github.io/docs/decisions.md#d-013)): one command builds, runs the vocabulary and agent-readiness gates, and pushes the artifact.
 
 ```bash
 pnpm site:publish
 ```
 
-`.github/workflows/pages.yml` builds and audits the same artifact on every push to `main`. It publishes only if a `SITE_PUBLISH_TOKEN` secret (a fine-grained token with Contents read/write on `kernlize/kernlize.github.io`) is ever added; none is configured. Organisation deploy keys are disabled for `kernlize`.
+`.github/workflows/pages.yml` builds and audits the same artifact on every push to `main`. It publishes only if a `SITE_PUBLISH_TOKEN` secret (a fine-grained token with Contents read/write on `kernlize/kernlize.github.io`) is ever added; none is configured.
 
-Moving to a custom domain later means setting the `SITE_URL` and `SITE_BASE` repository variables and adding a `CNAME` to the published artifact. With GitHub Pages that means a custom domain (set the variables to `https://<domain>/` and `/`). Content negotiation needs a host or edge rule that, for a request with `Accept: text/markdown`, serves the page's `.md` twin with `Vary: Accept`. `scripts/serve-pages.mjs` implements the rule and is the reference.
-
-To re-measure a build without deploying it, serve `.pages/` with `scripts/serve-pages.mjs`, expose it on a temporary public URL, and request `https://amiagentready.com/api/scan?url=<url>`. Add a query string to bypass the scanner's cache.
+To move to a custom domain, set the `SITE_URL` repository variable to `https://<domain>/`, keep `SITE_BASE` at `/`, and add a `CNAME` file to the published artifact. GitHub Pages cannot answer `Accept: text/markdown`; a host that should needs a rule that serves the page's `.md` twin with `Vary: Accept`. `scripts/serve-pages.mjs` implements the rule and is the reference.
 
 ## Build locally
 
@@ -1115,6 +1473,7 @@ The server resolves directory URLs to `index.html` and VitePress clean URLs to t
 env:
   SITE_URL: ${{ vars.SITE_URL || 'https://kernlize.github.io/' }}
   SITE_BASE: ${{ vars.SITE_BASE || '/' }}
+  VITEPRESS_BASE: ${{ vars.SITE_BASE || '/' }}docs/
 steps:
   - run: pnpm install --frozen-lockfile
   - run: pnpm site:build
@@ -1127,11 +1486,142 @@ steps:
 
 ## TypeDoc source links
 
-TypeDoc derives source links from the git remote named `origin`. In a checkout with commits but without that remote it warns once per package, and `typedoc.json` sets `treatWarningsAsErrors`, so `pnpm docs:api` fails. CI checkouts have the remote. Locally, add it (`git remote add origin https://github.com/kernlize/web.git`). Because `entryPointStrategy` is `packages`, command-line flags such as `--disableSources` do not reach the per-package converters; a configuration that never depends on the remote sets `packageOptions.sourceLinkTemplate` to `https://github.com/kernlize/web/blob/main/{path}#L{line}` in `typedoc.json`.
+`typedoc.json` sets `packageOptions.disableSources`, so the generated reference carries no links into the source repository, which is private during the alpha, and TypeDoc never consults a git remote. Because `entryPointStrategy` is `packages`, command-line flags such as `--disableSources` do not reach the per-package converters; set source options under `packageOptions`. When the repository opens, replace it with a `sourceLinkTemplate` pointing at the public tree. Without either option, TypeDoc looks up the `origin` remote and, if there is none, warns; `treatWarningsAsErrors` turns that into a failed `pnpm docs:api` ([Troubleshooting](https://kernlize.github.io/docs/guides/troubleshooting.md#typedoc-fails-on-the-git-remote)).
 
 ## Hosting somewhere else
 
 Any static host works. Set `SITE_URL` to the deployment root, `SITE_BASE` and `VITEPRESS_BASE` to its path prefix (usually `/` and `/docs/`), build, and upload `.pages/`. The shell has no server dependency; the applets it opens come from relays the user chose.
+
+---
+
+<!-- https://kernlize.github.io/docs/how-tos/embed-kernl-core.md -->
+
+# Embed kernl core
+
+`apps/web` is one host for `@kernl/core`; your own page can be another. This how-to implements `KernlHost`, calls `createKernl`, and mounts an applet in an iframe you own. The sample type-checks against the built packages with `strict` on.
+
+The packages are not yet published to npm, so your page lives in a clone of the kernl source as a workspace package that depends on `@kernl/core` and `@kernl/guard` with `workspace:^`, and you run `pnpm build` first ([Packages](https://kernlize.github.io/docs/packages/index.md#install)).
+
+## 1. Put the frame policy in the page head
+
+The host page must stop applet frames from navigating away from their verified `srcdoc`. `KERNL_FRAME_POLICY_META` is the `<meta>` element that does it, rendered once by kehto's `renderNappletFramePolicyMeta`:
+
+```html
+<meta http-equiv="Content-Security-Policy" content="frame-src 'none'">
+```
+
+Put it in the `<head>` of the HTML the server sends, before any script runs, as `apps/web/src/pages/app/index.astro` does. If your page is generated, render the constant into the head at build time (`import { KERNL_FRAME_POLICY_META } from '@kernl/core'`) rather than inserting it from client code, so the policy is in force before the first frame exists. Applets still load, because their bytes arrive as `srcdoc` rather than from a URL; a frame that tries to load or navigate to a URL is blocked.
+
+## 2. Implement `KernlHost` and create the shell
+
+`KernlHost` is the only way the core reaches the user or the page. Six members are required:
+
+| Member | What the core expects |
+| --- | --- |
+| `storage` | A synchronous `StorageLike` (`getItem`, `setItem`, `removeItem`). `localStorage` satisfies it. Grants, accounts, relay tiers and messaging preferences persist here under `kernl:` keys. |
+| `presentConsent(prompt)` | Show `prompt.summary` (title, severity, lines) and call `prompt.resolve(true \| false)`. Resolve `false` on dismiss; the core never times out. |
+| `notify(notice)` | Show `{ title, body?, windowId?, tone }`. Applets reach it through the `notify` domain; the guard and revocations use it too. |
+| `openLink(url)` | Open a URL outside the shell. It is called only after the link service allowed the protocol (`https:`, `mailto:`); confirming with the user is your choice. |
+| `getVisibility(windowId)` | Return `{ visible, focused, msSinceFocusGain? }` for a window, synchronously. The guard uses it for hidden allowances and focus tightening. |
+| `onRevoked(windowId, reason)` | Called after the core removed a frame because its binding was revoked (`quarantine`, `second-load`, …). Update your UI. |
+
+`fetchBlob` and `now` are optional; without them the core fetches artifact blobs with `defaultFetchBlob` and uses `Date.now`.
+
+```ts
+import { createKernl, type AppletHandle, type ConsentPrompt, type KernlHost } from '@kernl/core';
+import type { WindowVisibility } from '@kernl/guard';
+import { ReadonlyAccount } from 'applesauce-accounts/accounts';
+
+const frames = new Map<string, HTMLIFrameElement>();
+let focusedId: string | null = null;
+
+function visibilityOf(windowId: string): WindowVisibility {
+  const frame = frames.get(windowId);
+  const visible = frame !== undefined && frame.isConnected && document.visibilityState === 'visible';
+  return { visible, focused: visible && focusedId === windowId };
+}
+
+function describe(prompt: ConsentPrompt): string {
+  const lines = prompt.summary.lines.map((line) => `${line.label}: ${line.before ?? '-'} -> ${line.after ?? '-'}`);
+  return [prompt.summary.title, ...lines].join('\n');
+}
+
+const host: KernlHost = {
+  storage: localStorage,
+  presentConsent: (prompt) => prompt.resolve(window.confirm(describe(prompt))),
+  notify: (notice) => console.info(`[${notice.tone}] ${notice.title}${notice.body ? `: ${notice.body}` : ''}`),
+  openLink: (url) => void window.open(url, '_blank', 'noopener,noreferrer'),
+  getVisibility: visibilityOf,
+  onRevoked(windowId, reason) {
+    frames.get(windowId)?.remove();
+    frames.delete(windowId);
+    console.warn(`applet ${windowId} was stopped: ${reason}`);
+  },
+};
+
+const kernl = createKernl({ host });
+window.addEventListener('message', (event) => kernl.handleWindowMessage(event));
+
+function refreshVisibility(): void {
+  for (const handle of kernl.applets()) handle.setVisibility(visibilityOf(handle.windowId));
+}
+document.addEventListener('visibilitychange', refreshVisibility);
+
+export async function signInReadOnly(pubkey: string): Promise<void> {
+  const session = await kernl.login(ReadonlyAccount.fromPubkey(pubkey));
+  console.info(`signed in as ${session.label}, read-only: ${session.readOnly}`);
+}
+
+export async function openApplet(address: string, container: HTMLElement): Promise<AppletHandle> {
+  const summary = await kernl.resolve(kernl.decodePointer(address));
+  const offered = kernl.grants.availableDomains();
+  const baseline = kernl.grants.baselineDomains();
+  for (const domain of summary.requires) {
+    if (!offered.includes(domain) || baseline.includes(domain)) continue;
+    if (window.confirm(`${summary.title} says it needs "${domain}". Allow it?`)) kernl.grants.allowDomain(summary.identity, domain);
+  }
+  const plan = await kernl.plan(summary);
+  if (plan.missingRequired.length > 0) console.warn(`${summary.title} runs without ${plan.missingRequired.join(', ')}`);
+
+  const frame = document.createElement('iframe');
+  frame.title = summary.title;
+  container.append(frame);
+  frames.set(plan.windowId, frame);
+  container.addEventListener('pointerdown', () => {
+    focusedId = plan.windowId;
+    refreshVisibility();
+  });
+  return kernl.mount(plan, frame);
+}
+```
+
+`createKernl({ host })` creates one `EventStore`, one `RelayPool` and one `AccountManager`, the guard pipeline in `strict`, the default messaging and bridge registries, kehto's services and the shell bridge ([`@kernl/core`](https://kernlize.github.io/docs/packages/core.md#composition)). Pass any of them in `KernlOptions` to use your own. Wire `handleWindowMessage` to `window` exactly once: it is how an applet's `hello` reaches the guard and then kehto.
+
+## 3. The mount flow
+
+`openApplet` above is the whole lifecycle, and the order matters:
+
+1. **`decodePointer(address)`** turns the address into a pointer and throws `invalid:pointer` for anything else.
+2. **`resolve(pointer)`** fetches the manifest from the pointer's relay hints plus the `apps` tier and verifies the signature and the artifact bytes. The `AppletSummary` it returns is what you show before running anything; `requires` and `optional` are advisory.
+3. **Grants.** Ask the user, then call `grants.allowDomain(identity, domain)` for what they allowed. Skip domains outside `grants.availableDomains()`, which throw `invalid:domain`, and the baseline ones, which are always on.
+4. **`plan(summary)`** writes the applet's ACL explicitly and returns the `MountPlan`: the srcdoc with the guard's CSP, the environment the applet will see, and `missingRequired`. It throws `denied:blocked` for a blocked applet.
+5. **The frame.** Create the iframe and attach it to the document first: `mount` needs its `contentWindow` and throws `invalid:frame-detached` otherwise. Do not set `src`, `sandbox` or `srcdoc` yourself. Record it under `plan.windowId` so `getVisibility` can answer for it.
+6. **`mount(plan, frame)`** installs the profile's runtime rates, sets `sandbox="allow-scripts"` and the controller-denying `allow` policy, registers the window, and only then assigns `srcdoc`. It returns an `AppletHandle`.
+
+After mount, keep the guard informed: call `handle.setVisibility(...)` whenever a window is shown, hidden, focused or blurred (the sample does it on `visibilitychange` and on pointer focus). `handle.close()` revokes the binding and removes the frame; grants stay, keyed by identity. `kernl.destroy()` closes everything when the page goes away.
+
+## 4. Check it
+
+- Open an applet that `requires` `relay` and decline it: `plan.missingRequired` is `['relay']` and the applet's `shell.init` lacks it.
+- Hide its container and call `setVisibility`: from then on the applet's resource requests count against the hidden allowance, and any overrun appears on `kernl.guard.events$`.
+- Subscribe to `kernl.guard.events$` and `kernl.session$` and render them; they are the same streams `apps/web` shows in its guard panel and sign-in screen.
+
+## Related
+
+- [Run the shell](https://kernlize.github.io/docs/tutorials/run-the-shell.md), the same flow through `apps/web`
+- [Applets under kernl](https://kernlize.github.io/docs/concepts/applets-under-kernl.md)
+- [Architecture](https://kernlize.github.io/docs/concepts/architecture.md#the-mount-path)
+- [Error reasons](https://kernlize.github.io/docs/reference/errors.md)
 
 ---
 
@@ -1147,7 +1637,7 @@ A grant is something the user gave and can take back. This page covers what the 
 
 **During use.** kehto asks before signing a destructive kind. kernl's consent handler turns the request into a `ConsentSummary` from `describeChange` and the host shows it: the title ("Update your profile", "Change who you follow", "Delete 2 events", "Change your connections list", "Change the list …") and one line per change with the value before and after. The applet is named by its display name and the short hash of its build. *Allow* resolves the request with `true`; dismissing it resolves `false`. Nothing is remembered; the next destructive write asks again.
 
-**In the grants panel.** Every domain the shell offers, as a switch; a *Block* switch; and, when the guard has quarantined the window, a control to lift it. The panel reads `kernl.grants.get(identity)` and re-renders on `kernl.grants.changes$`.
+**In the grants panel.** Every domain the shell offers, as a switch; a **Block applet** button (**Unblock applet** once blocked); and, when the guard has quarantined the window, **Release from quarantine**. The panel reads `kernl.grants.get(identity)` and re-renders on `kernl.grants.changes$`.
 
 ## What a grant is keyed by
 
@@ -1186,7 +1676,7 @@ Every change commits the record, which does three things in order: persist it to
 
 - **`allowDomain`** refuses a domain the shell does not offer with `invalid:domain`. A newly allowed domain is in the ACL at once; a running applet was told its environment at mount and is not told again, so the domain appears in its `shell.init` the next time it is opened.
 - **`revokeDomain`** refuses the baseline with `denied:baseline-domain`. The ACL loses the domain's capabilities at once, and kehto refuses the applet's next envelope that needs one of them.
-- **`block`** keeps the record's domains but denies every capability in the ACL and makes `createEnvironmentResolver` advertise `shell` alone at the next mount. It does not close an open window; the panel closes it with `handle.close()`. **`unblock`** restores the record's capabilities.
+- **`block`** keeps the record's domains but denies every capability in the ACL and makes `createEnvironmentResolver` advertise `shell` alone at the next mount. It does not close an open window, and neither does the panel; the open window keeps running under the ACL's denials until it is closed. **`unblock`** restores the record's capabilities.
 - **`setStateQuota`** writes the quota for the `storage` domain into the ACL and emits a change.
 - **`ensure(identity)`**, on the `KernlGrants` type the shell holds internally, is called by `kernl.plan` so an applet with no record still gets an explicit, baseline-only ACL entry.
 
@@ -1204,7 +1694,7 @@ A `resource` request from an applet that holds the `resource` domain is resolved
 - Access to `window.nostr`, raw keys or the `EventStore`.
 - A global grant across applets.
 - A grant by a developer flag or a URL parameter.
-- A domain the shell does not register. `DOMAIN_CAPABILITIES` has rows for `keys`, `media`, `config`, `cvm`, `upload`, `intent`, `fs`, `llm` and `cache`, but `availableDomains()` does not list them and `allowDomain` refuses them.
+- A domain the shell does not serve. `DOMAIN_CAPABILITIES` has rows for `config`, `cvm`, `upload`, `intent`, `fs`, `llm` and `cache`, but `availableDomains()` does not list them and `allowDomain` refuses them with `invalid:domain`. (`keys` and `media` are listed, because kehto's runtime serves them natively, though kernl wires nothing behind them.)
 
 ---
 
@@ -1232,25 +1722,27 @@ kehto ships `@kehto/{acl,firewall,runtime,shell,services,nip,wm}` and deliberate
 | Protocols | One identity layer, many [bridges](https://kernlize.github.io/docs/concepts/bridges.md) named by what they do for the user, never by the wire format. |
 | Messaging | Any reasonable private-messaging protocol, exposed through one contract. [Providers](https://kernlize.github.io/docs/concepts/messaging.md) describe their security properties truthfully and the shell does not rank them. |
 
-kernl does not fork kehto. When kehto lacks a hook kernl needs, kernl composes around it and files the gap upstream. The four gaps filed so far are recorded in [D-001](https://kernlize.github.io/docs/alpha-status.md#upstream-gaps).
+kernl does not fork kehto ([D-001](https://kernlize.github.io/docs/decisions.md#d-001)). When kehto lacks a hook kernl needs, kernl composes around it and takes the gap upstream. The four gaps found so far, still to be filed upstream, are listed in [Alpha status](https://kernlize.github.io/docs/alpha-status.md#upstream-gaps).
 
 ## Three doors
 
-**Use the shell.** Run kernl locally, sign in with a browser extension or a remote signer, and open an applet by its address. Start with [Run the shell](https://kernlize.github.io/docs/tutorials/run-the-shell.md), then read [Grant and revoke](https://kernlize.github.io/docs/how-tos/grant-and-revoke.md) to understand what the shell asks you and why.
+**Use the shell.** Try the hosted preview at [kernlize.github.io/app/?preview=1](https://kernlize.github.io/app/?preview=1), which needs no install and no account, or open the live shell, sign in with a browser extension or a remote signer, and open an applet by its address. Start with [Run the shell](https://kernlize.github.io/docs/tutorials/run-the-shell.md), then read [Grant and revoke](https://kernlize.github.io/docs/how-tos/grant-and-revoke.md) to understand what the shell asks you and why.
 
-**Build an applet for it.** Applets are ordinary NIP-5D napplets; kernl adds nothing to the wire format. What kernl changes is the posture: fewer domains advertised until granted, deferral while hidden, and rate limits that tighten when you lose focus. [Build an applet for kernl](https://kernlize.github.io/docs/tutorials/build-an-applet-for-kernl.md) tells you what to expect and how to test against it.
+**Build an applet for it.** Applets are ordinary NIP-5D napplets; kernl adds nothing to the wire format. What kernl changes is the posture: fewer domains advertised until granted, budgets that tighten while hidden or unfocused, and quarantine for floods. [Applets under kernl](https://kernlize.github.io/docs/concepts/applets-under-kernl.md) tells you what to expect and how to test against it.
 
-**Extend the shell.** Add a [messaging provider](https://kernlize.github.io/docs/how-tos/add-a-messaging-provider.md), a [bridge backend](https://kernlize.github.io/docs/how-tos/add-a-bridge-backend.md), or change how the guard is composed. Start with [Architecture](https://kernlize.github.io/docs/concepts/architecture.md) and the [package pages](https://kernlize.github.io/docs/packages/index.md).
+**Extend the shell.** [Embed kernl core](https://kernlize.github.io/docs/how-tos/embed-kernl-core.md) in your own page, add a [messaging provider](https://kernlize.github.io/docs/how-tos/add-a-messaging-provider.md) or a [bridge backend](https://kernlize.github.io/docs/how-tos/add-a-bridge-backend.md), or change how the guard is composed. Start with [Architecture](https://kernlize.github.io/docs/concepts/architecture.md) and the [package pages](https://kernlize.github.io/docs/packages/index.md).
 
 ## How these docs are organised
 
 | Section | What you find there |
 | --- | --- |
-| [Concepts](https://kernlize.github.io/docs/concepts/architecture.md) | Why the shell is shaped the way it is: layering, guard, identity, messaging, bridges. |
+| [Concepts](https://kernlize.github.io/docs/concepts/architecture.md) | Why the shell is shaped the way it is: layering, guard, identity, messaging, bridges, and what an applet meets. |
 | [Tutorials](https://kernlize.github.io/docs/tutorials/run-the-shell.md) | End-to-end walkthroughs that leave you with something running. |
 | [How-tos](https://kernlize.github.io/docs/how-tos/change-guard-profile.md) | One task each, with the exact calls. |
-| [Packages](https://kernlize.github.io/docs/packages/index.md) | One page per published package: version, install, exports, scope. |
-| [API reference](https://kernlize.github.io/docs/reference/api.md) | Generated from source JSDoc by TypeDoc. |
+| [Troubleshooting](https://kernlize.github.io/docs/guides/troubleshooting.md) | Failures people hit with this draft, and their fixes. |
+| [Packages](https://kernlize.github.io/docs/packages/index.md) | One page per package: version, install, exports, scope. |
+| [API reference](https://kernlize.github.io/docs/reference/api.md) and [error reasons](https://kernlize.github.io/docs/reference/errors.md) | Generated from source JSDoc by TypeDoc; every reason string the packages throw. |
+| [Decisions](https://kernlize.github.io/docs/decisions.md) | The `D-NNN` decision log these pages cite. |
 | [Policies](https://kernlize.github.io/docs/policies/index.md) | Rules the repository enforces mechanically: vocabulary, security posture, spec conformance. |
 
 Protocol vocabulary is used freely in these pages because they are written for developers. The public website and the shell UI follow a different rule, described in [Public vocabulary](https://kernlize.github.io/docs/policies/public-vocabulary.md).
@@ -1259,7 +1751,7 @@ Agents reading this site should start at [Agent access](https://kernlize.github.
 
 ## Licence and cost
 
-kernl is free software under the MIT licence. Every package and the shell cost $0; there is no paid tier and no account to buy. The source, these docs and the decisions behind both live at [kernlize/web](https://github.com/kernlize/web).
+kernl is free software under the MIT licence. Every package and the shell cost $0; there is no paid tier and no account to buy. During the alpha the source repository is private; the site, these docs and the [decisions](https://kernlize.github.io/docs/decisions.md) are public at [kernlize.github.io](https://kernlize.github.io/).
 
 ---
 
@@ -1280,13 +1772,15 @@ Locator parsing, the bridge contract, the registry that routes and authorises, a
 
 ## Install
 
-```bash
-pnpm add @kernl/bridges
+`@kernl/bridges` is not yet published to npm, so `pnpm add @kernl/bridges` fails. During the alpha it is built from the kernl source repository, which is private, and consumed as a workspace dependency. The [package index](https://kernlize.github.io/docs/packages/index.md#install) has the steps.
+
+```json
+{ "dependencies": { "@kernl/bridges": "workspace:^" } }
 ```
 
 ## Purpose
 
-A bridge resolves a protocol-specific locator to bytes, a job or a conversation on the user's behalf, behind the same consent and quota as everything else, and is named by what it does rather than by its protocol. The HTTP bridge is complete; the torrent, NZB, Soulseek and mail bridges are complete up to the backend interface they call and report `unavailable` until one is supplied. The concepts are in [Bridges](https://kernlize.github.io/docs/concepts/bridges.md); the opinion is D-010.
+A bridge resolves a protocol-specific locator to bytes, a job or a conversation on the user's behalf, behind the same consent and quota as everything else, and is named by what it does rather than by its protocol. The HTTP bridge is complete; the torrent, NZB, Soulseek and mail bridges are complete up to the backend interface they call and report `unavailable` until one is supplied. The concepts are in [Bridges](https://kernlize.github.io/docs/concepts/bridges.md); the opinion is [D-010](https://kernlize.github.io/docs/decisions.md#d-010).
 
 ## Exports
 
@@ -1308,7 +1802,7 @@ A bridge resolves a protocol-specific locator to bytes, a job or a conversation 
 | `BridgeResult` | union | `{ kind: 'bytes'; response: Response }`, `{ kind: 'job'; id; label }` or `{ kind: 'conversation'; id; participants: readonly string[] }`. |
 | `BridgeExposure` | interface | `{ revealsAddress; encryptedInTransit; publicActivity }`, three booleans the user reads before consenting. |
 | `BridgeAvailability` | union | `{ available: true }` or `{ available: false; reason: string }`. The reason is a bare word such as `no-backend`. |
-| `BridgeAuthorizer` | type | `(locator, bridge, context) => boolean \| Promise<boolean>`; the shell's consent hook. |
+| `BridgeAuthorizer` | type | `(locator, bridge, context) => boolean \| Promise<boolean>`; the registry's consent hook. The composed shell supplies none in this draft. |
 
 ### Registry
 
@@ -1383,7 +1877,7 @@ const fetchLike = createBridgeResourceResolver(registry, { requesterFor: (init) 
 ## Scope
 
 - Does not implement any transfer protocol. Backends live in the shell app or in packages of their own.
-- Does not prompt. Consent is the `BridgeAuthorizer` the shell supplies to the registry.
+- Does not prompt. Consent is a `BridgeAuthorizer` the host can supply to the registry; `createKernl`'s default registry has none.
 - Does not apply the guard. Rate limits and the hidden-window allowance run in `@kernl/guard` before a request reaches the registry.
 - Does not know about NAP envelopes. `@kernl/core` maps `resource.*` requests onto `createBridgeResourceResolver(registry)`.
 
@@ -1414,8 +1908,10 @@ Opinionated shell composition over kehto and applesauce. Browser-agnostic: the D
 
 ## Install
 
-```bash
-pnpm add @kernl/core
+`@kernl/core` is not yet published to npm, so `pnpm add @kernl/core` fails. During the alpha it is built from the kernl source repository, which is private, and consumed as a workspace dependency. The [package index](https://kernlize.github.io/docs/packages/index.md#install) has the steps.
+
+```json
+{ "dependencies": { "@kernl/core": "workspace:^" } }
 ```
 
 ## Purpose
@@ -1447,7 +1943,7 @@ if (plan.missingRequired.length === 0) kernl.mount(plan, iframe);
 4. **Guard pipeline.** `createGuardPipeline` with `createGuardConfig(options.guard?.profile ?? 'strict')`, the host's `now` when given, `onEvent` feeding `kernl.guard.events$`, `getVisibility` delegated to `host.getVisibility`, and `onQuarantine` marking the handle revoked with reason `quarantine` and calling `bridge.revokeNapplet(windowId, 'host')`.
 5. **Services.** `createKernlServices` registers `relay`, `identity`, `theme`, `notify`, `link`, `resource`, `dm` and `outbox` over the pool, the tiers, the event store, the active signer, the host, the bridge registry and the messaging registry. `options.theme` is used only when `isTheme` accepts it. `resolveIdentity` maps a live window to its verified identity so the resource service names the requesting applet to the bridges.
 6. **ShellAdapter.** `createShellAdapter` builds kehto's adapter from the relay-pool hooks, the relay-config hooks over the tiers, `createAuthHooks(accounts)`, the service registry, `capabilities.resolveEnvironment` from `createEnvironmentResolver(grants)`, `onNappletRevoked` (removes the frame through the handle) and `onNappletMessage` (feeds `pipeline.observe`). Choices kehto left open are fixed here: applets cannot create windows (`createWindow` returns null), hotkeys are not forwarded, there is no worker relay, update behaviour is `banner`, signatures are verified by applesauce's `verifyEvent`, `link.isAvailable` is true and `getNip66Suggestions` is null.
-7. **Bridge.** `createShellBridge(adapter)`, unchanged (D-001).
+7. **Bridge.** `createShellBridge(adapter)`, unchanged ([D-001](https://kernlize.github.io/docs/decisions.md#d-001)).
 8. **Grants.** `createGrants({ acl: bridge.runtime.aclState, storage: host.storage, availableDomains: () => buildShellCapabilities(adapter).domains })`. The grants layer writes kehto's ACL explicitly for every applet, see [Grants](#grants).
 9. **Consent.** `bridge.registerConsentHandler(createConsentHandler(host, lookupReplaceable(eventStore), identityOf))`, so every destructive-signing request kehto raises reaches `host.presentConsent` as a `ConsentSummary`.
 10. **Session.** `accounts.active$` drives `session$` (`toSession(account)` or null) and calls `bridge.publishIdentityChanged(pubkey)` with the active pubkey or `''` on sign-out, so bound applets hear every identity change through kehto's live port.
@@ -1482,7 +1978,7 @@ The host is the only way the core reaches the user or the page. Applets never re
 | `session$`, `session` | `Session \| null`: `{ accountId, pubkey, label, readOnly }`. The label is the account's `metadata.name`, then `account.name`, then the abbreviated pubkey. |
 | `login(account)` | Adds the account to the manager if it is not there, makes it active, returns its `Session`. `KernlAccountManager` refuses plaintext-key account types here. |
 | `logout()` | Clears the active account. |
-| `decodePointer(input)` | See [resolve → plan → mount](#resolve--plan--mount). |
+| `decodePointer(input)` | See [resolve → plan → mount](#resolve-→-plan-→-mount). |
 | `resolve`, `plan`, `mount`, `applets()`, `handleWindowMessage(event)` | The applet lifecycle. |
 | `destroy()` | Tears the shell down. |
 
@@ -1701,7 +2197,7 @@ Signatures are abbreviated; the generated reference has the full ones.
 | --- | --- | --- |
 | `createDefaultMessaging` | `(options: DefaultMessagingOptions) => MessagingRegistry` | The three providers, available only when their backend factory is supplied. |
 | `MESSAGING_UNAVAILABLE_REASONS` | `Readonly<Record<'private' \| 'legacy' \| 'ratchet', string>>` | `needs-local-key-signer`, `not-implemented`, `no-runtime`. |
-| `createDefaultBridges` | `(options?: DefaultBridgesOptions) => BridgeRegistry` | The HTTP bridge plus torrent, nzb, soulseek and mail, which report `no-backend` (D-010). `options.http` goes to the HTTP bridge; the rest to the registry. |
+| `createDefaultBridges` | `(options?: DefaultBridgesOptions) => BridgeRegistry` | The HTTP bridge plus torrent, nzb, soulseek and mail, which report `no-backend` ([D-010](https://kernlize.github.io/docs/decisions.md#d-010)). `options.http` goes to the HTTP bridge; the rest to the registry. |
 | `floatingLayout`, `createDwindleLayout`, `createColumnsLayout`, `createMasterStackLayout` | `LayoutStrategy` and `(options?) => LayoutStrategy` | The layouts above. |
 | `createNamespacedStore` | `(storage: StorageLike, prefix: string) => NamespacedStore` | `getJson`, `setJson`, `remove` under `<prefix>:`; corrupt JSON reads as the fallback. |
 | `DefaultMessagingOptions`, `DefaultBridgesOptions`, `LayoutOptions`, `MasterStackOptions`, `NamespacedStore` | types | |
@@ -1736,8 +2232,10 @@ Ingress flood control, visibility gating, focus-aware firewall and CSP profile f
 
 ## Install
 
-```bash
-pnpm add @kernl/guard
+`@kernl/guard` is not yet published to npm, so `pnpm add @kernl/guard` fails. During the alpha it is built from the kernl source repository, which is private, and consumed as a workspace dependency. The [package index](https://kernlize.github.io/docs/packages/index.md#install) has the steps.
+
+```json
+{ "dependencies": { "@kernl/guard": "workspace:^" } }
 ```
 
 ## Purpose
@@ -1750,7 +2248,7 @@ The guard is the set of protections between an applet and the user. kehto's `@ke
 
 | Export | Signature | Description |
 | --- | --- | --- |
-| `GUARD_PROFILES` | `readonly GuardProfile[]` | `['strict', 'balanced', 'relaxed']`, tightest first. `strict` is the shell default (D-003). |
+| `GUARD_PROFILES` | `readonly GuardProfile[]` | `['strict', 'balanced', 'relaxed']`, tightest first. `strict` is the shell default ([D-003](https://kernlize.github.io/docs/decisions.md#d-003)). |
 | `createGuardConfig` | `(profile: GuardProfile) => GuardConfig` | The profile's `GuardLimits` plus the derived kehto `FirewallConfig`: `defaultRate` from the `generic` class, `burstGuard` from `ingressBurst`, `unfocusedMultiplier`, and three `block` content matchers (`size:resource:bytes`, `size:relay:subscribe`, `size:outbox:subscribe`) at `cap + 1` bytes. No per-applet rules. |
 | `applyNappletRules` | `(config: GuardConfig, napplet: string) => GuardConfig` | Returns a new config whose firewall carries every class rate as a per-applet `rateLimits` entry plus a `globalRate` equal to the `generic` rate, all with action `block`. Existing policy and matchers are kept; rates for the applet are overwritten. The input is not modified. |
 | `GuardProfile` | `'strict' \| 'balanced' \| 'relaxed'` | Profiles change limits only; every mitigation stays on in every profile. |
@@ -1849,7 +2347,7 @@ Generated module: [`_kernl_guard`](https://kernlize.github.io/docs/api/modules/_
 
 # Packages
 
-kernl publishes four packages under the `@kernl` scope. Three are pure contracts and engines with zero framework dependencies; one composes them with kehto and applesauce. The shell app at `apps/web` is not published.
+kernl has four packages under the `@kernl` scope, not yet published to npm (see [Install](#install)). Three are pure contracts and engines with zero framework dependencies; one composes them with kehto and applesauce. The shell app at `apps/web` is not published.
 
 | Package | Version | Role | Depends on |
 | --- | --- | --- | --- |
@@ -1862,7 +2360,7 @@ kernl publishes four packages under the `@kernl` scope. Three are pure contracts
 
 - ESM only, TypeScript strict, `verbatimModuleSyntax`. Each package ships `dist/index.js` and `dist/index.d.ts` with `sideEffects: false`.
 - Every public export has JSDoc with `@param`, `@returns` and `@example`, and appears in the [API reference](https://kernlize.github.io/docs/reference/api.md).
-- Subscriptions return `{ close() }`. Errors carry a stable prefixed reason: `denied:`, `invalid:`, `unavailable:`.
+- Streams in `@kernl/core` are rxjs `Observable`s (`session$`, `guard.events$`, `grants.changes$`, `relays.changes$`, `AppletHandle.status$`); unsubscribe the `Subscription` they return. `MessagingBackend.subscribe` returns `{ subscriptionId }`, which you pass to `unsubscribe`. Thrown errors carry a stable prefixed reason: `denied:`, `invalid:`, `unavailable:`; the full list is in [Error reasons](https://kernlize.github.io/docs/reference/errors.md).
 - No published package imports `nostr-tools` directly, and no published package depends on a UI framework. `pnpm check:deps` enforces both.
 - Behaviour is specified in Gherkin under each package's `features/` and run by vitest with 100% coverage over `src`.
 
@@ -1872,13 +2370,25 @@ All packages are `0.x`. A breaking change is a `minor` bump; everything else is 
 
 ## Install
 
+The `@kernl/*` packages are not yet published to npm; `pnpm add @kernl/core` fails with a not-found error. During the alpha the source repository is private, and the packages are used from a clone of it:
+
 ```bash
-pnpm add @kernl/core
-# or individually
-pnpm add @kernl/guard @kernl/messaging @kernl/bridges
+# in a clone of the kernl source repository
+pnpm install && pnpm build
 ```
 
-`@kernl/core` pulls the other three in. Install a leaf package alone when you want its contract without kehto and applesauce, for example `@kernl/guard` to test an applet against the limits, or `@kernl/messaging` to write a provider.
+`pnpm build` writes each package's `dist/`, which is what `main`, `types` and `exports` point at. Then add your code as a workspace package (under `packages/` or `apps/`, the globs in `pnpm-workspace.yaml`) and depend on what you need with the workspace protocol, as `apps/web` does:
+
+```json
+{
+  "dependencies": {
+    "@kernl/core": "workspace:^",
+    "@kernl/guard": "workspace:^"
+  }
+}
+```
+
+Run `pnpm install` again after editing the manifest so pnpm links the workspace packages. `@kernl/core` pulls the other three in. Install a leaf package alone when you want its contract without kehto and applesauce, for example `@kernl/guard` to test an applet against the limits, or `@kernl/messaging` to write a provider.
 
 ---
 
@@ -1899,13 +2409,15 @@ Messaging provider contract, registry, composite direct-message backend and an i
 
 ## Install
 
-```bash
-pnpm add @kernl/messaging
+`@kernl/messaging` is not yet published to npm, so `pnpm add @kernl/messaging` fails. During the alpha it is built from the kernl source repository, which is private, and consumed as a workspace dependency. The [package index](https://kernlize.github.io/docs/packages/index.md#install) has the steps.
+
+```json
+{ "dependencies": { "@kernl/messaging": "workspace:^" } }
 ```
 
 ## Purpose
 
-One contract for every private-messaging protocol, truthful self-description instead of ranking, and one composite backend that projects every enabled provider onto the NAP `dm` domain. The concepts are in [Messaging](https://kernlize.github.io/docs/concepts/messaging.md); the opinion is D-009.
+One contract for every private-messaging protocol, truthful self-description instead of ranking, and one composite backend that projects every enabled provider onto the NAP `dm` domain. The concepts are in [Messaging](https://kernlize.github.io/docs/concepts/messaging.md); the opinion is [D-009](https://kernlize.github.io/docs/decisions.md#d-009).
 
 ## Exports
 
@@ -2010,9 +2522,9 @@ Rules the repository enforces mechanically. Each policy names the script that ch
 
 | Policy | Checked by | Decision |
 | --- | --- | --- |
-| [Public vocabulary](https://kernlize.github.io/docs/policies/public-vocabulary.md) | `pnpm check:vocabulary` (`scripts/check-public-vocabulary.mjs`) | D-006 |
-| [Security posture](https://kernlize.github.io/docs/policies/security-posture.md) | `features/` scenarios, `pnpm check:deps`, Playwright in `pnpm test:e2e` | D-001, D-002, D-003 |
-| [Spec conformance](https://kernlize.github.io/docs/policies/spec-conformance.md) | `@napplet/conformance` in the test suite; review | `AGENTS.md` "Spec before code" |
+| [Public vocabulary](https://kernlize.github.io/docs/policies/public-vocabulary.md) | `pnpm check:vocabulary` (`scripts/check-public-vocabulary.mjs`) | [D-006](https://kernlize.github.io/docs/decisions.md#d-006) |
+| [Security posture](https://kernlize.github.io/docs/policies/security-posture.md) | `features/` scenarios, `pnpm check:deps`, Playwright in `pnpm test:e2e` | [D-001](https://kernlize.github.io/docs/decisions.md#d-001), [D-002](https://kernlize.github.io/docs/decisions.md#d-002), [D-003](https://kernlize.github.io/docs/decisions.md#d-003) |
+| [Spec conformance](https://kernlize.github.io/docs/policies/spec-conformance.md) | `features/` scenarios; review. Running `@napplet/conformance` in the suite is [roadmap](https://kernlize.github.io/docs/roadmap.md#_7-conformance) work. | `AGENTS.md` "Spec before code" |
 
 Two further gates apply to everything, including these pages:
 
@@ -2056,7 +2568,7 @@ Three reasons, in the order `SOUL.md` ranks them.
 
 **Protocol conformance is a property of the code, not the copy.** kernl conforms to NIP-5D and the NAPs, and the docs say so precisely. Saying so on the landing page would not make the code conform more; it would make the page about the specification instead of about what a person can do.
 
-**Providers and bridges are chosen by what they do.** A user chooses a messaging provider by whether their correspondent can read it and what an observer learns, not by its wire format. A bridge is "downloads", not the name of a peer-to-peer protocol. Naming protocols in the UI would invite ranking by familiarity, which D-009 and D-010 rule out.
+**Providers and bridges are chosen by what they do.** A user chooses a messaging provider by whether their correspondent can read it and what an observer learns, not by its wire format. A bridge is "downloads", not the name of a peer-to-peer protocol. Naming protocols in the UI would invite ranking by familiarity, which [D-009](https://kernlize.github.io/docs/decisions.md#d-009) and [D-010](https://kernlize.github.io/docs/decisions.md#d-010) rule out.
 
 ## Where the rule stops
 
@@ -2128,7 +2640,7 @@ Rules 18 to 20 are enforced by `scripts/check-dependency-rules.mjs` (`pnpm check
 
 ## Reporting
 
-A posture violation is a bug of the highest severity in this repository, above any feature. Report it as an issue on `kernlize/web` with the rule number. If it involves a kehto seam, the issue is filed upstream too, and `DECISIONS.md` records the gap.
+A posture violation is a bug of the highest severity in this repository, above any feature. Report it to the maintainers with the rule number; the source repository is private during the alpha. If it involves a kehto seam, the issue is filed upstream too, and `DECISIONS.md` records the gap.
 
 ---
 
@@ -2156,16 +2668,17 @@ kernl keeps no local copy of a specification text. A copy drifts; a link does no
 When kernl needs something a specification or an upstream package does not provide, the order is:
 
 1. **Compose it from what exists.** Most of kernl is this: the guard composes `@kehto/firewall`'s `evaluate()`, the restrictive posture composes `resolveEnvironment` and `aclState.grant`.
-2. **Propose it upstream.** An issue or pull request on `kehto/web`, `napplet/naps` or `nostr-protocol/nips`, as appropriate. The four open kehto proposals are in [Alpha status](https://kernlize.github.io/docs/alpha-status.md#upstream-gaps).
+2. **Propose it upstream.** An issue or pull request on `kehto/web`, `napplet/naps` or `nostr-protocol/nips`, as appropriate. The four kehto gaps kernl has found, still to be filed upstream, are listed in [Alpha status](https://kernlize.github.io/docs/alpha-status.md#upstream-gaps).
 3. **Implement it locally with a recorded gap.** Only when 1 is impossible and 2 is pending. The local implementation sits behind an interface, cites the upstream issue, and is removed when upstream lands.
 
 kernl never re-implements a kehto primitive because it was easier than reading kehto's source, and never invents wire format. When a NAP is ambiguous, kernl prefers an upstream issue over a guess and records the ambiguity next to the code.
 
 ## What conformance is checked by
 
-- **`@napplet/conformance`** runs in the test suite against the shell's bridge: envelope validators per NAP domain, manifest validation and the reference mock shell's expectations of a host.
 - **Gherkin scenarios** in `features/` for every protocol-visible behaviour, named after the clause they implement where one exists.
 - **Review.** A change that touches an envelope shape, a domain's semantics or the handshake cites the clause in its description. A reviewer checks the clause, not the summary.
+
+`@napplet/conformance` (envelope validators per NAP domain, manifest validation and the reference mock shell's expectations of a host) is not part of the test suite yet; running it against the shell's bridge is on the [Roadmap](https://kernlize.github.io/docs/roadmap.md#_7-conformance).
 
 The docs are non-normative. Where a page here and the specification disagree, the specification wins and the page has a bug.
 
@@ -2195,7 +2708,7 @@ The API reference is generated from source JSDoc by TypeDoc 0.28 with `entryPoin
 pnpm docs:api
 ```
 
-Do not edit the generated files. Fix the JSDoc in `packages/*/src` and rerun. `treatWarningsAsErrors` is on, so an export without documentation, a broken `{@link}` or a missing git remote fails the build.
+Do not edit the generated files. Fix the JSDoc in `packages/*/src` and rerun. `treatWarningsAsErrors` is on, so an export without documentation or a broken `{@link}` fails the build. Source links come from `packageOptions.sourceLinkTemplate` and point at the source repository, which is private during the alpha, so they return 404 for public readers.
 
 ## Modules
 
@@ -2217,7 +2730,86 @@ The [index page](https://kernlize.github.io/docs/api/index.html) lists all four,
 
 ## Audit
 
-`scripts/audit-docs.mjs` asserts that `docs/api/modules/_kernl_<package>.html` exists for every `packages/*/package.json`, that each package page links to it, and that the built docs carry their Markdown twins. It runs as part of `pnpm docs:check`.
+`scripts/audit-docs.mjs` asserts that `docs/api/modules/_kernl_<package>.html` exists for every `packages/*/package.json`, that each package page links to it, and that the built docs carry their Markdown twins. It also reads every built page and checks that each `href` into `api/` resolves, under `VITEPRESS_BASE` (default `/docs/`), to a file TypeDoc wrote; that is why the links on this page are relative (`../api/…`). It runs as part of `pnpm docs:check`.
+
+---
+
+<!-- https://kernlize.github.io/docs/reference/errors.md -->
+
+# Error reasons
+
+Every failure in the four packages carries a stable reason string with a prefix that says what kind of failure it is. Code matches on the string; the UI maps it to words. This page lists each reason the packages throw or report, collected from `packages/*/src`.
+
+| Prefix | Means |
+| --- | --- |
+| `denied:` | A policy or the user said no. Retrying the same request will not help. |
+| `invalid:` | The input is malformed or names something that does not exist. |
+| `unavailable:` | Something needed is missing or unreachable right now: a backend, a server, a provider. |
+
+Thrown reasons are the `message` of an `Error`. A few carry a detail after a space (`denied:scheme http:`), so match on the part before the first space.
+
+## Thrown errors
+
+| Reason | Package | Thrown by | Meaning |
+| --- | --- | --- | --- |
+| `invalid:pointer` | `@kernl/core` | `decodePointer` | The input is not an `naddr`, `nevent`, `note`, 64-hex event id or coordinate. |
+| `unavailable:manifest` | `@kernl/core` | `fetchManifestEvent`, so `Kernl.resolve` | No relay in the hints or the `apps` tier returned the manifest event. |
+| `unavailable:blob` | `@kernl/core` | `defaultFetchBlob`, `resolveApplet` | No server returned the artifact bytes. kehto's `blob-unavailable` maps here. |
+| `invalid:invalid-signature`, `invalid:invalid-manifest`, `invalid:aggregate-mismatch`, `invalid:blob-hash-mismatch`, `invalid:missing-index` | `@kernl/core` | `resolveApplet` | Verification failed. The part after `invalid:` is kehto's `NappletResolutionErrorCode`. Nothing runs. |
+| `invalid:unresolved` | `@kernl/core` | `Kernl.plan` | The summary was not produced by this shell's `resolve`, so no verified bytes are held for it. |
+| `denied:blocked` | `@kernl/core` | `Kernl.plan` | The user blocked this applet identity. |
+| `invalid:frame-detached` | `@kernl/core` | `mountApplet`, so `Kernl.mount` | The frame has no `contentWindow`; it is not in the document. |
+| `invalid:domain` | `@kernl/core` | `Grants.allowDomain` | The shell does not offer this domain in its current configuration. |
+| `denied:baseline-domain` | `@kernl/core` | `Grants.revokeDomain` | Baseline domains (`shell`, `inc`, `theme`, `identity`, `storage`) cannot be revoked. |
+| `denied:plaintext-key-persistence` | `@kernl/core` | `KernlAccountManager.addAccount` | The account type stores a raw secret key (`PLAINTEXT_KEY_ACCOUNT_TYPES`). |
+| `invalid:relay-url` | `@kernl/core` | `RelayTiers.add` | The URL is not `ws://` or `wss://`. |
+| `denied:read-only` | `@kernl/core` | the outbox service's signer | The session cannot sign, so an outbox publish is refused. |
+| `unavailable:needs-local-key-signer`, `unavailable:not-implemented`, `unavailable:no-runtime` | `@kernl/core` | `createDefaultMessaging`'s `createBackend`; `MessagingRegistry.enable` | The host supplied no backend for `private`, `legacy` or `ratchet` (`MESSAGING_UNAVAILABLE_REASONS`). |
+| `invalid:duplicate-provider` | `@kernl/messaging` | `MessagingRegistry.register` | A provider with this id is already registered. |
+| `invalid:unknown-provider` | `@kernl/messaging` | `MessagingRegistry.enable`, `disable`; the composite backend | No provider has this id, or a namespaced id, cursor or `provider` hint names no enabled provider. |
+| `unavailable:<reason>` | `@kernl/messaging` | `MessagingRegistry.enable` | The provider's `availability()` is false; `<reason>` is the bare word it reported. |
+| `invalid:provider-not-enabled` | `@kernl/messaging` | `MessagingRegistry.setDefault` | Only an enabled provider can be the default. |
+| `unavailable:no-default-provider` | `@kernl/messaging` | composite `send` | The request names no conversation and no provider, and there is no enabled default. |
+| `invalid:no-recipients`, `invalid:unknown-conversation`, `unavailable:offline` | `@kernl/messaging` | `createMemoryBackend` `send` | No recipient besides the owner; a `conversationId` the backend does not hold; the backend was created with `available: false`. |
+| `invalid:locator` | `@kernl/bridges` | `parseLocator` | Not a locator, or a malformed web, NZB, Soulseek or mail locator. |
+| `invalid:magnet-missing-hash` | `@kernl/bridges` | `parseLocator` | A magnet without a `urn:btih:` hash. |
+| `invalid:locator-missing-<field>` | `@kernl/bridges` | the torrent, NZB, Soulseek and mail bridges | The locator lacks `infoHash`, `url`, `user`, `path` or `address`. |
+| `invalid:duplicate-bridge <id>`, `invalid:scheme-taken <scheme>` | `@kernl/bridges` | `BridgeRegistry.register` | A bridge with this id, or one serving this scheme, is already registered. |
+| `unavailable:no-bridge` | `@kernl/bridges` | `BridgeRegistry.resolve` | No bridge serves the scheme. |
+| `unavailable:no-backend` | `@kernl/bridges` | the four backend-driven bridges | The bridge was created without a backend. `availability().reason` is the bare `no-backend`. |
+| `denied:bridge` | `@kernl/bridges` | `BridgeRegistry.resolve` | The registry's `authorize` hook returned false. The composed shell has none. |
+| `denied:scheme <protocol>` | `@kernl/bridges` | HTTP bridge | The URL's scheme is not in `allowedSchemes`. |
+| `denied:private-address <host>`, `denied:private-address <host> -> <ip>` | `@kernl/bridges` | HTTP bridge | The host is a blocked name or a private literal; the second form comes from a `resolveHost` result. |
+| `denied:too-many-redirects` | `@kernl/bridges` | HTTP bridge | More than `maxRedirects` hops. |
+| `invalid:redirect` | `@kernl/bridges` | HTTP bridge | A redirect without a usable `Location`. |
+| `denied:too-large` | `@kernl/bridges` | HTTP bridge | `content-length` or the streamed body exceeds `maxBytes`. |
+| `unavailable:timeout`, `unavailable:aborted`, `unavailable:network <message>` | `@kernl/bridges` | HTTP bridge | The time limit expired, the caller cancelled, or `fetch` failed for another reason. |
+
+`@kernl/guard` throws nothing. Its decisions are events.
+
+## Guard event reasons
+
+The guard reports each non-pass decision as a `GuardEvent` with a `disposition` (`defer`, `reject`, `quarantine`, `flag`) and one of these reasons. They reach the user through `kernl.guard.events$` and the shell's guard panel. The numbers are per profile; see [Guard](https://kernlize.github.io/docs/concepts/guard.md#profiles).
+
+| Reason | Layer | Meaning |
+| --- | --- | --- |
+| `flood:burst` | ingress guard | More messages in one second than `ingressBurst` allows; the message is queued. |
+| `flood:queue-full` | ingress guard | The ingress queue is full; the message is rejected. |
+| `flood:quarantine` | ingress guard | Too many messages in the rolling window, or any message from a quarantined window. The applet is revoked. |
+| `flood:hidden-resource` | ingress guard | A hidden window used up its `resource.*` allowance. The applet is quarantined and revoked. |
+| `size:<class>` | ingress guard, focus firewall | The envelope is over the size cap for `resource:bytes`, `relay:subscribe` or `outbox:subscribe`. |
+| `defer:queue-full` | visibility gate | The hidden window's deferral queue is full. Only the window-level `hello` passes through the gate ([D-012](https://kernlize.github.io/docs/decisions.md#d-012)). |
+| `rate:<class>` | focus firewall | The operation class's token bucket is empty, for example `rate:relay:publish`. |
+| `prompt:<ruleId>` | focus firewall | kehto's engine asked for a prompt; the guard treats it as a rejection. |
+
+## Revocation reasons
+
+`KernlHost.onRevoked(windowId, reason)` receives kehto's revocation reasons (`window-message`, `second-hello`, `invalid-hello`, `second-load`, `port-closed`, `host`) or `quarantine` when the guard quarantined the window. See [Architecture](https://kernlize.github.io/docs/concepts/architecture.md#the-mount-path).
+
+## Related
+
+- [API reference](https://kernlize.github.io/docs/reference/api.md): each function's JSDoc names the reasons it throws.
+- [Troubleshooting](https://kernlize.github.io/docs/guides/troubleshooting.md)
 
 ---
 
@@ -2229,7 +2821,7 @@ Ordered by the tie-breakers in `SOUL.md`: the user's safety and agency first, pr
 
 ## 1. Upstream pull requests to kehto
 
-Each item shrinks kernl when it lands; see [Alpha status](https://kernlize.github.io/docs/alpha-status.md#upstream-gaps).
+None is filed yet. Each item shrinks kernl when it lands; see [Alpha status](https://kernlize.github.io/docs/alpha-status.md#upstream-gaps).
 
 - Forward `getFocusContext`, `onFirewallEvent` and `firewallPersistence` through `ShellAdapter` so the runtime's own firewall can be focus-aware without a second engine in front of it.
 - Let the host choose the ACL default policy in `createRuntime`, so a restrictive shell does not have to write every capability explicitly.
@@ -2247,6 +2839,8 @@ Each backend plugs into the path the HTTP bridge already exercises end to end. O
 | Torrent | `TorrentBackend` | Adds an info hash with its trackers. WebTorrent in the shell, or a configured external client. Marked as public activity in the exposure description. |
 | Soulseek | `SoulseekBackend` | Requests one file from one peer. Requires a daemon; the bridge reports job state. |
 
+The shell also needs a downloads view that shows the state of each `job` result and lets the user cancel it; there is none today.
+
 ## 3. Messaging
 
 - Supply the double-ratchet runtime so the `ratchet` provider reports `available`. Its properties are already described; see [Messaging](https://kernlize.github.io/docs/concepts/messaging.md).
@@ -2262,111 +2856,20 @@ The window manager contracts come from `@kehto/wm`. A narrow-viewport layout wit
 
 ## 6. Guard
 
-- Per-applet guard profiles: today the profile is shell-wide and resets to `strict` on boot (D-003). Next: an override per applet identity, remembered locally.
+- Per-applet guard profiles: today the profile is shell-wide and resets to `strict` on boot ([D-003](https://kernlize.github.io/docs/decisions.md#d-003)). Next: an override per applet identity, remembered locally.
 - Re-narrow a live applet's advertised environment when a domain is revoked; today the ACL denies at once but `shell.init` only changes on the next open.
 - Bridge consent per host: wire `createDefaultBridges({ authorize })` to a host prompt so a granted `resource` request still asks before reaching a new origin.
 - Persist per-applet profile overrides and grants through a user-chosen sync, so loosening an applet once does not have to be repeated per device.
-- A readable guard log in the shell: every `defer`, `reject`, `quarantine` and `flag` event, with the stable reason and the applet it concerned.
+
+## 7. Conformance
+
+- Run `@napplet/conformance` against the shell's bridge in `pnpm test`: envelope validators per NAP domain, manifest validation and the reference mock shell's expectations of a host. Today conformance is checked by the `features/` scenarios and review only ([Spec conformance](https://kernlize.github.io/docs/policies/spec-conformance.md)).
 
 ## Not planned
 
 - A global configuration flag that loosens a mitigation for every applet. `SOUL.md` opinion three rules it out.
-- A second event library beside applesauce. `DECISIONS.md` D-002 rules it out.
-- A "recommended" messaging provider. D-009 rules it out.
-
----
-
-<!-- https://kernlize.github.io/docs/tutorials/build-an-applet-for-kernl.md -->
-
-# Build an applet for kernl
-
-kernl adds nothing to the applet format. An applet that conforms to NIP-5D and the NAPs runs in kernl. What kernl changes is the posture the applet meets: fewer domains until granted, deferral while hidden, limits that tighten when the window loses focus. This page tells you what to expect and how to test for it.
-
-## Use the applet SDK, not this repository
-
-The applet side of the protocol is maintained at [napplet.run](https://napplet.run/docs/). Start there:
-
-- [`@napplet/sdk`](https://www.npmjs.com/package/@napplet/sdk) gives you typed named exports over `window.napplet` for bundler-based projects.
-- [`@napplet/conformance`](https://www.npmjs.com/package/@napplet/conformance) is the framework-agnostic conformance engine: a reference mock shell, per-NAP envelope validators, a manifest validator and reporters. `@napplet/conformance-cli` runs it from the command line.
-- The [napplet.run getting-started guide](https://napplet.run/docs/guide/getting-started.html) and the [NAP documents](https://github.com/napplet/naps) are the authority on wire format and domain semantics.
-
-kernl's packages are shell-side. You do not import them in an applet.
-
-## What kernl advertises
-
-`shell.ready` tells your applet which domains this shell offers for your identity. In kernl that set is narrowed per applet by the user's grants (see [Identity and grants](https://kernlize.github.io/docs/concepts/identity-and-grants.md)), so read it rather than assuming. The draft's intended advertisement:
-
-| Posture | Domains | Notes |
-| --- | --- | --- |
-| Advertised without a grant | `shell`, `theme`, `config` | Read-only shell state. Always present. |
-| Advertised once granted; may appear in `requires` (**R**) | `identity`, `relay`, `outbox`, `keys`, `storage`, `resource`, `lists`, `dm` | The user is asked at mount time for each of these you require. |
-| Advertised only when the shell has a backend; optional only (**O**) | `notify`, `media`, `intent`, `link`, `upload` | Never satisfy `requires`. Check `shell.ready` and degrade. |
-| Not advertised in this draft | `cvm`, `llm`, `ble`, `webrtc`, `serial`, `fs`, `gamepad`, `inc`, `count` | Requiring one of these means your applet does not mount in kernl. |
-
-Put a domain in `requires` only if your applet is useless without it. Every required domain is one more thing the user must agree to before seeing anything, and a user who declines sees nothing. Prefer `optional` and a graceful fallback.
-
-## What the strict profile means for you
-
-The shell boots every applet in `strict`. The numbers are in [Guard](https://kernlize.github.io/docs/concepts/guard.md#profiles); the behaviours you will notice:
-
-**Deferral when hidden.** When your window is minimised or on an inactive workspace, every envelope except `control` traffic (`shell.*`, `theme.*`, `identity.*`, `relay.close`, `storage.get`, …) is held, not dispatched, and released oldest first when the window is visible again. Your `await` resolves late, not with an error. Design for it: do not time out a request after a few seconds, and do not assume a subscription delivers while you are hidden. Up to 200 envelopes are held; the 201st is rejected with `defer:queue-full`.
-
-**Hidden resource allowance.** A hidden window may make 8 `resource.*` requests; the ninth quarantines the window with `flood:hidden-resource` until the user releases it. The count resets as soon as the window is visible again. Fetch what you need while visible.
-
-**Rate limits by operation class.** Each class has its own token bucket, keyed by your applet's `dTag`, so two windows of your applet share one budget. In `strict`: 30 `relay.subscribe` and 20 `relay.publish` per minute, 5 deletions (kind 5) per minute, 20 `dm.send` and 10 `intent.*` per minute, 120 `resource.*` and 60 `storage.set`/`storage.remove` per 10 seconds. While your window is not focused, capacity is multiplied by 0.25. A rejected envelope carries a stable reason such as `rate:relay:publish`.
-
-**Ingress flood control.** Each window may send 8 messages per second; the ninth inside the same second is queued (`flood:burst`) and released as the budget refills, `control` and `resource.*` envelopes first. Once 64 messages are queued, further ones are rejected with `flood:queue-full`; 300 messages inside any rolling 10 seconds quarantines the window with `flood:quarantine` until the user intervenes. Batch your writes and coalesce your subscriptions.
-
-**Envelope caps.** `resource.*` envelopes over 64 KiB and `relay.subscribe`/`outbox.subscribe` (including `outbox.query`) envelopes over 256 KiB are rejected with `size:<class>` before parsing. Large filters are a smell; split them.
-
-**No init-burst exemption.** kehto's own init-burst guard is not what runs here: kernl enforces the same 8 messages per second from the first message your applet sends. Load lazily: request the first screen, render, then fetch the rest.
-
-**Consent for destructive kinds.** Publishing kind 0, 3, 5 or 10002 shows the user a diff of what changes and waits. Expect the publish to take as long as a person takes to read, and expect `denied:` if they refuse.
-
-None of this changes the wire format. A rejection is a normal NAP error envelope with a reason string; a deferral is latency.
-
-## Test against the guard
-
-You can exercise the guard without the full shell. `@kernl/guard` is pure, and the mock shell in `@napplet/conformance` can be wrapped with it:
-
-```ts
-import { createGuardConfig, createIngressGuard, createVisibilityGate, type GuardEvent } from '@kernl/guard';
-
-const events: GuardEvent[] = [];
-const config = createGuardConfig('strict');
-const guard = createIngressGuard({ config, onEvent: (event) => events.push(event) });
-const gate = createVisibilityGate({ config, onEvent: (event) => events.push(event) });
-
-gate.setVisibility('w1', { visible: false, focused: false });
-if (gate.shouldDefer('w1', 'relay:subscribe')) gate.defer('w1', { type: 'relay.subscribe', size: 512 });
-// held; gate.drain('w1') returns it once the window is visible again
-
-gate.setVisibility('w1', { visible: true, focused: true });
-for (let i = 0; i < 9; i += 1) {
-  guard.admit('w1', 'my-applet', { type: 'relay.publish', kind: 1 }, gate.getVisibility('w1'));
-}
-// the ninth call inside one second returns 'defer' and emits { disposition: 'defer', reason: 'flood:burst' }
-```
-
-Pass `now: () => clock` to both factories to drive time from the test instead of the wall clock. `createFocusFirewall({ config })` adds the per-class rates on top; its `observe()` returns kehto's `EvaluateResult`.
-
-Scenarios worth writing for your own applet:
-
-1. Mount hidden, then show: everything your applet queued while hidden arrives in order and your UI settles.
-2. Lose focus mid-operation: your publish still completes, later; nothing is dropped and nothing is retried twice.
-3. Hit `rate:*` on purpose: your applet shows the user something useful instead of a stack trace.
-4. Be declined: require nothing you cannot explain in the one line the consent prompt shows.
-5. New build, old user: your applet's new hash has no grants. Make the first run after an update as good as the first run ever.
-
-## Run it in kernl
-
-Follow [Run the shell](https://kernlize.github.io/docs/tutorials/run-the-shell.md), publish your applet with the napplet tooling to a relay the shell reads, and open it by address. The grants panel shows you exactly which prompt your `requires` produced and every guard event your applet triggered, with its reason. That panel is the fastest feedback you will get on posture.
-
-## Related
-
-- [Guard](https://kernlize.github.io/docs/concepts/guard.md)
-- [Identity and grants](https://kernlize.github.io/docs/concepts/identity-and-grants.md)
-- [Spec conformance](https://kernlize.github.io/docs/policies/spec-conformance.md)
+- A second event library beside applesauce. `DECISIONS.md` [D-002](https://kernlize.github.io/docs/decisions.md#d-002) rules it out.
+- A "recommended" messaging provider. [D-009](https://kernlize.github.io/docs/decisions.md#d-009) rules it out.
 
 ---
 
@@ -2374,27 +2877,45 @@ Follow [Run the shell](https://kernlize.github.io/docs/tutorials/run-the-shell.m
 
 # Run the shell
 
-This tutorial takes you from a clone to an applet running in a window, signed in with your own account, and shows the `Kernl` calls behind each step. It takes about ten minutes.
+This tutorial takes you from nothing to an applet running in a window, signed in with your own account, and shows the `Kernl` calls behind each step. The hosted preview takes a minute and needs no install; running the shell from source takes about ten minutes and needs access to the source repository.
 
 > **Alpha**
 >
 > The shell runs, but it is a first draft. Expect rough edges in the UI and read [Alpha status](https://kernlize.github.io/docs/alpha-status.md) for what is not there yet.
 
-## Prerequisites
+## 0. Try it without installing anything
 
-- Node 22 or newer and pnpm 10. The repository pins `pnpm@10.24.0` through `packageManager`; `corepack enable` picks it up.
-- A way to sign: a browser extension that speaks NIP-07, a remote signer that speaks NIP-46, or nothing, in which case the shell creates a local account protected by a password. kernl never asks for a private key directly and never stores one in plaintext.
-- The address of an applet to open. The [napplet.run app store](https://napplet.run/apps/) lists published applets with their addresses.
+Open the hosted preview:
 
-## 1. Clone and install
-
-```bash
-git clone https://github.com/kernlize/web.git kernl
-cd kernl
-pnpm install
+```
+https://kernlize.github.io/app/?preview=1
 ```
 
-`pnpm install` links the four workspace packages, the docs and the app. Nothing is downloaded at runtime later; the shell's CSP would not allow it.
+The preview runs the same shell UI over an offline stand-in for the `Kernl` contract, with two sample applets and no network ([D-011](https://kernlize.github.io/docs/decisions.md#d-011)).
+
+**You should now see** a card headed "Who is at the keyboard?" with a **Try the preview** button. Click it, then **Open an applet**; the launcher lists the sample applets *Notes* and *Pulse*, each with an **Open** button. Open one and click **Run**, and it appears in a window.
+
+Without `?preview=1`, `https://kernlize.github.io/app/` is the live shell: everything below from step 3 on works there too, against real relays.
+
+## Prerequisites for running from source
+
+- Access to the kernl source repository. It is private during the alpha; the packages are not on npm either ([Packages](https://kernlize.github.io/docs/packages/index.md#install)). Without access, use the hosted shell above.
+- Node 22 or newer and pnpm 10. The repository pins `pnpm@10.24.0` through `packageManager`; `corepack enable` picks it up.
+- A way to sign: a browser extension that speaks NIP-07, a remote signer that speaks NIP-46, or nothing, in which case the shell creates a local account protected by a password. kernl never asks for a private key directly and never stores one in plaintext.
+- The address of an applet to open, which you get from the applet's publisher (an `naddr1…` or `nevent1…` string, or a coordinate). The [napplet.run app store](https://napplet.run/apps/) lists published applets.
+
+## 1. Clone, install and build
+
+```bash
+git clone <kernl source repository URL> kernl
+cd kernl
+pnpm install
+pnpm build
+```
+
+`pnpm install` links the four workspace packages, the docs and the app. `pnpm build` compiles the packages into their `dist/` folders, which is what the app imports; skip it and the dev server cannot resolve `@kernl/…` ([Troubleshooting](https://kernlize.github.io/docs/guides/troubleshooting.md#pnpm-site-dev-before-pnpm-build)). Nothing is downloaded at runtime later; the shell's CSP would not allow it.
+
+**You should now see** `pnpm build` finish with a `dist/` folder in each of `packages/guard`, `packages/messaging`, `packages/bridges` and `packages/core`.
 
 ## 2. Start the site
 
@@ -2408,18 +2929,20 @@ This runs the Astro dev server for `apps/web`. The landing site is at the root a
 http://localhost:4321/app/
 ```
 
-The first load shows the shell with no account. `boot.ts` has called `createKernl({ host })`, where `host` is the page's `KernlHost`: `localStorage`, the consent dialog, the notices, link confirmation and window visibility. The guard is already running in its `strict` profile and the relay tiers are `DEFAULT_RELAY_TIERS`. Add `?preview=1` to the URL to run the offline preview instead, with two sample applets and no network (D-011).
+The first load shows the shell with no account. `boot.ts` has called `createKernl({ host })`, where `host` is the page's `KernlHost`: `localStorage`, the consent dialog, the notices, link confirmation and window visibility. The guard is already running in its `strict` profile and the relay tiers are `DEFAULT_RELAY_TIERS`. Add `?preview=1` to the URL to run the offline preview instead.
+
+**You should now see** the sign-in card, "Who is at the keyboard?", with a list headed "Sign in another way". If instead a notice says "Running the preview" with "The live shell could not start (…)", the core failed to load; see [Troubleshooting](https://kernlize.github.io/docs/guides/troubleshooting.md).
 
 ## 3. Sign in
 
-Click *Sign in* and choose one:
+Under "Sign in another way", pick one:
 
-- **Browser extension.** The shell wraps the extension in an applesauce `ExtensionAccount`; your key stays in the extension.
-- **Remote signer.** Paste a `bunker://` address, or show the pairing code to your signer app. Either way the shell holds a `NostrConnectAccount` over an applesauce `NostrConnectSigner` that talks through the shell's own `RelayPool`.
-- **Read-only.** Paste a public key. The session is `readOnly`, applets see the identity, and every write is refused because `createAuthHooks` returns no signer.
-- **Create a local account.** Choose a password. The shell generates a key inside an applesauce `PasswordSigner` and persists it as a `PasswordAccount`, whose serialised form is NIP-49 encrypted. A plaintext-key account is refused by `KernlAccountManager` with `denied:plaintext-key-persistence`.
+- **Use a browser extension** (button **Use**, shown only when an extension is present). The shell wraps the extension in an applesauce `ExtensionAccount`; your key stays in the extension.
+- **Connect a remote signer** (button **Connect**). Paste a `bunker://` address into "Signer address" and click **Connect**, or click **Or pair from the signer** to get a pairing address for your signer app. Either way the shell holds a `NostrConnectAccount` over an applesauce `NostrConnectSigner` that talks through the shell's own `RelayPool`.
+- **Read-only** (button **Choose**). Paste a public key into "Account id" and click **Continue**. The session is `readOnly`, applets see the identity, and every write is refused because `createAuthHooks` returns no signer.
+- **Create a local account** (button **Create**). Choose a password, repeat it, and click **Create and sign in**. The shell generates a key inside an applesauce `PasswordSigner` and persists it as a `PasswordAccount`, whose serialised form is NIP-49 encrypted. A plaintext-key account is refused by `KernlAccountManager` with `denied:plaintext-key-persistence`.
 
-Each path ends in `kernl.login(account)`, which adds the account to the `AccountManager` if it is new, makes it active and emits a `Session` on `kernl.session$`. Accounts and the active choice persist at `kernl:accounts:v1` and `kernl:active-account:v1`, so the next load signs you in again (a password account asks to be unlocked). Nothing is fetched at sign-in: profile, follows and relay list are loaded from the `discovery` tier the first time an applet or the shell asks for them.
+Each path ends in `kernl.login(account)`, which adds the account to the `AccountManager` if it is new, makes it active and emits a `Session` on `kernl.session$`. Accounts and the active choice persist at `kernl:accounts:v1` and `kernl:active-account:v1`, so the next load lists the account under "Remembered accounts" with a **Sign in** button (a password account asks to be unlocked). Nothing is fetched at sign-in: profile, follows and relay list are loaded from the `discovery` tier the first time an applet or the shell asks for them.
 
 ```ts
 import { createKernl, type KernlHost } from '@kernl/core';
@@ -2434,16 +2957,20 @@ const session = await kernl.login(account);
 session.readOnly; // true for a ReadonlyAccount; writes are then refused
 ```
 
+**You should now see** the desktop: an **Open an applet** button, "Workspace 1 · 0 windows", "No applets open.", and on the right *Guard · strict · 0*, **Messages** and your account name, whose menu holds **Settings** and **Sign out**.
+
 ## 4. Open an applet by address
 
-Click *Open* and paste an address. `kernl.decodePointer` accepts an `naddr1…`, an `nevent1…` or `note1…`, a bare 64-hex event id, any of those behind `nostr:`, and a coordinate in either `<pubkey>:<kind>:<identifier>` or `<kind>:<pubkey>:<identifier>` order. Anything else is `invalid:pointer`.
+Click **Open an applet** (or press Alt+/), paste the address the applet's publisher gave you into "Applet address", and click **Look up**. `kernl.decodePointer` accepts an `naddr1…`, an `nevent1…` or `note1…`, a bare 64-hex event id, any of those behind `nostr:`, and a coordinate in either `<pubkey>:<kind>:<identifier>` or `<kind>:<pubkey>:<identifier>` order. Anything else is `invalid:pointer`, shown as "That does not look like an applet address."
 
-`kernl.resolve(pointer)` fetches the manifest from the pointer's relay hints plus the `apps` tier, verifies its signature, fetches the artifact bytes by hash and verifies them. Nothing runs before verification passes; a tampered artifact is `invalid:blob-hash-mismatch`, a missing one `unavailable:blob`, a manifest nobody serves `unavailable:manifest`. When it passes, the launcher shows the `AppletSummary`: title, publisher, the identity (`dTag` and the hash of the build you are about to run), and the domains it `requires` and lists as `optional`, each as a switch.
+`kernl.resolve(pointer)` fetches the manifest from the pointer's relay hints plus the `apps` tier, verifies its signature, fetches the artifact bytes by hash and verifies them. Nothing runs before verification passes; a tampered artifact is `invalid:blob-hash-mismatch`, a missing one `unavailable:blob`, a manifest nobody serves `unavailable:manifest`. When it passes, the launcher shows the `AppletSummary`: title, publisher, description, and under "What it may use" the domains it `requires` and lists as `optional`, each as a switch.
 
-The baseline domains (`shell`, `inc`, `theme`, `identity`, `storage`) are always on and cannot be switched off. Every other switch starts where this identity's grants already are, which on a first run is off; a required domain is marked "the applet says it needs this", and a warning names the required domains still off and says you can run anyway. Click *Run*. The launcher calls `kernl.grants.allowDomain` for each switch you turned on and `kernl.grants.revokeDomain` for each you turned off, then `kernl.plan(summary)`, and opens a window for the `MountPlan`. If `plan.missingRequired` is not empty, the applet sees those domains as unavailable.
+Baseline domains (`shell`, `inc`, `theme`, `identity`, `storage`) are marked "always on" and cannot be switched off. Every other switch starts where this identity's grants already are, which on a first run is off; a required domain is marked "the applet says it needs this", and while one is off the launcher warns "Without …, this applet may not work. You can still run it." Click **Run**. The launcher calls `kernl.grants.allowDomain` for each switch you turned on and `kernl.grants.revokeDomain` for each you turned off, then `kernl.plan(summary)`, and opens a window for the `MountPlan`. If `plan.missingRequired` is not empty, the applet sees those domains as unavailable.
 
 ```ts
-const summary = await kernl.resolve(kernl.decodePointer(`${session.pubkey}:35129:chat`));
+declare const address: string; // from the applet's publisher
+
+const summary = await kernl.resolve(kernl.decodePointer(address));
 summary.requires; // advisory, never a grant
 const plan = await kernl.plan(summary);
 plan.missingRequired; // required domains the user has not allowed
@@ -2451,20 +2978,27 @@ plan.missingRequired; // required domains the user has not allowed
 
 The window's iframe is mounted with `kernl.mount(plan, iframe)`: the frame gets `sandbox="allow-scripts"` and the controller-denying `allow` policy, is registered with its verified identity, has its environment frozen, is watched for a second load, and only then receives `srcdoc`. The applet sends its `hello`, which passes through the guard pipeline on its way to kehto's bridge, and `shell.init` tells it the domains it has.
 
+**You should now see** a window titled with the applet's name, with **Grants**, **Minimise** and **Close** in its title bar. It shows "Starting …" briefly, then the applet.
+
 ## 5. Watch the guard
 
-The desktop bar shows *Guard · strict · N*, where N counts guard events. Open it to see the profile, the eleven mitigations with the limit each one applies in the current profile (`kernl.guard.mitigations()`), and the event log (`kernl.guard.events$`). If an applet hits a limit, the log shows the window, the operation class and the reason, for example `rate:relay:publish` or `flood:quarantine`. A quarantined applet is revoked and its window removed; the notice says so.
+The desktop bar shows *Guard · strict · N*, where N counts guard events this session. Click it to see the profile, the eleven protections with the limit each one applies in the current profile (`kernl.guard.mitigations()`), and "Recent events" (`kernl.guard.events$`). Each event is a sentence naming the applet, what happened and why, for example "Applet Notes was refused: too many publishes", which is the guard's `rate:relay:publish`. A quarantined applet has its binding revoked and its frame removed; the window shows "This applet was stopped." and a notice says so.
 
 Changing the profile here calls `kernl.guard.setProfile(profile)`, which rebuilds the guard for every window and is not remembered across reloads. [Change the guard profile](https://kernlize.github.io/docs/how-tos/change-guard-profile.md) has the details and the numbers.
 
+**You should now see** the guard panel with `strict (default)` selected and, for a quiet applet, no events.
+
 ## 6. Grant, revoke, block
 
-Each window has a grants panel. It lists every domain the shell offers (`kernl.grants.availableDomains()`) as a switch, with the baseline fixed on. Turning a switch on is `kernl.grants.allowDomain(identity, domain)`; off is `kernl.grants.revokeDomain(identity, domain)`. Both write kehto's ACL at once, so the applet's next call on a revoked domain is refused; the domains it was told about at mount do not change until it is opened again. *Block* is `kernl.grants.block(identity)`: the ACL denies everything and the next mount advertises `shell` alone. Closing the window is `handle.close()`, which revokes the binding and removes the frame; the grants stay, keyed by identity, for the next time you open the same build.
+Each window's **Grants** button opens its grants panel. It lists every domain the shell offers (`kernl.grants.availableDomains()`) as a switch, with the baseline fixed on. Turning a switch on is `kernl.grants.allowDomain(identity, domain)`; off is `kernl.grants.revokeDomain(identity, domain)`. Both write kehto's ACL at once, so the applet's next call on a revoked domain is refused; the domains it was told about at mount do not change until it is opened again. Under "Standing", **Block applet** is `kernl.grants.block(identity)`: the ACL denies everything and the next mount advertises `shell` alone (**Unblock applet** reverses it). Closing the window is `handle.close()`, which revokes the binding and removes the frame; the grants stay, keyed by identity, for the next time you open the same build.
 
 [Grant and revoke](https://kernlize.github.io/docs/how-tos/grant-and-revoke.md) covers each call and what it changes.
+
+**You should now see** the grants panel's "Standing" rows: the storage quota, "Blocked: no" and the number of guard events this window has had.
 
 ## Where next
 
 - [Grant and revoke](https://kernlize.github.io/docs/how-tos/grant-and-revoke.md) for what each prompt means and what it changes.
-- [Build an applet for kernl](https://kernlize.github.io/docs/tutorials/build-an-applet-for-kernl.md) if you came here to test your own applet.
+- [Applets under kernl](https://kernlize.github.io/docs/concepts/applets-under-kernl.md) if you came here to test your own applet.
+- [Embed kernl core](https://kernlize.github.io/docs/how-tos/embed-kernl-core.md) to run the core in your own page instead of `apps/web`.
 - [Deploy](https://kernlize.github.io/docs/how-tos/deploy.md) to publish your own instance of the shell.

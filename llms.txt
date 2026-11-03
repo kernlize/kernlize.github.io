@@ -21,6 +21,6 @@ kernl is alpha software, MIT licensed, built on the open kehto toolkit and the o
 
 ## Source
 
-- [Repository](https://github.com/kernlize/web): TypeScript, MIT. Decisions and their reasons are recorded in DECISIONS.md.
+- [Decisions](https://kernlize.github.io/docs/decisions): every architecture decision and its reason. TypeScript, MIT; the source is private during alpha.
 - [kehto toolkit](https://github.com/kehto/web): the unopinionated toolkit kernl composes.
 - [Full site text](https://kernlize.github.io/llms-full.txt): every page of this site in one file.

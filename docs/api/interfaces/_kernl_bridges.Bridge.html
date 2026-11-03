@@ -14,9 +14,7 @@
 <section class="tsd-panel tsd-comment">
 <div class="tsd-comment tsd-typography"><p>A shell-owned service that resolves locators of certain schemes.</p>
 </div></section>
-<div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">Bridge</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#exposure">exposure</a><span class="tsd-signature-symbol">:</span> <a href="_kernl_bridges.BridgeExposure.html" class="tsd-signature-type tsd-kind-interface">BridgeExposure</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#id">id</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#label">label</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#schemes">schemes</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-keyword">readonly</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#availability-1">availability</a><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <a href="../types/_kernl_bridges.BridgeAvailability.html" class="tsd-signature-type tsd-kind-type-alias">BridgeAvailability</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#resolve-1">resolve</a><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">locator</span><span class="tsd-signature-symbol">:</span> <a href="_kernl_bridges.Locator.html" class="tsd-signature-type tsd-kind-interface">Locator</a><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">context</span><span class="tsd-signature-symbol">:</span> <a href="_kernl_bridges.BridgeContext.html" class="tsd-signature-type tsd-kind-interface">BridgeContext</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../types/_kernl_bridges.BridgeResult.html" class="tsd-signature-type tsd-kind-type-alias">BridgeResult</a><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/kernlize/web/blob/main/packages/bridges/src/types.ts#L41">types.ts:41</a></li></ul></aside>
+<div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">Bridge</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#exposure">exposure</a><span class="tsd-signature-symbol">:</span> <a href="_kernl_bridges.BridgeExposure.html" class="tsd-signature-type tsd-kind-interface">BridgeExposure</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#id">id</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#label">label</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#schemes">schemes</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-keyword">readonly</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#availability-1">availability</a><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <a href="../types/_kernl_bridges.BridgeAvailability.html" class="tsd-signature-type tsd-kind-type-alias">BridgeAvailability</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#resolve-1">resolve</a><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">locator</span><span class="tsd-signature-symbol">:</span> <a href="_kernl_bridges.Locator.html" class="tsd-signature-type tsd-kind-interface">Locator</a><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">context</span><span class="tsd-signature-symbol">:</span> <a href="_kernl_bridges.BridgeContext.html" class="tsd-signature-type tsd-kind-interface">BridgeContext</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../types/_kernl_bridges.BridgeResult.html" class="tsd-signature-type tsd-kind-type-alias">BridgeResult</a><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -39,28 +37,20 @@
 <section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="exposure"><code class="tsd-tag">Readonly</code><span>exposure</span><a href="#exposure" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<div class="tsd-signature"><span class="tsd-kind-property">exposure</span><span class="tsd-signature-symbol">:</span> <a href="_kernl_bridges.BridgeExposure.html" class="tsd-signature-type tsd-kind-interface">BridgeExposure</a></div><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/kernlize/web/blob/main/packages/bridges/src/types.ts#L47">types.ts:47</a></li></ul></aside></section>
+<div class="tsd-signature"><span class="tsd-kind-property">exposure</span><span class="tsd-signature-symbol">:</span> <a href="_kernl_bridges.BridgeExposure.html" class="tsd-signature-type tsd-kind-interface">BridgeExposure</a></div></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="id"><code class="tsd-tag">Readonly</code><span>id</span><a href="#id" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">id</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>Stable identifier (<code>http</code>, <code>torrent</code>, <code>nzb</code>, <code>soulseek</code>, <code>mail</code>).</p>
-</div><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/kernlize/web/blob/main/packages/bridges/src/types.ts#L43">types.ts:43</a></li></ul></aside></section>
+</div></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="label"><code class="tsd-tag">Readonly</code><span>label</span><a href="#label" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">label</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>User-facing label named by function (<code>downloads</code>, <code>mail</code>).</p>
-</div><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/kernlize/web/blob/main/packages/bridges/src/types.ts#L45">types.ts:45</a></li></ul></aside></section>
+</div></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="schemes"><code class="tsd-tag">Readonly</code><span>schemes</span><a href="#schemes" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<div class="tsd-signature"><span class="tsd-kind-property">schemes</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-keyword">readonly</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span></div><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/kernlize/web/blob/main/packages/bridges/src/types.ts#L46">types.ts:46</a></li></ul></aside></section></section></details>
+<div class="tsd-signature"><span class="tsd-kind-property">schemes</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-keyword">readonly</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span></div></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="methods-1">Methods<a href="#methods-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
@@ -70,9 +60,7 @@
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="availability-1"><span class="tsd-kind-call-signature">availability</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <a href="../types/_kernl_bridges.BridgeAvailability.html" class="tsd-signature-type tsd-kind-type-alias">BridgeAvailability</a><a href="#availability-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<h4 class="tsd-returns-title">Returns <a href="../types/_kernl_bridges.BridgeAvailability.html" class="tsd-signature-type tsd-kind-type-alias">BridgeAvailability</a></h4><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/kernlize/web/blob/main/packages/bridges/src/types.ts#L48">types.ts:48</a></li></ul></aside></div></li></ul></section>
+<h4 class="tsd-returns-title">Returns <a href="../types/_kernl_bridges.BridgeAvailability.html" class="tsd-signature-type tsd-kind-type-alias">BridgeAvailability</a></h4></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="resolve"><span>resolve</span><a href="#resolve" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -84,9 +72,7 @@
 <ul class="tsd-parameter-list">
 <li><span><span class="tsd-kind-parameter">locator</span>: <a href="_kernl_bridges.Locator.html" class="tsd-signature-type tsd-kind-interface">Locator</a></span></li>
 <li><span><span class="tsd-kind-parameter">context</span>: <a href="_kernl_bridges.BridgeContext.html" class="tsd-signature-type tsd-kind-interface">BridgeContext</a></span></li></ul></div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../types/_kernl_bridges.BridgeResult.html" class="tsd-signature-type tsd-kind-type-alias">BridgeResult</a><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/kernlize/web/blob/main/packages/bridges/src/types.ts#L49">types.ts:49</a></li></ul></aside></div></li></ul></section></section></details></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../types/_kernl_bridges.BridgeResult.html" class="tsd-signature-type tsd-kind-type-alias">BridgeResult</a><span class="tsd-signature-symbol">&gt;</span></h4></div></li></ul></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">

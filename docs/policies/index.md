@@ -4,9 +4,9 @@ Rules the repository enforces mechanically. Each policy names the script that ch
 
 | Policy | Checked by | Decision |
 | --- | --- | --- |
-| [Public vocabulary](https://kernlize.github.io/docs/policies/public-vocabulary.md) | `pnpm check:vocabulary` (`scripts/check-public-vocabulary.mjs`) | D-006 |
-| [Security posture](https://kernlize.github.io/docs/policies/security-posture.md) | `features/` scenarios, `pnpm check:deps`, Playwright in `pnpm test:e2e` | D-001, D-002, D-003 |
-| [Spec conformance](https://kernlize.github.io/docs/policies/spec-conformance.md) | `@napplet/conformance` in the test suite; review | `AGENTS.md` "Spec before code" |
+| [Public vocabulary](https://kernlize.github.io/docs/policies/public-vocabulary.md) | `pnpm check:vocabulary` (`scripts/check-public-vocabulary.mjs`) | [D-006](https://kernlize.github.io/docs/decisions.md#d-006) |
+| [Security posture](https://kernlize.github.io/docs/policies/security-posture.md) | `features/` scenarios, `pnpm check:deps`, Playwright in `pnpm test:e2e` | [D-001](https://kernlize.github.io/docs/decisions.md#d-001), [D-002](https://kernlize.github.io/docs/decisions.md#d-002), [D-003](https://kernlize.github.io/docs/decisions.md#d-003) |
+| [Spec conformance](https://kernlize.github.io/docs/policies/spec-conformance.md) | `features/` scenarios; review. Running `@napplet/conformance` in the suite is [roadmap](https://kernlize.github.io/docs/roadmap.md#_7-conformance) work. | `AGENTS.md` "Spec before code" |
 
 Two further gates apply to everything, including these pages:
 

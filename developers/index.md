@@ -39,11 +39,11 @@ How applets are packaged, addressed and verified, and the message domains an app
 
 *Source*
 
-## MIT, in the open.
+## MIT, opening after alpha.
 
-Four small packages and one app. Behaviour is specified in scenarios before it is implemented, and coverage is complete. Decisions, and the reasons for them, are written down in the repository.
+Four small packages and one app. Behaviour is specified in scenarios before it is implemented, and coverage is complete. Decisions, and the reasons for them, are written down and published now. The source itself is private during alpha and opens under the MIT licence with the first public release.
 
-[github.com/kernlize/web](https://github.com/kernlize/web)
+[Read the decisions](https://kernlize.github.io/docs/decisions)
 
 *For agents*
 

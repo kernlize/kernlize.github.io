@@ -6,7 +6,7 @@ The API reference is generated from source JSDoc by TypeDoc 0.28 with `entryPoin
 pnpm docs:api
 ```
 
-Do not edit the generated files. Fix the JSDoc in `packages/*/src` and rerun. `treatWarningsAsErrors` is on, so an export without documentation, a broken `{@link}` or a missing git remote fails the build.
+Do not edit the generated files. Fix the JSDoc in `packages/*/src` and rerun. `treatWarningsAsErrors` is on, so an export without documentation or a broken `{@link}` fails the build. Source links come from `packageOptions.sourceLinkTemplate` and point at the source repository, which is private during the alpha, so they return 404 for public readers.
 
 ## Modules
 
@@ -28,4 +28,4 @@ The [index page](https://kernlize.github.io/docs/api/index.html) lists all four,
 
 ## Audit
 
-`scripts/audit-docs.mjs` asserts that `docs/api/modules/_kernl_<package>.html` exists for every `packages/*/package.json`, that each package page links to it, and that the built docs carry their Markdown twins. It runs as part of `pnpm docs:check`.
+`scripts/audit-docs.mjs` asserts that `docs/api/modules/_kernl_<package>.html` exists for every `packages/*/package.json`, that each package page links to it, and that the built docs carry their Markdown twins. It also reads every built page and checks that each `href` into `api/` resolves, under `VITEPRESS_BASE` (default `/docs/`), to a file TypeDoc wrote; that is why the links on this page are relative (`../api/…`). It runs as part of `pnpm docs:check`.

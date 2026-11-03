@@ -10,6 +10,7 @@ Markdown twins of every docs page, served at the HTML path with `.md` instead of
 - [Alpha status](https://kernlize.github.io/docs/alpha-status.md): kernl is a first draft.
 - [Roadmap](https://kernlize.github.io/docs/roadmap.md): Ordered by the tie-breakers in SOUL.md: the user's safety and agency first, protocol conformance second, the applet developer's ability to build third.
 - [Agent access](https://kernlize.github.io/docs/agent-access.md): How an AI agent should read these docs.
+- [Decisions](https://kernlize.github.io/docs/decisions.md): The architecture decisions behind kernl, one entry per D-NNN.
 
 ## Concepts
 
@@ -18,11 +19,11 @@ Markdown twins of every docs page, served at the HTML path with `.md` instead of
 - [Identity and grants](https://kernlize.github.io/docs/concepts/identity-and-grants.md): An applet is not a name.
 - [Messaging](https://kernlize.github.io/docs/concepts/messaging.md): No encrypted messaging protocol is inherently superior.
 - [Bridges](https://kernlize.github.io/docs/concepts/bridges.md): Nostr is kernl's identity and resolution layer.
+- [Applets under kernl](https://kernlize.github.io/docs/concepts/applets-under-kernl.md): kernl adds nothing to the applet format.
 
 ## Tutorials
 
-- [Run the shell](https://kernlize.github.io/docs/tutorials/run-the-shell.md): This tutorial takes you from a clone to an applet running in a window, signed in with your own account, and shows the Kernl calls behind each step.
-- [Build an applet for kernl](https://kernlize.github.io/docs/tutorials/build-an-applet-for-kernl.md): kernl adds nothing to the applet format.
+- [Run the shell](https://kernlize.github.io/docs/tutorials/run-the-shell.md): This tutorial takes you from nothing to an applet running in a window, signed in with your own account, and shows the Kernl calls behind each step.
 
 ## How-tos
 
@@ -30,11 +31,16 @@ Markdown twins of every docs page, served at the HTML path with `.md` instead of
 - [Add a messaging provider](https://kernlize.github.io/docs/how-tos/add-a-messaging-provider.md): A provider is a package change plus a docs page.
 - [Add a bridge backend](https://kernlize.github.io/docs/how-tos/add-a-bridge-backend.md): The four non-HTTP bridges are complete up to the backend interface they call.
 - [Grant and revoke](https://kernlize.github.io/docs/how-tos/grant-and-revoke.md): A grant is something the user gave and can take back.
+- [Embed kernl core](https://kernlize.github.io/docs/how-tos/embed-kernl-core.md): apps/web is one host for @kernl/core; your own page can be another.
 - [Deploy](https://kernlize.github.io/docs/how-tos/deploy.md): kernl deploys as one static artifact: the landing site at the root, the shell at /app/, the docs at /docs/ and the generated API reference at /docs/api/.
+
+## Guides
+
+- [Troubleshooting](https://kernlize.github.io/docs/guides/troubleshooting.md): The failures people actually hit with this draft, what each one looks like, and what fixes it.
 
 ## Packages
 
-- [Packages](https://kernlize.github.io/docs/packages/index.md): kernl publishes four packages under the @kernl scope.
+- [Packages](https://kernlize.github.io/docs/packages/index.md): kernl has four packages under the @kernl scope, not yet published to npm (see Install).
 - [@kernl/guard](https://kernlize.github.io/docs/packages/guard.md): Ingress flood control, visibility gating, focus-aware firewall and CSP profile for the kernl shell.
 - [@kernl/messaging](https://kernlize.github.io/docs/packages/messaging.md): Messaging provider contract, registry, composite direct-message backend and an in-memory backend for the kernl shell.
 - [@kernl/bridges](https://kernlize.github.io/docs/packages/bridges.md): Locator parsing, the bridge contract, the registry that routes and authorises, an HTTP bridge with an SSRF policy, four backend-driven bridges for downloads, sharing and mail, the adapter that feed…
@@ -43,6 +49,7 @@ Markdown twins of every docs page, served at the HTML path with `.md` instead of
 ## Reference
 
 - [API reference](https://kernlize.github.io/docs/reference/api.md): The API reference is generated from source JSDoc by TypeDoc 0.28 with entryPointStrategy: packages over the four workspaces in typedoc.json.
+- [Error reasons](https://kernlize.github.io/docs/reference/errors.md): Every failure in the four packages carries a stable reason string with a prefix that says what kind of failure it is.
 
 ## Policies
 

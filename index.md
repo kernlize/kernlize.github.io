@@ -49,7 +49,7 @@ kernl is alpha software. The sandbox, the guard and private messaging work today
 
 Applets are verified by content hash before they run and re-checked on every read from cache. If the bytes change, the applet's grants die with them.
 
-[Build on it](https://kernlize.github.io/developers/) [Read the source](https://github.com/kernlize/web)
+[Build on it](https://kernlize.github.io/developers/) [Read the decisions](https://kernlize.github.io/docs/decisions)
 
 ## Free. $0, no tier, no catch.
 

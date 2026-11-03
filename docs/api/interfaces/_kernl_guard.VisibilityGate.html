@@ -14,9 +14,7 @@
 <section class="tsd-panel tsd-comment">
 <div class="tsd-comment tsd-typography"><p>Visibility gate: defers traffic for hidden windows and drains it on return.</p>
 </div></section>
-<div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">VisibilityGate</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-call-signature" href="#defer-1">defer</a><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">windowId</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">envelope</span><span class="tsd-signature-symbol">:</span> <a href="_kernl_guard.GuardEnvelope.html" class="tsd-signature-type tsd-kind-interface">GuardEnvelope</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#drain-1">drain</a><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">windowId</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-keyword">readonly</span> <a href="_kernl_guard.GuardEnvelope.html" class="tsd-signature-type tsd-kind-interface">GuardEnvelope</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#forget-1">forget</a><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">windowId</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#getvisibility-1">getVisibility</a><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">windowId</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a href="_kernl_guard.WindowVisibility.html" class="tsd-signature-type tsd-kind-interface">WindowVisibility</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#setvisibility-1">setVisibility</a><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">windowId</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">visibility</span><span class="tsd-signature-symbol">:</span> <a href="_kernl_guard.WindowVisibility.html" class="tsd-signature-type tsd-kind-interface">WindowVisibility</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#shoulddefer-1">shouldDefer</a><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">windowId</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">opClass</span><span class="tsd-signature-symbol">:</span> <a href="../types/_kernl_guard.OpClass.html" class="tsd-signature-type tsd-kind-type-alias">OpClass</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/kernlize/web/blob/main/packages/guard/src/types.ts#L103">types.ts:103</a></li></ul></aside>
+<div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">VisibilityGate</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-call-signature" href="#defer-1">defer</a><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">windowId</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">envelope</span><span class="tsd-signature-symbol">:</span> <a href="_kernl_guard.GuardEnvelope.html" class="tsd-signature-type tsd-kind-interface">GuardEnvelope</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#drain-1">drain</a><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">windowId</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-keyword">readonly</span> <a href="_kernl_guard.GuardEnvelope.html" class="tsd-signature-type tsd-kind-interface">GuardEnvelope</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#forget-1">forget</a><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">windowId</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#getvisibility-1">getVisibility</a><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">windowId</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a href="_kernl_guard.WindowVisibility.html" class="tsd-signature-type tsd-kind-interface">WindowVisibility</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#setvisibility-1">setVisibility</a><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">windowId</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">visibility</span><span class="tsd-signature-symbol">:</span> <a href="_kernl_guard.WindowVisibility.html" class="tsd-signature-type tsd-kind-interface">WindowVisibility</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#shoulddefer-1">shouldDefer</a><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">windowId</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">opClass</span><span class="tsd-signature-symbol">:</span> <a href="../types/_kernl_guard.OpClass.html" class="tsd-signature-type tsd-kind-type-alias">OpClass</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -47,9 +45,7 @@
 <ul class="tsd-parameter-list">
 <li><span><span class="tsd-kind-parameter">windowId</span>: <span class="tsd-signature-type">string</span></span></li>
 <li><span><span class="tsd-kind-parameter">envelope</span>: <a href="_kernl_guard.GuardEnvelope.html" class="tsd-signature-type tsd-kind-interface">GuardEnvelope</a></span></li></ul></div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/kernlize/web/blob/main/packages/guard/src/types.ts#L109">types.ts:109</a></li></ul></aside></div></li></ul></section>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="drain"><span>drain</span><a href="#drain" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -62,9 +58,7 @@
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
 <li><span><span class="tsd-kind-parameter">windowId</span>: <span class="tsd-signature-type">string</span></span></li></ul></div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-keyword">readonly</span> <a href="_kernl_guard.GuardEnvelope.html" class="tsd-signature-type tsd-kind-interface">GuardEnvelope</a><span class="tsd-signature-symbol">[]</span></h4><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/kernlize/web/blob/main/packages/guard/src/types.ts#L111">types.ts:111</a></li></ul></aside></div></li></ul></section>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-keyword">readonly</span> <a href="_kernl_guard.GuardEnvelope.html" class="tsd-signature-type tsd-kind-interface">GuardEnvelope</a><span class="tsd-signature-symbol">[]</span></h4></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="forget"><span>forget</span><a href="#forget" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -75,9 +69,7 @@
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
 <li><span><span class="tsd-kind-parameter">windowId</span>: <span class="tsd-signature-type">string</span></span></li></ul></div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/kernlize/web/blob/main/packages/guard/src/types.ts#L112">types.ts:112</a></li></ul></aside></div></li></ul></section>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getvisibility"><span>get<wbr/>Visibility</span><a href="#getvisibility" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -88,9 +80,7 @@
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
 <li><span><span class="tsd-kind-parameter">windowId</span>: <span class="tsd-signature-type">string</span></span></li></ul></div>
-<h4 class="tsd-returns-title">Returns <a href="_kernl_guard.WindowVisibility.html" class="tsd-signature-type tsd-kind-interface">WindowVisibility</a></h4><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/kernlize/web/blob/main/packages/guard/src/types.ts#L105">types.ts:105</a></li></ul></aside></div></li></ul></section>
+<h4 class="tsd-returns-title">Returns <a href="_kernl_guard.WindowVisibility.html" class="tsd-signature-type tsd-kind-interface">WindowVisibility</a></h4></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="setvisibility"><span>set<wbr/>Visibility</span><a href="#setvisibility" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -102,9 +92,7 @@
 <ul class="tsd-parameter-list">
 <li><span><span class="tsd-kind-parameter">windowId</span>: <span class="tsd-signature-type">string</span></span></li>
 <li><span><span class="tsd-kind-parameter">visibility</span>: <a href="_kernl_guard.WindowVisibility.html" class="tsd-signature-type tsd-kind-interface">WindowVisibility</a></span></li></ul></div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/kernlize/web/blob/main/packages/guard/src/types.ts#L104">types.ts:104</a></li></ul></aside></div></li></ul></section>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="shoulddefer"><span>should<wbr/>Defer</span><a href="#shoulddefer" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -118,9 +106,7 @@
 <ul class="tsd-parameter-list">
 <li><span><span class="tsd-kind-parameter">windowId</span>: <span class="tsd-signature-type">string</span></span></li>
 <li><span><span class="tsd-kind-parameter">opClass</span>: <a href="../types/_kernl_guard.OpClass.html" class="tsd-signature-type tsd-kind-type-alias">OpClass</a></span></li></ul></div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/kernlize/web/blob/main/packages/guard/src/types.ts#L107">types.ts:107</a></li></ul></aside></div></li></ul></section></section></details></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4></div></li></ul></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">

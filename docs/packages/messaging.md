@@ -13,13 +13,15 @@ Messaging provider contract, registry, composite direct-message backend and an i
 
 ## Install
 
-```bash
-pnpm add @kernl/messaging
+`@kernl/messaging` is not yet published to npm, so `pnpm add @kernl/messaging` fails. During the alpha it is built from the kernl source repository, which is private, and consumed as a workspace dependency. The [package index](https://kernlize.github.io/docs/packages/index.md#install) has the steps.
+
+```json
+{ "dependencies": { "@kernl/messaging": "workspace:^" } }
 ```
 
 ## Purpose
 
-One contract for every private-messaging protocol, truthful self-description instead of ranking, and one composite backend that projects every enabled provider onto the NAP `dm` domain. The concepts are in [Messaging](https://kernlize.github.io/docs/concepts/messaging.md); the opinion is D-009.
+One contract for every private-messaging protocol, truthful self-description instead of ranking, and one composite backend that projects every enabled provider onto the NAP `dm` domain. The concepts are in [Messaging](https://kernlize.github.io/docs/concepts/messaging.md); the opinion is [D-009](https://kernlize.github.io/docs/decisions.md#d-009).
 
 ## Exports
 
