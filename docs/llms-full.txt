@@ -66,7 +66,7 @@ kernl is a first draft. This page says what runs, what is a contract without an 
 | Area | Package | State |
 | --- | --- | --- |
 | Guard | `@kernl/guard` | Three profiles (`createGuardConfig`, `applyNappletRules`), envelope classification, ingress flood control with quarantine, visibility gate, focus-aware firewall over `@kehto/firewall`'s `evaluate()`, the fixed zero-network CSP, a port of kehto's unreleased nested-frame lock ([D-014](https://kernlize.github.io/docs/decisions.md#d-014)), eleven mitigation descriptions for the UI. Pure, fully specified in `packages/guard/features/`. |
-| Messaging | `@kernl/messaging` | `MessagingProvider`, `MessagingBackend`, `MessagingRegistry` with saved-preference restore, the composite backend with `provider:innerId` namespacing, `describeProvider` rows, a complete in-memory backend (`createMemoryBackend`) used by the preview and the tests, and three providers (`private`, `legacy`, `ratchet`) built with `defineProvider` from backends the shell injects. |
+| Messaging | `@kernl/messaging` | `MessagingProvider`, `MessagingBackend`, `MessagingRegistry` with saved-preference restore, the composite backend with `provider:innerId` namespacing, `describeProvider` rows, a complete in-memory backend (`createMemoryBackend`) used by the preview and the tests, and three providers (`private`, `legacy`, `ratchet`) built with `defineProvider` from backends the shell injects. The network backends for `private` and `legacy` are in `@kernl/core` (`createPrivateMessagesBackend`, `createLegacyMessagesBackend`) and are wired in the live shell ([below](#messaging-providers-in-the-live-shell)). |
 | Bridges | `@kernl/bridges` | `Locator` parsing for the web schemes, `magnet:`, `nzb:`, `slsk:` and `mailto:`, the `Bridge` contract, the registry with its `authorize` hook and outcome events, a complete HTTP bridge with SSRF policy, the four backend-driven bridges up to their backend interface, `createHandoffBackends`, which serves all four by opening the locator in an app on the user's device, `createBridgeResourceResolver` for kehto's resource service, and `describeBridge` rows. |
 | Composition | `@kernl/core` | `createKernl` over one applesauce `EventStore`, `RelayPool` and `AccountManager`, with kehto's real `createShellBridge` exercised end to end in `kernl.feature`: an applet is decoded, resolved, planned and mounted, binds its port through the guarded `handleWindowMessage`, completes `shell.ready`, is answered by the theme, identity and resource services, and is quarantined and revoked when it floods. Relay tiers, the applesauce adapters, the guard pipeline and runtime firewall rules, grants over `bridge.runtime.aclState`, consent summaries, the default registries and the layouts each have their own feature file. |
 | Shell UI | `apps/web` | Landing site at `/` and the shell at `/app/`: sign-in (browser extension, remote signer, read-only, password-protected local account), open by address with the required and optional domains as choices, windows, a grants panel per window, a shell-wide guard panel with the event log, the provider picker, and the offline preview behind `?preview=1` ([D-011](https://kernlize.github.io/docs/decisions.md#d-011)), hosted at [kernlize.github.io/app/?preview=1](https://kernlize.github.io/app/?preview=1). |
@@ -75,20 +75,20 @@ kernl is a first draft. This page says what runs, what is a contract without an 
 
 ## Messaging providers in the live shell
 
-`createDefaultMessaging` registers all three providers, and each reports itself unavailable with a reason from `MESSAGING_UNAVAILABLE_REASONS` until the host passes a backend factory in `KernlOptions.messagingBackends`:
+`createKernl` registers all three providers and, unless `KernlOptions.messagingBackends` overrides them, wires two real backends from `@kernl/core`: `createPrivateMessagesBackend` for `private` (NIP-17 gift-wrapped messages) and `createLegacyMessagesBackend` for `legacy` (NIP-04 direct messages). Both sign and encrypt with the active account's signer and nothing else ([D-015](https://kernlize.github.io/docs/decisions.md#d-015)). Availability follows the active account, and an unavailable provider reports a reason from `MESSAGING_UNAVAILABLE_REASONS`:
 
-| Provider | Reason | What is missing |
+| Provider | Available when | Reason otherwise |
 | --- | --- | --- |
-| `private` | `needs-local-key-signer` | kehto's sealed-message adapter wants the owner's raw secret key, which kernl never holds outside an applesauce signer. A backend built from a signer the host controls makes it available. |
-| `legacy` | `not-implemented` | No backend exists for the original direct-message format. |
-| `ratchet` | `no-runtime` | A double-ratchet runtime has to be supplied. |
+| `private` | The active account's signer exposes `nip44` (browser extension, remote signer, password-protected local account) | `sign-in-required` with no active account; `signer-cannot-encrypt` when the signer has no `nip44` (a read-only account) |
+| `legacy` | The active account's signer exposes `nip04` | `sign-in-required` with no active account; `signer-cannot-encrypt` when the signer has no `nip04` |
+| `ratchet` | Never in this draft | `no-runtime`: a double-ratchet runtime has to be supplied |
 
-`apps/web` supplies none of them, so the live shell's provider picker shows all three greyed with these reasons. The preview uses the in-memory backend.
+`private` sends to the recipient's kind 10050 inbox relays, falling back to the sender's `outbox` and `super` tiers when the recipient publishes none, and wraps a copy to the sender so the conversation reads the same on every device. `legacy` is metadata-exposing: sender, recipient and timing are public on the event, and the picker says so. The Messages panel decrypts the user's own messages without a consent prompt, because the shell asks on the user's behalf; an applet reaches messages only through the `dm` domain grant. The preview still uses the in-memory backend.
 
 ## What does not work yet
 
 - **In-shell transfer backends.** Downloads, sharing and mail work only by hand-off: `createKernl` passes `host.openLink` to `createDefaultBridges`, so the torrent, NZB, Soulseek and mail bridges open the locator's canonical address in an app on the user's device after the user confirms leaving kernl. kernl makes no connection for these; what the device app then does on its own network is outside kernl's view and control. No backend moves the data inside the shell, and there is no downloads view. A `job` result from a hand-off is an id, not a transfer kernl can track, and it is reported even when the user declines to leave. See [Bridges](https://kernlize.github.io/docs/concepts/bridges.md#hand-off-backends).
-- **Real messaging backends.** The table above. See [Messaging](https://kernlize.github.io/docs/concepts/messaging.md).
+- **Ratchet sessions.** No double-ratchet runtime ships, so `ratchet` reports `no-runtime` (the table above). See [Messaging](https://kernlize.github.io/docs/concepts/messaging.md).
 - **Web fetch from the browser shell, beyond the simple case.** The HTTP bridge runs in the page, so it is subject to CORS, and an opaque redirect it cannot inspect is refused with `denied:redirect-unverifiable`. Web fetch works from the shell for `https` origins that permit cross-origin reads and answer without a redirect. Hostnames are checked as literals only; no resolver is wired. See [Bridges](https://kernlize.github.io/docs/concepts/bridges.md#the-http-bridge).
 - **Per-host bridge consent.** `createKernl` builds the bridge registry with `createDefaultBridges()` and no `authorize` hook, so a `resource` request from a granted applet is checked by the HTTP bridge's SSRF policy and nothing else. A host that wants a prompt per host or scheme passes its own registry in `KernlOptions.bridges`.
 - **Per-applet guard profiles.** `GuardFacade.setProfile` rebuilds the pipeline for the whole shell and is not persisted. The per-applet, remembered override [D-003](https://kernlize.github.io/docs/decisions.md#d-003) describes is not in this draft.
@@ -141,6 +141,19 @@ The protocol itself is a draft. NIP-5D is [nostr-protocol/nips PR #2303](https:/
 # Changelog
 
 Each entry says what ships, per package and app. [Alpha status](https://kernlize.github.io/docs/alpha-status.md) is the current picture; this page is the history. Versions follow semver on 0.x: a breaking change is a minor bump.
+
+## Unreleased
+
+### `@kernl/core`
+
+- `createPrivateMessagesBackend`: NIP-17 messages over the account signer. The seal is signed by the account with `nip44`; the wrap is signed by an ephemeral key that lives inside an applesauce `PrivateKeySigner` and is discarded after the wrap. Sends go to the recipient's kind 10050 inbox relays, falling back to the user's `outbox` and `super` tiers, with a copy wrapped to the user ([D-015](https://kernlize.github.io/docs/decisions.md#d-015)).
+- `createLegacyMessagesBackend`: NIP-04 kind 4 messages through `signer.nip04`, normalised the same way and still marked metadata-exposing.
+- `createKernl` wires both by default unless `KernlOptions.messagingBackends` overrides them, so `private` and `legacy` work in the live shell. Availability follows the active account: `private` needs a signer with `nip44`, `legacy` one with `nip04`.
+- **Breaking.** `MESSAGING_UNAVAILABLE_REASONS` now holds `sign-in-required`, `signer-cannot-encrypt` and `no-runtime`. `needs-local-key-signer` and `not-implemented` are removed. See [Error reasons](https://kernlize.github.io/docs/reference/errors.md).
+
+### Shell and site (`apps/web`)
+
+- The Messages panel sends and receives private and legacy messages for an account whose signer can encrypt (browser extension, remote signer, password-protected local account). It opens the user's own messages without a consent prompt; applets still reach messages only through the `dm` grant.
 
 ## 0.1.0 — first draft, 2026-11-03
 
@@ -231,7 +244,7 @@ kernl's packages are shell-side. You do not import them in an applet.
 | Posture | Domains | Notes |
 | --- | --- | --- |
 | Baseline, advertised without a grant | `shell`, `inc`, `theme`, `storage` | `BASELINE_DOMAINS`. No network, and no account. Storage is the applet's own, read and write. A blocked applet sees `shell` alone. |
-| Offered, advertised once the user grants it | `identity`, `relay`, `outbox`, `resource`, `dm`, `notify`, `link` | Backed by the services `createKernlServices` registers. `identity` is "your account" in the launcher: until it is granted, your applet is not told who is signed in. In the live shell `dm` has no available provider yet ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#messaging-providers-in-the-live-shell)). |
+| Offered, advertised once the user grants it | `identity`, `relay`, `outbox`, `resource`, `dm`, `notify`, `link` | Backed by the services `createKernlServices` registers. `identity` is "your account" in the launcher: until it is granted, your applet is not told who is signed in. In the live shell `dm` reaches `private` and `legacy` while the signed-in account can encrypt; with nobody signed in no provider is available ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#messaging-providers-in-the-live-shell)). |
 | Offered, advertised once granted, nothing wired behind it | `keys`, `media` | kehto's runtime serves these domains natively, so the shell offers them; kernl wires no host behaviour (hotkeys are not forwarded). |
 | Not offered | `config`, `cvm`, `upload`, `intent`, `fs`, `llm`, `cache`, and every other domain | They have a row in `DOMAIN_CAPABILITIES` (or none), but no service is registered, so they are never advertised. |
 
@@ -973,7 +986,7 @@ An embedding host that renders its own windows can pass any `LayoutStrategy`, in
 
 No encrypted messaging protocol is inherently superior. Each one trades metadata exposure, forward secrecy and reach against the others, and the right trade depends on who the user is writing to. kernl therefore supports several and ranks none ([D-009](https://kernlize.github.io/docs/decisions.md#d-009)). A provider describes its own properties truthfully; the shell shows the description and lets the user choose.
 
-In this alpha no real messaging backend ships. The live shell supplies none, so every provider is unavailable there; only the offline preview sends messages, over the in-memory backend, and they go nowhere ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#messaging-providers-in-the-live-shell)).
+In this alpha `private` and `legacy` work in the live shell when the signed-in account's signer can encrypt; `ratchet` needs a runtime that does not ship and is unavailable. The offline preview runs all three over the in-memory backend, and messages sent there go nowhere ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#messaging-providers-in-the-live-shell)).
 
 ## The provider contract
 
@@ -1005,7 +1018,7 @@ interface ProviderDeps {
 }
 ```
 
-The three built-in factories (`createPrivateMessagesProvider`, `createLegacyMessagesProvider`, `createRatchetMessagesProvider`) take the same `ProviderDeps` and supply the definition themselves. In the shell, `@kernl/core`'s `createDefaultMessaging` builds each provider's `ProviderDeps` from `KernlOptions.messagingBackends` and nothing else: `createBackend` calls the factory the host supplied, and a provider without one reports itself unavailable. `apps/web` supplies none today, so all three are unavailable in the live shell ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#messaging-providers-in-the-live-shell)). In tests and the preview, `createBackend` returns `createMemoryBackend()`. See `providers.feature`, scenario "availability and the backend come from the shell".
+The three built-in factories (`createPrivateMessagesProvider`, `createLegacyMessagesProvider`, `createRatchetMessagesProvider`) take the same `ProviderDeps` and supply the definition themselves. In the shell, `@kernl/core` builds each provider's `ProviderDeps`: `createKernl` supplies `createPrivateMessagesBackend` and `createLegacyMessagesBackend` unless `KernlOptions.messagingBackends` overrides them, and `available` follows the active account ([The shell's backends](#the-shell-s-backends)). In tests and the preview, `createBackend` returns `createMemoryBackend()`. See `providers.feature`, scenario "availability and the backend come from the shell".
 
 ## Security properties
 
@@ -1037,7 +1050,19 @@ Three things the table says that the picker says too:
 
 - `legacy` is marked as metadata-exposing because it is. It exists because many correspondents can read nothing else, and the user is told that before choosing it.
 - `private` has no forward secrecy. A gift wrap protects metadata, not past messages, and the picker does not claim otherwise.
-- `ratchet` is available only when the shell's `available()` says so. The package does not decide the reason; kernl's `createDefaultMessaging` supplies `no-runtime` (`MESSAGING_UNAVAILABLE_REASONS.ratchet`), `enable()` rethrows it as `unavailable:no-runtime`, and `list()` reports it so the picker can show the provider greyed with that reason. Its specification is a draft and the provider is flagged `experimental`.
+- `private` and `legacy` are available only while the active account's signer can encrypt: `nip44` for `private`, `nip04` for `legacy`. Otherwise kernl reports `sign-in-required` (nobody is signed in) or `signer-cannot-encrypt` (a read-only account, or a signer without the method).
+- `ratchet` is available only when the shell's `available()` says so. The package does not decide the reason; kernl's `createDefaultMessaging` supplies `no-runtime` (`MESSAGING_UNAVAILABLE_REASONS.noRuntime`), `enable()` rethrows it as `unavailable:no-runtime`, and `list()` reports it so the picker can show the provider greyed with that reason. Its specification is a draft and the provider is flagged `experimental`.
+
+## The shell's backends
+
+`@kernl/core` ships the two network backends the live shell uses ([D-015](https://kernlize.github.io/docs/decisions.md#d-015)). Both take the shell's one `EventStore`, `RelayPool` and relay tiers, and read the signer and the user's public key through functions, so they follow the active account without being rebuilt:
+
+- **`createPrivateMessagesBackend`** sends NIP-17 messages. The message is an unsigned kind 14 rumour; it is sealed in a kind 13 event that the account signer signs, encrypting with its `nip44`; the seal is wrapped in a kind 1059 event signed by a one-time key. That key is generated inside an applesauce `PrivateKeySigner`, used for one wrap and discarded; it is never stored. The wrap goes to the recipient's kind 10050 inbox relays, or to the sender's `outbox` and `super` tiers when the recipient publishes none, and a second wrap goes to the sender so their other devices see the message. The backend subscribes to kind 1059 events tagged with the user's public key on the user's own inbox relays, or the same tiers. A conversation id is applesauce's `createConversationIdentifier`: the participants' public keys, the user's included, sorted and joined by `:`, so both sides compute the same id. Decrypted messages are kept in memory per account, never in the `EventStore`, and are cleared when the account changes or signs out; the `EventStore` is read only for inbox relay lists.
+- **`createLegacyMessagesBackend`** sends NIP-04 kind 4 messages through `signer.nip04`, with the same conversation ids and message shape. It is the metadata-exposing provider: who writes to whom, and when, is public on the event.
+
+Neither backend touches key bytes. Everything is signed and encrypted by the account's applesauce signer; an extension or remote signer may ask its own question per decryption, and kernl lets it.
+
+The Messages panel opens the user's own messages without a consent prompt from kernl: the shell is asking, for the user, to show the user their own mail. Applets are different. An applet reaches messages only through the NAP `dm` domain, which is a grant the user gives per applet and can revoke ([Identity and grants](https://kernlize.github.io/docs/concepts/identity-and-grants.md)).
 
 ## The registry
 
@@ -1420,6 +1445,22 @@ With the lock, the same probe sees every route throw `TypeError: denied:nested-f
 
 **Update to D-014, 2026-11-03.** A further independent review found four creation routes past the factory pins, each producing a child frame with a working peer connection that reached a public STUN server: a customized built-in element constructed with `new` (constructors skip `createElement`), XSLT `transformToFragment`, and an XHTML-parsed element with a namespace prefix moved in with `importNode` or `adoptNode` (the string-sink pattern did not match prefixed tags). Creation routes are open-ended, so the lock now also guards **insertion**: a frame gets a realm only when connected, and connecting goes through a small set of methods. `appletInsertionLock` pins `appendChild`, `insertBefore`, `replaceChild`, `append`, `prepend`, `replaceChildren`, `before`, `after`, `replaceWith`, `insertAdjacentElement`, `moveBefore`, `Range.insertNode` and `Range.surroundContents` on their owning prototypes to refuse any node that is, or contains (descendants, template content, shadow roots), an HTML-namespace frame element. Node identity is read through native getters captured before applet code runs, so an element cannot disguise itself. It also refuses custom elements that extend frame elements, removes `XSLTProcessor`, and the string-sink pattern now matches prefixed tags. `tests/e2e/applet-network-sealed.spec.ts` covers the four routes and thirteen insertion routes. kehto's lock at 4d8a5693 shares the creation-only design and is affected by the same routes; this is to be reported upstream with them. Cost: every DOM insertion in an applet walks the inserted subtree once.
 
+## D-015 · Messaging backends are built on the account signer
+
+**Context.** The first draft shipped every messaging provider unavailable. kehto's sealed-message adapter wants the owner's raw secret key, and kernl keeps keys only inside applesauce signer instances (`SOUL.md` opinion 1, `AGENTS.md` security posture). Browser extensions and remote signers never hand a key over at all, so an adapter that needs one would exclude most accounts and would make kernl the place a key leaks from.
+
+**Decision.** `@kernl/core` builds its own backends from applesauce helpers and the active account's signer:
+
+- `createPrivateMessagesBackend({ store, pool, tiers, signer, selfPubkey, now? })` sends NIP-17 messages: the kind 14 rumour is sealed in a kind 13 event that the account signer signs, encrypting with its `nip44`, and the seal is wrapped in a kind 1059 event signed by an ephemeral key. The ephemeral key is generated inside an applesauce `PrivateKeySigner`, used for that one wrap, and dropped with the signer; it is never persisted and never leaves the class.
+- `createLegacyMessagesBackend(...)` sends NIP-04 kind 4 messages through `signer.nip04`, normalised the same way, and stays marked metadata-exposing (D-009).
+- Delivery goes to the recipient's kind 10050 inbox relays. A recipient who publishes none is reached through the sender's `outbox` and `super` tiers, because a message that is never sent protects nobody and those are the relays the user already chose. A copy is wrapped to the sender. The subscription reads kind 1059 addressed to the user from the user's own inbox relays, or the same tiers when there are none. A conversation id is the sorted participant set.
+- `createKernl` wires both unless `KernlOptions.messagingBackends` overrides them. Availability follows the active account: `private` needs a signer with `nip44`, `legacy` one with `nip04`. The reasons are `sign-in-required` with no active account and `signer-cannot-encrypt` when the signer lacks the method; `ratchet` keeps `no-runtime`. `needs-local-key-signer` is gone.
+- The shell's own Messages panel decrypts the user's messages without a consent prompt. The request comes from the shell, on the user's behalf, to show the user their own messages; a prompt there would ask the user whether they may read their mail. An applet reaches messages only through the NAP `dm` domain, which is a grant the user gives and can revoke, and through the guard's `dm:send` rate.
+
+**Consequences.** Messaging works with every account type that can encrypt, including ones whose key kernl never sees. A remote signer or extension may ask its own question per decryption; kernl does not suppress it. A read-only account sees both providers unavailable with `signer-cannot-encrypt`. The inbox fallback means a recipient without inbox relays may never see a message sent to relays they do not read; the sender sees it delivered to those relays, not read. kehto's sealed-message adapter is not used; when it can take a signer instead of a key, the backend can be swapped behind `MessagingBackend` without a contract change (D-001).
+
+**Reversal cost.** Low; both backends sit behind `MessagingBackend` and `KernlOptions.messagingBackends`.
+
 ---
 
 <!-- https://kernlize.github.io/docs/guides/troubleshooting.md -->
@@ -1720,7 +1761,7 @@ The three built-ins (`createPrivateMessagesProvider`, `createLegacyMessagesProvi
 
 The three built-in providers are registered by `createDefaultMessaging` in `packages/core/src/messaging/default-registry.ts`, which `createKernl` calls when `KernlOptions.messaging` is absent. You do not edit `createKernl`. A host has two options-based paths:
 
-- **A backend for a built-in provider.** Pass `KernlOptions.messagingBackends`, a `MessagingBackendFactories` (`{ private?, legacy?, ratchet? }`, each `() => MessagingBackend`). The provider whose factory you supply reports itself available.
+- **A backend for a built-in provider.** Pass `KernlOptions.messagingBackends`, a `MessagingBackendFactories` (`{ private?, legacy?, ratchet? }`, each `() => MessagingBackend`). Your factory replaces kernl's backend for that provider (`createPrivateMessagesBackend` or `createLegacyMessagesBackend` by default); availability still follows the active account's signer.
 - **A new provider.** Build the default registry yourself, register yours on it, and pass it as `KernlOptions.messaging`. The defaults stay registered:
 
 <!-- sample:continues -->
@@ -2159,7 +2200,7 @@ kehto ships `@kehto/{acl,firewall,runtime,shell,services,nip,wm}` and deliberate
 | Containment | Opaque-origin `srcdoc` iframe, `sandbox="allow-scripts"`, zero-network CSP, every network path through a shell service the user can see, rate-limit and revoke. |
 | Mitigations | Every kehto mitigation ships on, in the `strict` [guard](https://kernlize.github.io/docs/concepts/guard.md) profile. kehto's runtime firewall refuses requests over the profile's rates and a startup burst, and refuses the oversized downloads and queries kernl measures; kernl's own layers observe every port message just before dispatch, report what they see and quarantine floods, which stops the message that crossed the limit. kehto's not-yet-released nested-frame lock is applied through a port in `@kernl/guard` ([D-014](https://kernlize.github.io/docs/decisions.md#d-014)). The hosted shell boots `strict`, and only the user loosens it there: shell-wide in this draft, reset to `strict` on every boot, per applet later. An embedding host may choose the starting profile (`KernlOptions.guard.profile`), which changes limits only; the sandbox, the CSP, the frame lock and consent are fixed. |
 | Protocols | One identity layer, many [bridges](https://kernlize.github.io/docs/concepts/bridges.md) named by what they do for the user, never by the wire format. Web fetch runs in the shell behind an SSRF policy. Downloads, sharing and mail hand the address to an app on the user's device after the user confirms leaving kernl: kernl connects to nothing for them, and the device app's own network behaviour is outside kernl. |
-| Messaging | Any reasonable private-messaging protocol, exposed through one contract. [Providers](https://kernlize.github.io/docs/concepts/messaging.md) describe their security properties truthfully and the shell does not rank them. No real backend ships in this alpha: the live shell supplies none, so every provider is unavailable there, and the preview runs them over the in-memory backend. |
+| Messaging | Any reasonable private-messaging protocol, exposed through one contract. [Providers](https://kernlize.github.io/docs/concepts/messaging.md) describe their security properties truthfully and the shell does not rank them. `private` and `legacy` work in the live shell when the signed-in account's signer can encrypt; `ratchet` needs a runtime and is unavailable; the preview runs all three over the in-memory backend. |
 
 kernl does not fork kehto ([D-001](https://kernlize.github.io/docs/decisions.md#d-001)). When kehto lacks a hook kernl needs, kernl composes around it and takes the gap upstream. The four gaps found so far, still to be filed upstream, are listed in [Alpha status](https://kernlize.github.io/docs/alpha-status.md#upstream-gaps).
 
@@ -2396,7 +2437,7 @@ if (plan.missingRequired.length === 0) kernl.mount(plan, iframe);
 
 1. **Event layer.** `options.eventStore ?? new EventStore()`, `options.pool ?? new RelayPool()`, `options.accounts ?? createKernlAccounts(host.storage)`. A pool the shell created itself is closed by `destroy()`; a supplied pool is left open.
 2. **Relay tiers.** `createRelayTiers(host.storage, options.relays ?? {})`. Persisted choices at `kernl:relays:v1` win over `options.relays`, which only overrides `DEFAULT_RELAY_TIERS` on a fresh device.
-3. **Registries.** `options.messaging ?? createDefaultMessaging({ storage: host.storage, backends: options.messagingBackends })` and `options.bridges ?? createDefaultBridges()`. The default bridge registry has no `authorize` hook, so in the composed shell a resource request is checked only by the HTTP bridge's SSRF policy and the applet's `resource` grant.
+3. **Registries.** `options.messaging ?? createDefaultMessaging(...)`, with `createPrivateMessagesBackend` and `createLegacyMessagesBackend` as the `private` and `legacy` backends unless `options.messagingBackends` overrides them, and availability tracking the active account ([Messaging backends](#messaging-backends)), and `options.bridges ?? createDefaultBridges()`. The default bridge registry has no `authorize` hook, so in the composed shell a resource request is checked only by the HTTP bridge's SSRF policy and the applet's `resource` grant.
 4. **Guard pipeline.** `createGuardPipeline` with `createGuardConfig(options.guard?.profile ?? 'strict')`, the host's `now` when given, `onEvent` feeding `kernl.guard.events$`, `getVisibility` delegated to `host.getVisibility`, and `onQuarantine` marking the handle revoked with reason `quarantine` and calling `bridge.revokeNapplet(windowId, 'host')`.
 5. **Services.** `createKernlServices` registers `relay`, `identity`, `theme`, `notify`, `link`, `resource`, `dm` and `outbox` over the pool, the tiers, the event store, the active signer, the consent gate, the host, the bridge registry and the messaging registry. The `outbox` service is wrapped so that `outbox.publish` passes the consent gate first, because kehto's outbox service signs without naming the window. `options.theme` is used only when `isTheme` accepts it. `resolveIdentity` maps a live window to its verified identity so the resource service names the requesting applet to the bridges.
 6. **ShellAdapter.** `createShellAdapter` builds kehto's adapter from the relay-pool hooks, the relay-config hooks over the tiers, `createAuthHooks(accounts, consent)`, the service registry, `capabilities.resolveEnvironment` from `createEnvironmentResolver(grants)`, `onNappletRevoked` (removes the frame through the handle) and `onNappletMessage` (feeds `pipeline.observe`). Choices kehto left open are fixed here: applets cannot create windows (`createWindow` returns null), hotkeys are not forwarded, there is no worker relay, update behaviour is `banner`, signatures are verified by applesauce's `verifyEvent`, `link.isAvailable` is true and `getNip66Suggestions` is null.
@@ -2462,24 +2503,48 @@ A frame without a `contentWindow` throws `invalid:frame-detached`. `handle.close
 
 ### Messaging backends
 
-`KernlOptions.messagingBackends` is a `MessagingBackendFactories`: `{ private?: () => MessagingBackend; legacy?: () => MessagingBackend; ratchet?: () => MessagingBackend }`. `createDefaultMessaging` registers all three providers and marks each whose factory is absent unavailable with the reason from `MESSAGING_UNAVAILABLE_REASONS`:
+`createKernl` registers all three providers through `createDefaultMessaging` and, unless `KernlOptions.messagingBackends` overrides them, wires two network backends built on the active account's signer ([D-015](https://kernlize.github.io/docs/decisions.md#d-015)). `KernlOptions.messagingBackends` is a `MessagingBackendFactories`: `{ private?: () => MessagingBackend; legacy?: () => MessagingBackend; ratchet?: () => MessagingBackend }`; a factory there replaces kernl's backend for that provider.
 
-| Provider | Reason | Why |
+`createPrivateMessagesBackend({ store, pool, tiers, signer, selfPubkey, now? })` is a `MessagingBackend` over NIP-17. `signer` and `selfPubkey` are functions, read on every call, so one backend follows sign-in and sign-out.
+
+- **Send.** The message is a kind 14 rumour. It is sealed in a kind 13 event signed by `signer()`, encrypted with its `nip44`, and wrapped in a kind 1059 event signed by an ephemeral key generated inside an applesauce `PrivateKeySigner` and discarded after that wrap; the key is never persisted. Each recipient's wrap is published to their kind 10050 inbox relays, or to the user's `outbox` and `super` tiers when they publish none, and one more wrap is addressed to the user.
+- **Receive.** `subscribe` asks for kind 1059 events with `#p` set to `selfPubkey()` on the user's own kind 10050 inbox relays, or the same tiers. Wraps are opened with applesauce's helpers and the account signer and filed in an in-memory conversation store that belongs to the active account; it is cleared when the account changes or signs out. The event `store` is where inbox relay lists are read from.
+- **Conversations.** A conversation id is the sorted participant set, so the same people always meet in the same conversation, whoever wrote first.
+
+`createLegacyMessagesBackend(...)` takes the same options and sends NIP-04 kind 4 events through `signer().nip04`, with the same normalisation into `DmConversation` and `DmMessage`. It is the metadata-exposing provider: sender, recipient and timing are public on the event.
+
+Neither backend holds key bytes; signing, encryption and decryption all go through the account's applesauce signer. The shell's own Messages panel decrypts the user's messages without a kernl prompt, because the request is the shell's, for the user; applets reach messages only through the `dm` domain grant.
+
+Availability follows the active account. An unavailable provider reports a reason from `MESSAGING_UNAVAILABLE_REASONS`, and `enable(id)` throws it as `unavailable:<reason>`:
+
+| Provider | Available when | Reason otherwise |
 | --- | --- | --- |
-| `private` | `needs-local-key-signer` | kehto's sealed-message adapter wants the owner's raw secret key, which kernl never holds outside an applesauce signer. The host supplies a backend built from a signer it controls. |
-| `legacy` | `not-implemented` | No backend exists in this draft. |
-| `ratchet` | `no-runtime` | A double-ratchet runtime has to be supplied. |
+| `private` | The active signer exposes `nip44` | `sign-in-required` with no active account, `signer-cannot-encrypt` without `nip44` |
+| `legacy` | The active signer exposes `nip04` | `sign-in-required` with no active account, `signer-cannot-encrypt` without `nip04` |
+| `ratchet` | Never in this draft | `no-runtime` |
 
-`enable(id)` on an unavailable provider throws `unavailable:<reason>`. Preferences persist at `kernl:messaging:v1`.
+Preferences persist at `kernl:messaging:v1`.
 
 ```ts
-import { MESSAGING_UNAVAILABLE_REASONS, createDefaultMessaging } from '@kernl/core';
-import type { MessagingBackend } from '@kernl/messaging';
+import { createKernl, createLegacyMessagesBackend, createPrivateMessagesBackend, type KernlHost } from '@kernl/core';
 
-declare const sealedBackend: () => MessagingBackend;
+declare const host: KernlHost;
 
-const messaging = createDefaultMessaging({ storage: localStorage, backends: { private: sealedBackend } });
-messaging.get('legacy')?.availability; // { available: false, reason: MESSAGING_UNAVAILABLE_REASONS.legacy }
+const kernl = createKernl({ host });
+const account = () => kernl.accounts.active;
+const deps = {
+  store: kernl.eventStore,
+  pool: kernl.pool,
+  tiers: kernl.relays,
+  signer: () => account()?.signer,
+  selfPubkey: () => account()?.pubkey,
+};
+
+const privateMessages = createPrivateMessagesBackend(deps);
+const legacyMessages = createLegacyMessagesBackend(deps);
+
+await privateMessages.send({ recipients: ['<hex pubkey>'], content: 'hello' });
+legacyMessages.subscribe({}, (message) => console.log(message.content));
 ```
 
 ### Accounts
@@ -2667,8 +2732,14 @@ Signatures are abbreviated; the generated reference has the full ones.
 
 | Export | Signature | Description |
 | --- | --- | --- |
-| `createDefaultMessaging` | `(options: DefaultMessagingOptions) => MessagingRegistry` | The three providers, available only when their backend factory is supplied. |
-| `MESSAGING_UNAVAILABLE_REASONS` | `Readonly<Record<'private' \| 'legacy' \| 'ratchet', string>>` | `needs-local-key-signer`, `not-implemented`, `no-runtime`. |
+| `createDefaultMessaging` | `(options: DefaultMessagingOptions) => MessagingRegistry` | The three providers with persisted preferences; each is available when its backend is supplied and the active account can serve it. `DefaultMessagingOptions.signer` (`() => ISigner \| undefined`) makes `private` and `legacy` availability follow that signer, including for backends a host supplies. |
+| `createPrivateMessagesBackend` | `(options: { store: EventStore; pool: ApplesaucePool; tiers: RelayTiers; signer: () => ISigner \| undefined; selfPubkey: () => string \| undefined; now?: () => number }) => MessagingBackend` | NIP-17 messages over the account signer: seal signed by the account with `nip44`, wrap signed by a discarded ephemeral key, sent to inbox relays with the `outbox` and `super` tiers as fallback, plus a copy to self. See [Messaging backends](#messaging-backends). |
+| `createLegacyMessagesBackend` | same options `=> MessagingBackend` | NIP-04 kind 4 messages through `signer().nip04`, normalised the same way. Metadata-exposing. |
+| `signerAvailability` | `(signer: ISigner \| undefined, method: MessagingEncryption) => ProviderAvailability` | `sign-in-required` with no signer, `signer-cannot-encrypt` when it lacks `method`, otherwise available. |
+| `messagingSigner` | `(account: IAccount \| undefined) => ISigner \| undefined` | The signer messaging uses for an account. A read-only account maps to a signer with no encryption, so it reports `signer-cannot-encrypt`. |
+| `MessagingEncryption` | `'nip44' \| 'nip04'` | The signer method a backend needs. |
+| `SignerMessagingOptions` | `{ store, pool, tiers, signer, selfPubkey, now?, accountChanges? }` | Options for both backends. `accountChanges` clears the in-memory conversations when the account changes or signs out. |
+| `MESSAGING_UNAVAILABLE_REASONS` | `Readonly<Record<'signInRequired' \| 'signerCannotEncrypt' \| 'noRuntime', string>>` | `sign-in-required`, `signer-cannot-encrypt`, `no-runtime`. |
 | `createDefaultBridges` | `(options?: DefaultBridgesOptions) => BridgeRegistry` | The HTTP bridge plus torrent, nzb, soulseek and mail, which report `no-backend` ([D-010](https://kernlize.github.io/docs/decisions.md#d-010)). `options.http` goes to the HTTP bridge; the rest to the registry. |
 | `floatingLayout`, `createDwindleLayout`, `createColumnsLayout`, `createMasterStackLayout` | `LayoutStrategy` and `(options?) => LayoutStrategy` | The layouts above. |
 | `createNamespacedStore` | `(storage: StorageLike, prefix: string) => NamespacedStore` | `getJson`, `setJson`, `remove` under `<prefix>:`; corrupt JSON reads as the fallback. |
@@ -2881,9 +2952,9 @@ Run `pnpm install` again after editing the manifest so pnpm links the workspace 
 
 Messaging provider contract, registry, composite direct-message backend and an in-memory backend for the kernl shell. Pure: no relay code, no signer, no kehto dependency. Providers receive their backend constructor from the shell.
 
-> **No real messaging backend ships**
+> **Network backends live in `@kernl/core`**
 >
-> This package ships no backend that sends anything over a network; the only backend in it is `createMemoryBackend`. The live shell supplies no backend through `KernlOptions.messagingBackends`, so all three providers report themselves unavailable there ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#messaging-providers-in-the-live-shell)). The offline preview (`?preview=1`) runs the same providers over the in-memory backend with a scripted correspondent, so messages sent there go nowhere.
+> This package ships no backend that sends anything over a network; the only backend in it is `createMemoryBackend`. The network backends for `private` and `legacy` are `createPrivateMessagesBackend` and `createLegacyMessagesBackend` in [`@kernl/core`](https://kernlize.github.io/docs/packages/core.md#messaging-backends), because they need the shell's event store, connection pool and account signer. `createKernl` wires them by default, so both providers work in the live shell while the signed-in account's signer can encrypt; `ratchet` stays unavailable with `no-runtime` ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#messaging-providers-in-the-live-shell)). The offline preview (`?preview=1`) runs the same providers over the in-memory backend with a scripted correspondent, so messages sent there go nowhere.
 
 | Field | Value |
 | --- | --- |
@@ -2915,7 +2986,7 @@ One contract for every private-messaging protocol, truthful self-description ins
 | `MessagingProvider` | interface | `{ id; name; description; properties: SecurityProperties; availability(): ProviderAvailability; createBackend(): MessagingBackend }`. `id` is the conversation-id prefix. |
 | `MessagingBackend` | interface | `status()`, `conversations(query?)`, `messages(query)`, `send(request)`, `subscribe(request, onMessage)`, `unsubscribe(subscriptionId)`, `close?()`. Every method except `send` may return synchronously or a promise. Structurally kehto's `DmAdapter`. |
 | `SecurityProperties` | interface | `forwardSecrecy`, `postCompromiseSecurity`, `metadataProtection: 'none' \| 'partial' \| 'strong'`, `requiresSameClient`, `groups`, `specification?`, `experimental`. |
-| `ProviderAvailability` | union | `{ available: true }` or `{ available: false; reason: string }`. The reason is a bare word such as `signed-out`; the registry prefixes it as `unavailable:<reason>`. |
+| `ProviderAvailability` | union | `{ available: true }` or `{ available: false; reason: string }`. The reason is a bare word such as `sign-in-required`; the registry prefixes it as `unavailable:<reason>`. |
 | `ProviderEntry` | interface | `{ provider; enabled: boolean; availability: ProviderAvailability }`, what `MessagingRegistry.list()` and `get()` return. |
 | `MessagingPreferences` | interface | `{ enabled: readonly string[]; defaultProvider?: string }`, the persisted registry state. |
 | `PACKAGE_NAME` | `'@kernl/messaging'` | The package name as a constant. |
@@ -3260,13 +3331,16 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 | `denied:unknown-applet` | `@kernl/core` | `createSigningConsent` | A destructive write from a window the shell did not mount. |
 | `denied:signed-out` | `@kernl/core` | `createSigningConsent` | A destructive write (in practice an `outbox.publish`) while nobody is signed in. |
 | `invalid:event-kind` | `@kernl/core` | `createSigningConsent` | The event's `kind` is not a number. |
-| `unavailable:needs-local-key-signer`, `unavailable:not-implemented`, `unavailable:no-runtime` | `@kernl/core` | `createDefaultMessaging`'s `createBackend`; `MessagingRegistry.enable` | The host supplied no backend for `private`, `legacy` or `ratchet` (`MESSAGING_UNAVAILABLE_REASONS`). |
+| `unavailable:sign-in-required` | `@kernl/core` | `createDefaultMessaging`'s `createBackend`; `MessagingRegistry.enable` | `private` or `legacy` while no account is active (`MESSAGING_UNAVAILABLE_REASONS`). |
+| `unavailable:signer-cannot-encrypt` | `@kernl/core` | `createDefaultMessaging`'s `createBackend`; `MessagingRegistry.enable` | The active account's signer has no `nip44` (`private`) or no `nip04` (`legacy`); a read-only account is the usual case. |
+| `unavailable:no-runtime` | `@kernl/core` | `createDefaultMessaging`'s `createBackend`; `MessagingRegistry.enable` | `ratchet`: no double-ratchet runtime is supplied. |
 | `invalid:duplicate-provider` | `@kernl/messaging` | `MessagingRegistry.register` | A provider with this id is already registered. |
 | `invalid:unknown-provider` | `@kernl/messaging` | `MessagingRegistry.enable`, `disable`; the composite backend | No provider has this id, or a namespaced id, cursor or `provider` hint names no enabled provider. |
 | `unavailable:<reason>` | `@kernl/messaging` | `MessagingRegistry.enable` | The provider's `availability()` is false; `<reason>` is the bare word it reported. |
 | `invalid:provider-not-enabled` | `@kernl/messaging` | `MessagingRegistry.setDefault` | Only an enabled provider can be the default. |
 | `unavailable:no-default-provider` | `@kernl/messaging` | composite `send` | The request names no conversation and no provider, and there is no enabled default. |
 | `invalid:no-recipients`, `invalid:unknown-conversation`, `unavailable:offline` | `@kernl/messaging` | `createMemoryBackend` `send` | No recipient besides the owner; a `conversationId` the backend does not hold; the backend was created with `available: false`. |
+| `invalid:recipient`, `invalid:groups-unsupported`, `unavailable:offline` | `@kernl/core` | `createPrivateMessagesBackend`, `createLegacyMessagesBackend` `send` | The recipient is not a public key; the legacy backend got more than one correspondent; no relay accepted the message. |
 | `invalid:locator` | `@kernl/bridges` | `parseLocator` | Not a locator, or a malformed web, NZB, Soulseek or mail locator. |
 | `invalid:magnet-missing-hash` | `@kernl/bridges` | `parseLocator` | A magnet without a `urn:btih:` hash. |
 | `invalid:locator-missing-<field>` | `@kernl/bridges` | the torrent, NZB, Soulseek and mail bridges | The locator lacks `infoHash`, `url`, `user`, `path` or `address`. |
@@ -3351,6 +3425,7 @@ The shell also needs a downloads view that shows the state of each `job` result 
 ## 3. Messaging
 
 - Supply the double-ratchet runtime so the `ratchet` provider reports `available`. Its properties are already described; see [Messaging](https://kernlize.github.io/docs/concepts/messaging.md).
+- Inbox setup: offer to publish the user's kind 10050 inbox relays when they have none, so `private` stops falling back to the `outbox` and `super` tiers ([D-015](https://kernlize.github.io/docs/decisions.md#d-015)).
 - Per-conversation provider migration: move a correspondent from `legacy` to `private` when both clients can read it, shown as a reversible choice.
 
 ## 4. Mobile layouts
@@ -3616,7 +3691,7 @@ Open the hosted preview:
 https://kernlize.github.io/app/?preview=1
 ```
 
-The preview runs the same shell UI over an offline stand-in for the `Kernl` contract, with two sample applets and no network ([D-011](https://kernlize.github.io/docs/decisions.md#d-011)). It behaves like the live shell where it stands in for it: it asks before a write only for the kinds `@kernl/core` rates destructive, using the core's own `isDestructiveKind` and `describeChange`; its guard observes and stops an applet only by quarantine; it starts in `strict` on every load; and its sample applets remove WebRTC the way kehto's prelude does. Messaging works only here, because the live shell has no messaging backend yet ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#messaging-providers-in-the-live-shell)).
+The preview runs the same shell UI over an offline stand-in for the `Kernl` contract, with two sample applets and no network ([D-011](https://kernlize.github.io/docs/decisions.md#d-011)). It behaves like the live shell where it stands in for it: it asks before a write only for the kinds `@kernl/core` rates destructive, using the core's own `isDestructiveKind` and `describeChange`; its guard observes and stops an applet only by quarantine; it starts in `strict` on every load; and its sample applets remove WebRTC the way kehto's prelude does. Messaging here goes nowhere; in the live shell private and legacy messages are sent for real once you sign in with an account that can encrypt ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#messaging-providers-in-the-live-shell)).
 
 **You should now see** a card headed "Who is at the keyboard?" with a **Try the preview** button. Click it, then **Open an applet**; under "Sample applets" the launcher lists *Notes* and *Pulse*, each with an **Open** button. Open *Notes*, turn on the *network* switch (it starts off, like every grant on a first run), and click **Run**. It appears in a window with buttons to try:
 

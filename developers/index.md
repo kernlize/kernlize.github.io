@@ -35,7 +35,7 @@ How applets are packaged, addressed and verified, and the message domains an app
 4. **Verified bytes**
    Your applet is identified by the hash of its content. Ship a new version and it is a new identity with fresh grants. That is deliberate.
 5. **Messaging across providers**
-   One messaging surface spans every provider the user enables. You do not pick the provider; the user does. In this alpha no provider has a backend in the live shell, so a send fails there with the reason `unavailable`; it only succeeds in the preview. Feature-detect messaging and handle `unavailable` as a normal answer, not a crash.
+   One messaging surface spans every provider the user enables. You do not pick the provider; the user does. In this alpha private and legacy messages work in the live shell when the signed-in account can encrypt; ratchet sessions do not, and nothing is available while nobody is signed in. A send through a provider that cannot serve it fails with the reason `unavailable`. Feature-detect messaging and handle `unavailable` as a normal answer, not a crash.
 
 *Source*
 

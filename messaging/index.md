@@ -1,12 +1,14 @@
 # Described, not ranked.
 
-> kernl describes several private-message providers and ranks none. Each is described by what it protects. In this alpha sending works only in the preview; the real backends are not connected yet.
+> kernl describes several private-message providers and ranks none. Each is described by what it protects. Private and legacy messages work in the live shell when your account can encrypt; ratchet sessions are not available yet.
 
 kernl is built to offer private messaging through several providers. **None of them is "the best".** The shell tells you plainly what each one protects, and you pick the one the person you are writing to can read.
 
-## Described and selectable; sending waits for backends.
+## Two providers send today; one is still to come.
 
-kernl is alpha software. Every provider below is described and you can choose one in the shell. Sending works in the [preview](https://kernlize.github.io/app/?preview=1), which keeps everything in your browser tab. In the live shell no provider has a backend yet, so each one shows as unavailable and a send fails with a plain reason instead of pretending.
+kernl is alpha software. Private messages and legacy messages work in the live shell once you sign in with an account that can encrypt: a browser extension, a remote signer or a local account on this device. A read-only account cannot, and the shell says so. Ratchet sessions need a runtime kernl does not ship yet, so they show as unavailable with a plain reason instead of pretending. The [preview](https://kernlize.github.io/app/?preview=1) lets you try all three without an account, and keeps everything in your browser tab.
+
+Your messages are opened by your own account, in the Messages panel, for you. An applet sees your messages only if you grant it messages, and you can take that grant back.
 
 ## The same six questions, asked of each.
 

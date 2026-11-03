@@ -18,23 +18,23 @@
 <div class="tsd-description">
 <div class="tsd-comment tsd-typography"><p>The shell's messaging registry with kernl's three providers registered and
 preferences persisted at <code>kernl:messaging:v1</code>.</p>
-<p>kehto's sealed-message adapter wants the owner's raw secret key, which kernl
-never holds outside an applesauce signer, so <code>private</code> is unavailable with
-reason <code>needs-local-key-signer</code> until the host supplies a backend built from
-a signer it controls. <code>legacy</code> is <code>not-implemented</code> and <code>ratchet</code> is
-<code>no-runtime</code> for the same reason: the shell describes, it does not pretend.</p>
+<p><code>createKernl</code> passes the account-signer backends for <code>private</code> and
+<code>legacy</code> and the active account's signer, so those two follow the account:
+<code>sign-in-required</code> while nobody is signed in, <code>signer-cannot-encrypt</code> while
+the signer lacks the encryption the format needs. <code>ratchet</code> is <code>no-runtime</code>
+until a host supplies a backend: the shell describes, it does not pretend.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
 <li><span><span class="tsd-kind-parameter">options</span>: <a href="../interfaces/_kernl_core.DefaultMessagingOptions.html" class="tsd-signature-type tsd-kind-interface">DefaultMessagingOptions</a></span>
-<div class="tsd-comment tsd-typography"><p>Storage and optional backend constructors.</p>
+<div class="tsd-comment tsd-typography"><p>Storage, backend constructors and the active signer.</p>
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">MessagingRegistry</span></h4><p>A <code>MessagingRegistry</code>.</p>
 
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-example">
-<h4 class="tsd-anchor-link" id="example">Example<a href="#example" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="ts"><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-0">messaging</span><span class="hl-1"> = </span><span class="hl-5">createDefaultMessaging</span><span class="hl-1">({ </span><span class="hl-2">storage:</span><span class="hl-1"> </span><span class="hl-2">localStorage</span><span class="hl-1"> });</span><br/><span class="hl-2">messaging</span><span class="hl-1">.</span><span class="hl-5">get</span><span class="hl-1">(</span><span class="hl-7">&#39;private&#39;</span><span class="hl-1">)?.</span><span class="hl-2">availability</span><span class="hl-1">; </span><span class="hl-3">// { available: false, reason: &#39;needs-local-key-signer&#39; }</span>
+<h4 class="tsd-anchor-link" id="example">Example<a href="#example" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="ts"><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-0">messaging</span><span class="hl-1"> = </span><span class="hl-5">createDefaultMessaging</span><span class="hl-1">({ </span><span class="hl-2">storage:</span><span class="hl-1"> </span><span class="hl-2">localStorage</span><span class="hl-1"> });</span><br/><span class="hl-2">messaging</span><span class="hl-1">.</span><span class="hl-5">get</span><span class="hl-1">(</span><span class="hl-7">&#39;private&#39;</span><span class="hl-1">)?.</span><span class="hl-2">availability</span><span class="hl-1">; </span><span class="hl-3">// { available: false, reason: &#39;sign-in-required&#39; }</span><br/><span class="hl-2">messaging</span><span class="hl-1">.</span><span class="hl-5">get</span><span class="hl-1">(</span><span class="hl-7">&#39;ratchet&#39;</span><span class="hl-1">)?.</span><span class="hl-2">availability</span><span class="hl-1">; </span><span class="hl-3">// { available: false, reason: &#39;no-runtime&#39; }</span>
 </code><button type="button">Copy</button></pre>
 
 </div></div></div></li></ul></section></div>

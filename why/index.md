@@ -48,7 +48,7 @@ Your account is how you are known, how applets are found and verified, and how y
 
 ## No private-messaging system is "the best".
 
-kernl is built to support any reasonable private-messaging provider through one interface. You pick the one your correspondent can read, and the shell makes that choice visible and reversible. In this alpha the providers are described and selectable, and sending works in the preview; the real backends are not connected yet.
+kernl is built to support any reasonable private-messaging provider through one interface. You pick the one your correspondent can read, and the shell makes that choice visible and reversible. In this alpha private and legacy messages work when your account can encrypt; ratchet sessions are not available yet.
 
 - The shell does not rank providers. It [describes them](https://kernlize.github.io/messaging/): forward secrecy or not, what the network can see, whether the other person needs the same app.
 - Applets are given one messaging surface that spans every provider you enable.
