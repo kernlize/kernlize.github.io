@@ -71,7 +71,7 @@ kernl is a first draft. This page says what runs, what is a contract without an 
 | Composition | `@kernl/core` | `createKernl` over one applesauce `EventStore`, `RelayPool` and `AccountManager`, with kehto's real `createShellBridge` exercised end to end in `kernl.feature`: an applet is decoded, resolved, planned and mounted, binds its port through the guarded `handleWindowMessage`, completes `shell.ready`, is answered by the theme, identity and resource services, and is quarantined and revoked when it floods. Relay tiers, the applesauce adapters, the guard pipeline and runtime firewall rules, grants over `bridge.runtime.aclState`, consent summaries, the default registries and the layouts each have their own feature file. |
 | Shell UI | `apps/web` | Landing site at `/` and the shell at `/app/`: sign-in (browser extension, remote signer, read-only, password-protected local account), open by address with the required and optional domains as choices, windows, a grants panel per window, a shell-wide guard panel with the event log, the provider picker, and the offline preview behind `?preview=1` ([D-011](https://kernlize.github.io/docs/decisions.md#d-011)), hosted at [kernlize.github.io/app/?preview=1](https://kernlize.github.io/app/?preview=1). |
 
-"Works" means the behaviour has a scenario in `features/`, the scenario passes, and the page describing it exists. It does not mean the API is stable. Every package is `0.1.0`; on 0.x a breaking change is a minor bump.
+"Works" means the behaviour has a scenario in `packages/*/features/`, the scenario passes, and the page describing it exists. It does not mean the API is stable. Every package is `0.1.0`; on 0.x a breaking change is a minor bump.
 
 ## Messaging providers in the live shell
 
@@ -299,7 +299,7 @@ Every relay connection, event store, signer, account and loader goes through app
 | `RelayPool` | Every relay connection. | `createRelayPoolHooks` and `createRelayPoolLike` (`applesauce/relay-hooks.ts`) for `ShellAdapter.relayPool`; `createAppletRelayBackend`, `createDmRelayPool` and `createOutboxRelayPool` (`applesauce/relay-backend.ts`) for the relay, dm and outbox services. All of them route through `selectRelayTier`. |
 | `AccountManager` | The signed-in accounts and their signers. | `createKernlAccounts` (`applesauce/accounts.ts`) refuses plaintext-key account types; `createAuthHooks` and `wrapAccountSigner` (`applesauce/auth-hooks.ts`) give kehto a signer that never reveals the account. |
 
-`nostr-tools` remains a transitive peer of kehto and applesauce. kernl source never imports it, and `scripts/check-dependency-rules.mjs` fails the build if it does.
+`nostr-tools` is a peer dependency of `@kernl/core`, because kehto and applesauce require it. kernl source never imports it, and `scripts/check-dependency-rules.mjs` fails the build if it does.
 
 ## The kernl packages
 
@@ -353,7 +353,7 @@ Every revocation reason (`window-message`, `second-hello`, `invalid-hello`, `sec
 
 # Bridges
 
-Nostr is kernl's identity and resolution layer. It is not the only protocol kernl speaks. A bridge is a shell-owned service that resolves a protocol-specific locator to bytes, a job or a conversation, behind the same consent and quota model as everything else. Bridges are named by what they do for the user, never by the protocol they speak ([D-010](https://kernlize.github.io/docs/decisions.md#d-010)).
+Nostr is kernl's identity and resolution layer. It is not the only protocol kernl speaks. A bridge is a shell-owned service that resolves a protocol-specific locator to bytes, a job or a conversation, behind the same grant and quota as everything else: an applet needs the `resource` grant, and the guard's rates apply to its requests. There is no per-request bridge consent in this draft. Bridges are named by what they do for the user, never by the protocol they speak ([D-010](https://kernlize.github.io/docs/decisions.md#d-010)).
 
 ## Locators
 
@@ -405,7 +405,7 @@ The user sees a bridge before they use it, and what they see is its `BridgeExpos
 
 `describeBridge(bridge)` returns, in order: `Used for` (the label), `Status` (`ready`, or `not available` followed by a `Reason` row with the bare reason such as `no-backend`), then the three exposure rows as `yes`/`no`. No row names a protocol. These are descriptions, not scores; like messaging providers, bridges are not ranked. See `describe.feature`.
 
-## The registry and consent
+## The registry and its authorize hook
 
 The shell holds one `BridgeRegistry`, built with `createBridgeRegistry({ authorize?, onResolve? })`:
 
@@ -421,7 +421,7 @@ The shell holds one `BridgeRegistry`, built with `createBridgeRegistry({ authori
 | authorise | `denied:bridge` | the bridge id |
 | resolve | whatever the bridge threw (`denied:…`, `unavailable:…`, `invalid:…`); a non-`Error` rejection is reported as its text | the bridge id |
 
-Every outcome, successful or not, is reported to `onResolve` as `{ bridge, scheme, ok, reason? }`. The authoriser is a `BridgeAuthorizer`: `(locator, bridge, context) => boolean | Promise<boolean>`. Without one, every request is allowed. The composed shell has none: `createKernl` builds its registry with `createDefaultBridges()` and no `authorize`, so a `resource` request from an applet that holds the `resource` grant is checked by the HTTP bridge's policy and nothing else. There is no per-host consent prompt and no per-host grant in this draft ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#what-does-not-work-yet)); wiring one is on the [Roadmap](https://kernlize.github.io/docs/roadmap.md#_6-guard). A host can pass its own registry with an `authorize` hook in `KernlOptions.bridges`. See `registry.feature`.
+Every outcome, successful or not, is reported to `onResolve` as `{ bridge, scheme, ok, reason? }`, when the registry was given one. The composed shell gives none, so bridge outcomes reach neither the guard panel nor any other surface the user sees. The authoriser is a `BridgeAuthorizer`: `(locator, bridge, context) => boolean | Promise<boolean>`. Without one, every request is allowed. The composed shell has none: `createKernl` builds its registry with `createDefaultBridges()` and no `authorize`, so a `resource` request from an applet that holds the `resource` grant is checked by the HTTP bridge's policy and nothing else. There is no per-host consent prompt and no per-host grant in this draft ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#what-does-not-work-yet)); wiring one is on the [Roadmap](https://kernlize.github.io/docs/roadmap.md#_6-guard). A host can pass its own registry with an `authorize` hook in `KernlOptions.bridges`. See `registry.feature`.
 
 ## The HTTP bridge
 
@@ -492,7 +492,7 @@ kehto's resource service takes a `fetch(url, init)` function. `createBridgeResou
 
 ## Why bridges are shell-owned
 
-An applet could, in principle, be given a WebRTC or WebSocket path and speak these protocols itself. kernl does not allow that, because the CSP [never loosens](https://kernlize.github.io/docs/concepts/guard.md#why-csp-never-loosens). Routing every protocol through a shell service means every protocol gets the same grant, the same quota, the same exposure description and the same revocation, and a consent prompt per request can be added in one place. The applet asks for a locator; the user decides; the shell does the talking.
+An applet could, in principle, be given a WebRTC or WebSocket path and speak these protocols itself. kernl does not allow that, because the CSP [never loosens](https://kernlize.github.io/docs/concepts/guard.md#why-csp-never-loosens). Routing every protocol through a shell service means every protocol gets the same grant, the same quota, the same exposure description and the same revocation, and a consent prompt per request, which this draft does not have, could be added in one place. The applet asks for a locator; the user's `resource` grant decides whether it may; the shell does the talking.
 
 ## Related
 
@@ -507,7 +507,7 @@ An applet could, in principle, be given a WebRTC or WebSocket path and speak the
 
 The guard is everything that stands between an applet and the user. Some of it is kehto's and kernl turns it on; some of it is kernl's and runs in front of kehto's bridge. The user sees it as one list of mitigations with reasons. This page is that list, with the numbers.
 
-The rule from `SOUL.md`: if kehto ships a mitigation, kernl enables it by default and documents how to loosen it. Loosening is done by the user, never by a developer flag ([D-003](https://kernlize.github.io/docs/decisions.md#d-003)). In this draft the profile is shell-wide and resets to `strict` on every boot; per-applet profiles are planned ([Roadmap](https://kernlize.github.io/docs/roadmap.md#_6-guard)).
+The rule from `SOUL.md`: if kehto ships a mitigation, kernl enables it by default and documents how to loosen it. The hosted shell boots `strict`, and there only the user loosens it ([D-003](https://kernlize.github.io/docs/decisions.md#d-003)). An embedding host may choose the starting profile (`KernlOptions.guard.profile`), which changes limits only; the sandbox, the CSP, the frame lock and consent are fixed. In this draft the profile is shell-wide and resets to `strict` on every boot; per-applet profiles are planned ([Roadmap](https://kernlize.github.io/docs/roadmap.md#_6-guard)).
 
 **What refuses, what reports, what stops.** For an applet's port traffic, which is everything after the handshake, kehto's runtime firewall refuses an envelope before dispatch when it goes over the per-class rates kernl installs at mount, or over kehto's own startup burst. Size caps are refused before dispatch too: kernl measures the envelope and has the runtime firewall refuse that one dispatch. Otherwise kernl's ingress guard and focus firewall see each envelope synchronously, just before kehto dispatches it, but cannot hold or drop it: focus tightening, bursts above kernl's per-second rate and a hidden window's activity are reported as guard events, not refused. The exception is quarantine. When an envelope crosses the flood threshold, or a hidden window's download crosses its allowance, kernl revokes the binding inside the observation, so that envelope is not dispatched and the applet is closed ([Where enforcement happens](#where-enforcement-happens)). The visibility gate holds only the window-level `hello`. Signing consent is a third path, in the signer itself.
 
@@ -678,15 +678,16 @@ An applet that needs a network resource asks the `resource` domain, and the requ
 **kernl's frame lock** ([D-014](https://kernlize.github.io/docs/decisions.md#d-014)). The prelude cleans only the applet's own realm. A child frame made from `srcdoc` or `about:blank` is a fresh realm with a working `RTCPeerConnection`, and no CSP directive reaches it, because creating it involves no fetch. `@kehto/shell` 0.29.0 has no switch for this; kehto's unreleased `experimental.nestedContextLock` closes it, and `@kernl/guard` carries an attributed port of that lock until a release ships it. `planMount` applies all of it to every applet:
 
 - `assertAppletHasNoFrame` scans the verified bytes and refuses markup that contains an `iframe`, `frame`, `frameset`, `object`, `embed`, `portal` or `fencedframe` element with `denied:nested-frame`. It parses with the host's `DOMParser` and falls back to a lexical match, which may over-reject.
-- `renderFrameLockScript()` is inserted immediately after kehto's prelude, before any applet script. It installs a Trusted Types `default` policy that refuses frame markup at every HTML string sink (`innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `createContextualFragment`, `DOMParser`), and pins `Document.prototype.createElement`, `createElementNS` and `DOMImplementation.prototype.createDocument` non-configurable so they throw `TypeError: denied:nested-frame` for a frame tag name.
+- `renderFrameLockScript()` is inserted immediately after kehto's prelude, before any applet script. It installs a Trusted Types `default` policy that refuses frame markup, namespace-prefixed tags included, at every HTML string sink (`innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `createContextualFragment`, `DOMParser`), and pins `Document.prototype.createElement`, `createElementNS` and `DOMImplementation.prototype.createDocument` non-configurable so they throw `TypeError: denied:nested-frame` for a frame tag name.
+- The same script runs `appletInsertionLock`, because creation routes are open-ended (custom element constructors, XSLT, namespace-prefixed XML parsing all mint frames without a factory) but a frame gets a realm only when it is connected. It pins every DOM insertion method (`appendChild`, `insertBefore`, `replaceChild`, `append`, `prepend`, `replaceChildren`, `before`, `after`, `replaceWith`, `insertAdjacentElement`, `moveBefore`, `Range.insertNode`, `Range.surroundContents`) to refuse a node that is, or contains, a frame element, reading node identity through native getters captured before applet code runs. It also refuses custom elements that extend frame elements and removes `XSLTProcessor`. Every insertion therefore walks the inserted subtree once.
 - The CSP `<meta>` kehto rendered gains `TRUSTED_TYPES_DIRECTIVES`, `require-trusted-types-for 'script'; trusted-types default`, so every string sink goes through that policy and no other policy name can be registered. `createAppletCsp` carries the directives as `AppletCsp.trustedTypes`. kehto 0.29.0 refuses directives outside its baseline, so `planMount` appends them to the rendered meta, and refuses with `unavailable:frame-lock` when kehto's output is not where it expects it.
 
 **The CSP** refuses everything else: `fetch` and WebSocket by `connect-src 'none'`, images by `img-src data: blob:`, frames that would load a URL by `frame-src 'none'` and `child-src 'none'`, and beacons by `connect-src`. `navigator.sendBeacon` still returns `true`, because it only reports that the beacon was queued; the request is refused when the browser sends it, and fails with `csp`.
 
 `tests/e2e/applet-network-sealed.spec.ts` proves this in Chromium. It builds an applet frame with kernl's own `planMount` (`sandbox="allow-scripts"`, a host page carrying `KERNL_FRAME_POLICY_META`) and checks that the frame lock follows kehto's prelude and precedes the applet's script. The applet code then tries each way out, and the spec asserts:
 
-- each of 15 frame-creation routes, plus `document.write` whole and split across calls, throws `TypeError: denied:nested-frame`;
-- no child realm exists, no `RTC*` constructor is usable in the applet's realm, and no realm produces a `srflx` or `relay` ICE candidate, while the host page, as a control, gathers candidates from a public STUN server;
+- each of 15 frame-creation routes, plus `document.write` whole and split across calls, throws `TypeError: denied:nested-frame`; the four creation routes the factories cannot see (a customized built-in constructed with `new`, XSLT, and a namespace-prefixed XHTML element brought in with `importNode` or `adoptNode`) fail at creation or at insertion; and thirteen insertion routes (every pinned method, a shadow root, a fragment) refuse an unconnected frame;
+- no child realm exists, no `RTC*` constructor is usable in the applet's realm, and no realm produces a `srflx` or `relay` ICE candidate. As a control, when the host page can reach a public STUN server, the spec asserts that it does and that the applet produces no such candidate; when it cannot, the control is skipped;
 - `fetch` fails, the WebSocket never opens, every `RTC*` global is pinned to `undefined` and cannot be restored, the image does not load, the browser reports a CSP violation for each attempt including the beacon, and no request reaches the network layer: every outbound request fails with `csp`.
 
 [D-014](https://kernlize.github.io/docs/decisions.md#d-014) records the negative control: the same probe run against a srcdoc built by kehto 0.29.0 alone lets 11 routes escape, each producing a child realm that reports `host` and `srflx` candidates.
@@ -801,6 +802,8 @@ The applet learns its own narrowed environment through `shell.init`. Without the
 # Messaging
 
 No encrypted messaging protocol is inherently superior. Each one trades metadata exposure, forward secrecy and reach against the others, and the right trade depends on who the user is writing to. kernl therefore supports several and ranks none ([D-009](https://kernlize.github.io/docs/decisions.md#d-009)). A provider describes its own properties truthfully; the shell shows the description and lets the user choose.
+
+In this alpha no real messaging backend ships. The live shell supplies none, so every provider is unavailable there; only the offline preview sends messages, over the in-memory backend, and they go nowhere ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#messaging-providers-in-the-live-shell)).
 
 ## The provider contract
 
@@ -946,7 +949,7 @@ Format: `D-NNN · title` → Context, Decision, Consequences, Reversal cost.
 
 **Context.** kehto's reference runtime (Paja) uses `nostr-tools` `SimplePool`. kernl's first opinion is that applesauce is the event layer.
 
-**Decision.** `applesauce-core` (`EventStore`), `applesauce-relay` (`RelayPool`), `applesauce-signers`, `applesauce-accounts` (`AccountManager`), `applesauce-loaders` and `applesauce-factory` are the only libraries kernl source imports for events, relays, signing and accounts. `nostr-tools` stays a transitive peer dependency required by kehto and applesauce; kernl source does not import it. kehto's `RelayPoolLike`, `RelayPoolServiceOptions` and `DmRelayPool` contracts are satisfied by thin adapters over one shared `RelayPool` in `@kernl/core/applesauce`.
+**Decision.** `applesauce-core` (`EventStore`), `applesauce-relay` (`RelayPool`), `applesauce-signers`, `applesauce-accounts` (`AccountManager`) and `applesauce-loaders` are the only libraries kernl source imports for events, relays, signing and accounts. `nostr-tools` is a peer dependency of `@kernl/core`, because kehto and applesauce require it; kernl source does not import it. kehto's `RelayPoolLike`, `RelayPoolServiceOptions` and `DmRelayPool` contracts are satisfied by thin adapters over one shared `RelayPool` in `@kernl/core/applesauce`.
 
 **Consequences.** One pool, one store, one account manager per shell. A guard test fails the build if `nostr-tools` is imported from kernl source.
 
@@ -956,7 +959,7 @@ Format: `D-NNN · title` → Context, Decision, Consequences, Reversal cost.
 
 **Context.** Opinion three in `SOUL.md`.
 
-**Decision.** `@kernl/guard` exposes three profiles, `strict`, `balanced` and `relaxed`. The shell boots in `strict`. The profile can be loosened per applet by the user through the grants panel, never globally by configuration. The mitigations and their defaults are listed in `docs/concepts/guard.md` and surfaced in the UI as a readable list with reasons.
+**Decision.** `@kernl/guard` exposes three profiles, `strict`, `balanced` and `relaxed`. The hosted shell boots in `strict`. The profile can be loosened per applet by the user through the grants panel, never by a developer flag in the hosted shell. An embedding host may choose the starting profile (`KernlOptions.guard.profile`), which changes limits only; the sandbox, the CSP, the frame lock and consent are fixed. The mitigations and their defaults are listed in `docs/concepts/guard.md` and surfaced in the UI as a readable list with reasons.
 
 **Consequences.** Some applets will hit limits in `strict`. The guard emits an event for every rejection and deferral so the user can see what happened and decide.
 
@@ -1103,6 +1106,8 @@ With the lock, the same probe sees every route throw `TypeError: denied:nested-f
 **Consequences.** An applet that creates child frames, ships one in its markup, or registers its own Trusted Types policy is refused or breaks. That is the trade opinion 3 in `SOUL.md` makes: the user outranks the applet developer, and an applet has no legitimate need for a nested browsing context inside a shell that already gives it a window. A string written to an HTML sink that merely mentions a frame tag is refused too.
 
 **Reversal.** Delete `packages/guard/src/frame-lock.ts`, the Trusted Types field of `AppletCsp` and the splice in `planMount`, and pass `experimental: { nestedContextLock: true }` to `prepareNappletSrcdoc` once `@kehto/shell` ships it. The e2e probe stays as the regression test.
+
+**Update to D-014, 2026-11-03.** A further independent review found four creation routes past the factory pins, each producing a child frame with a working peer connection that reached a public STUN server: a customized built-in element constructed with `new` (constructors skip `createElement`), XSLT `transformToFragment`, and an XHTML-parsed element with a namespace prefix moved in with `importNode` or `adoptNode` (the string-sink pattern did not match prefixed tags). Creation routes are open-ended, so the lock now also guards **insertion**: a frame gets a realm only when connected, and connecting goes through a small set of methods. `appletInsertionLock` pins `appendChild`, `insertBefore`, `replaceChild`, `append`, `prepend`, `replaceChildren`, `before`, `after`, `replaceWith`, `insertAdjacentElement`, `moveBefore`, `Range.insertNode` and `Range.surroundContents` on their owning prototypes to refuse any node that is, or contains (descendants, template content, shadow roots), an HTML-namespace frame element. Node identity is read through native getters captured before applet code runs, so an element cannot disguise itself. It also refuses custom elements that extend frame elements, removes `XSLTProcessor`, and the string-sink pattern now matches prefixed tags. `tests/e2e/applet-network-sealed.spec.ts` covers the four routes and thirteen insertion routes. kehto's lock at 4d8a5693 shares the creation-only design and is affected by the same routes; this is to be reported upstream with them. Cost: every DOM insertion in an applet walks the inserted subtree once.
 
 ---
 
@@ -1262,7 +1267,7 @@ These three booleans are what the user reads about the bridge: `describeBridge` 
 
 `BridgeRegistry.resolve` checks `availability()`, then calls the registry's `authorize` hook if one was given, before any bridge runs; a denial rejects with `denied:bridge`. The composed shell wires no `BridgeAuthorizer`: `createKernl` uses `createDefaultBridges()` without `authorize`, so a request from an applet that holds the `resource` grant reaches your bridge without a per-request prompt. A host that wants one passes `authorize` to `createBridgeRegistry` in the sample above; a consent prompt per host in the shell is on the [Roadmap](https://kernlize.github.io/docs/roadmap.md#_6-guard) ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#what-does-not-work-yet)).
 
-The guard's `resource:bytes` rate and hidden-window allowance apply to `resource.*` envelopes. A `job` result reaches kehto's resource service as a `202 Accepted` JSON body through `createBridgeResourceResolver`; the applet that asked receives it. The shell has no downloads list yet, so nothing shows job state to the user; that UI is roadmap work. Every outcome is also reported to `onResolve` as a `BridgeResolveEvent`.
+The guard's `resource:bytes` rate and hidden-window allowance apply to `resource.*` envelopes. A `job` result reaches kehto's resource service as a `202 Accepted` JSON body through `createBridgeResourceResolver`; the applet that asked receives it. The shell has no downloads list yet, so nothing shows job state to the user; that UI is roadmap work. Every outcome is also reported to the registry's `onResolve` as a `BridgeResolveEvent`, when your registry passes one, as the sample does; the shell's default registry passes none, and no outcome reaches the guard panel.
 
 ## 5. Specify and document
 
@@ -1434,7 +1439,7 @@ Registration does not enable, unless the user's saved preferences already list `
 
 # Change the guard profile
 
-The shell boots in `strict`. In this draft a user can switch the whole shell to `balanced` or `relaxed`; the choice applies to every window and is not remembered, so every boot starts in `strict` again. Loosening one applet at a time, remembered, is what [D-003](https://kernlize.github.io/docs/decisions.md#d-003) asks for and is planned ([Roadmap](https://kernlize.github.io/docs/roadmap.md#_6-guard)). No developer flag or configuration file loosens the guard.
+The hosted shell boots in `strict`. In this draft a user can switch the whole shell to `balanced` or `relaxed`; the choice applies to every window and is not remembered, so every boot starts in `strict` again. Loosening one applet at a time, remembered, is what [D-003](https://kernlize.github.io/docs/decisions.md#d-003) asks for and is planned ([Roadmap](https://kernlize.github.io/docs/roadmap.md#_6-guard)). An embedding host may choose the starting profile with `createKernl({ host, guard: { profile } })`, which changes limits only; the sandbox, the CSP, the frame lock and consent are fixed ([What a profile cannot change](#what-a-profile-cannot-change)).
 
 ## In the shell
 
@@ -1483,6 +1488,7 @@ function guardFor(profile: GuardProfile, onEvent: (event: GuardEvent) => void) {
 ## What a profile cannot change
 
 - The Content Security Policy. `createAppletCsp(profile)` returns the same policy for every profile; see [why](https://kernlize.github.io/docs/concepts/guard.md#why-csp-never-loosens) and `csp.feature`, scenario "the relaxed profile does not loosen the CSP".
+- The sandbox, the frame lock and consent. `planMount` passes the profile only to `createAppletCsp`; `sandbox="allow-scripts"`, the nested-frame lock and the destructive-signing gate never read it.
 - Whether a mitigation is enabled. Every profile enables all eleven; `describeMitigations(config)` only changes the `limit` text.
 - Grants. A profile is about rate, not authority. [Grant and revoke](https://kernlize.github.io/docs/how-tos/grant-and-revoke.md) covers authority.
 
@@ -1696,7 +1702,7 @@ export async function openApplet(address: string, container: HTMLElement): Promi
 }
 ```
 
-`createKernl({ host })` creates one `EventStore`, one `RelayPool` and one `AccountManager`, the guard pipeline in `strict`, the default messaging and bridge registries, kehto's services and the shell bridge ([`@kernl/core`](https://kernlize.github.io/docs/packages/core.md#composition)). Pass any of them in `KernlOptions` to use your own. Wire `handleWindowMessage` to `window` exactly once: it is how an applet's `hello` reaches the guard and then kehto.
+`createKernl({ host })` creates one `EventStore`, one `RelayPool` and one `AccountManager`, the guard pipeline in `strict`, the default messaging and bridge registries, kehto's services and the shell bridge ([`@kernl/core`](https://kernlize.github.io/docs/packages/core.md#composition)). Pass any of them in `KernlOptions` to use your own. `guard: { profile }` starts the guard in `balanced` or `relaxed` instead; that changes limits only, and the sandbox, the CSP, the frame lock and consent stay as they are ([Change the guard profile](https://kernlize.github.io/docs/how-tos/change-guard-profile.md#what-a-profile-cannot-change)). Wire `handleWindowMessage` to `window` exactly once: it is how an applet's `hello` reaches the guard and then kehto.
 
 ## 3. The mount flow
 
@@ -1800,6 +1806,23 @@ A `resource` request from an applet that holds the `resource` domain is resolved
 
 ---
 
+<!-- https://kernlize.github.io/docs/how-tos/index.md -->
+
+# How-tos
+
+One task per page, with the exact calls. Each assumes you have the kernl source and have run `pnpm install && pnpm build` ([Run the shell](https://kernlize.github.io/docs/tutorials/run-the-shell.md#_1-clone-install-and-build)); for a guided first pass, start with the [tutorials](https://kernlize.github.io/docs/tutorials/run-the-shell.md) instead.
+
+| How-to | What it does |
+| --- | --- |
+| [Change the guard profile](https://kernlize.github.io/docs/how-tos/change-guard-profile.md) | Switch the shell between `strict`, `balanced` and `relaxed`, and what a profile can and cannot change. |
+| [Grant and revoke](https://kernlize.github.io/docs/how-tos/grant-and-revoke.md) | What the shell asks when an applet opens, what each answer changes, and the `Kernl` calls behind the grants panel. |
+| [Embed kernl core](https://kernlize.github.io/docs/how-tos/embed-kernl-core.md) | Implement `KernlHost`, call `createKernl` and mount an applet in an iframe your own page owns. |
+| [Add a messaging provider](https://kernlize.github.io/docs/how-tos/add-a-messaging-provider.md) | Define a provider and its backend, and register it in the shell's messaging registry. |
+| [Add a bridge backend](https://kernlize.github.io/docs/how-tos/add-a-bridge-backend.md) | Supply a backend that turns an `unavailable` bridge, such as downloads, into a working one. |
+| [Deploy](https://kernlize.github.io/docs/how-tos/deploy.md) | Build the site, shell, docs and API reference into one static artifact and publish it to GitHub Pages. |
+
+---
+
 <!-- https://kernlize.github.io/docs/index.md -->
 
 # kernl
@@ -1820,9 +1843,9 @@ kehto ships `@kehto/{acl,firewall,runtime,shell,services,nip,wm}` and deliberate
 | --- | --- |
 | Event layer | [applesauce](https://applesauce.build) v7 only. One `EventStore`, one `RelayPool`, one `AccountManager` per shell. `nostr-tools` is never imported by kernl source. |
 | Containment | Opaque-origin `srcdoc` iframe, `sandbox="allow-scripts"`, zero-network CSP, every network path through a shell service the user can see, rate-limit and revoke. |
-| Mitigations | Every kehto mitigation ships on, in the `strict` [guard](https://kernlize.github.io/docs/concepts/guard.md) profile. kehto's runtime firewall refuses requests over the profile's rates and a startup burst, and refuses the oversized downloads and queries kernl measures; kernl's own layers observe every port message just before dispatch, report what they see and quarantine floods, which stops the message that crossed the limit. kehto's not-yet-released nested-frame lock is applied through a port in `@kernl/guard` ([D-014](https://kernlize.github.io/docs/decisions.md#d-014)). Only the user loosens the profile: shell-wide in this draft, reset to `strict` on every boot, per applet later. A developer flag never loosens it. |
+| Mitigations | Every kehto mitigation ships on, in the `strict` [guard](https://kernlize.github.io/docs/concepts/guard.md) profile. kehto's runtime firewall refuses requests over the profile's rates and a startup burst, and refuses the oversized downloads and queries kernl measures; kernl's own layers observe every port message just before dispatch, report what they see and quarantine floods, which stops the message that crossed the limit. kehto's not-yet-released nested-frame lock is applied through a port in `@kernl/guard` ([D-014](https://kernlize.github.io/docs/decisions.md#d-014)). The hosted shell boots `strict`, and only the user loosens it there: shell-wide in this draft, reset to `strict` on every boot, per applet later. An embedding host may choose the starting profile (`KernlOptions.guard.profile`), which changes limits only; the sandbox, the CSP, the frame lock and consent are fixed. |
 | Protocols | One identity layer, many [bridges](https://kernlize.github.io/docs/concepts/bridges.md) named by what they do for the user, never by the wire format. |
-| Messaging | Any reasonable private-messaging protocol, exposed through one contract. [Providers](https://kernlize.github.io/docs/concepts/messaging.md) describe their security properties truthfully and the shell does not rank them. |
+| Messaging | Any reasonable private-messaging protocol, exposed through one contract. [Providers](https://kernlize.github.io/docs/concepts/messaging.md) describe their security properties truthfully and the shell does not rank them. No real backend ships in this alpha: the live shell supplies none, so every provider is unavailable there, and the preview runs them over the in-memory backend. |
 
 kernl does not fork kehto ([D-001](https://kernlize.github.io/docs/decisions.md#d-001)). When kehto lacks a hook kernl needs, kernl composes around it and takes the gap upstream. The four gaps found so far, still to be filed upstream, are listed in [Alpha status](https://kernlize.github.io/docs/alpha-status.md#upstream-gaps).
 
@@ -1840,7 +1863,7 @@ kernl does not fork kehto ([D-001](https://kernlize.github.io/docs/decisions.md#
 | --- | --- |
 | [Concepts](https://kernlize.github.io/docs/concepts/architecture.md) | Why the shell is shaped the way it is: layering, guard, identity, messaging, bridges, and what an applet meets. |
 | [Tutorials](https://kernlize.github.io/docs/tutorials/run-the-shell.md) | End-to-end walkthroughs that leave you with something running. |
-| [How-tos](https://kernlize.github.io/docs/how-tos/change-guard-profile.md) | One task each, with the exact calls. |
+| [How-tos](https://kernlize.github.io/docs/how-tos/index.md) | One task each, with the exact calls. |
 | [Troubleshooting](https://kernlize.github.io/docs/guides/troubleshooting.md) | Failures people hit with this draft, and their fixes. |
 | [Packages](https://kernlize.github.io/docs/packages/index.md) | One page per package: version, install, exports, scope. |
 | [API reference](https://kernlize.github.io/docs/reference/api.md) and [error reasons](https://kernlize.github.io/docs/reference/errors.md) | Generated from source JSDoc by TypeDoc; every reason string the packages throw. |
@@ -1882,7 +1905,7 @@ Locator parsing, the bridge contract, the registry that routes and authorises, a
 
 ## Purpose
 
-A bridge resolves a protocol-specific locator to bytes, a job or a conversation on the user's behalf, behind the same consent and quota as everything else, and is named by what it does rather than by its protocol. The HTTP bridge is complete; the torrent, NZB, Soulseek and mail bridges are complete up to the backend interface they call and report `unavailable` until one is supplied. The concepts are in [Bridges](https://kernlize.github.io/docs/concepts/bridges.md); the opinion is [D-010](https://kernlize.github.io/docs/decisions.md#d-010).
+A bridge resolves a protocol-specific locator to bytes, a job or a conversation on the user's behalf, behind the same grant and quota as everything else (the composed shell wires no per-request consent), and is named by what it does rather than by its protocol. The HTTP bridge is complete; the torrent, NZB, Soulseek and mail bridges are complete up to the backend interface they call and report `unavailable` until one is supplied. The concepts are in [Bridges](https://kernlize.github.io/docs/concepts/bridges.md); the opinion is [D-010](https://kernlize.github.io/docs/decisions.md#d-010).
 
 ## Exports
 
@@ -1910,7 +1933,7 @@ A bridge resolves a protocol-specific locator to bytes, a job or a conversation 
 
 | Export | Signature | Description |
 | --- | --- | --- |
-| `createBridgeRegistry` | `(options?: BridgeRegistryOptions) => BridgeRegistry` | Owns every bridge, routes a locator to the bridge serving its scheme, runs the consent hook, reports every outcome. |
+| `createBridgeRegistry` | `(options?: BridgeRegistryOptions) => BridgeRegistry` | Owns every bridge, routes a locator to the bridge serving its scheme, runs the `authorize` hook when one is given, reports every outcome to `onResolve` when one is given. |
 | `BridgeRegistryOptions` | interface | `{ authorize?: BridgeAuthorizer; onResolve?: (event: BridgeResolveEvent) => void }`. Without `authorize` every request is allowed. |
 | `BridgeResolveEvent` | interface | `{ bridge: string; scheme: string; ok: boolean; reason?: string }`. `bridge` is `none` when no bridge serves the scheme or the string did not parse. |
 | `BridgeRegistry` | interface | `register(bridge)` (throws `invalid:duplicate-bridge <id>`, `invalid:scheme-taken <scheme>`), `list()`, `forScheme(scheme)` (case-insensitive, trailing colon allowed), `resolve(uri, context)` (rejects with `invalid:`, `unavailable:` or `denied:` reasons). |
@@ -2325,7 +2348,7 @@ Signatures are abbreviated; the generated reference has the full ones.
 ## Scope
 
 - Composes; does not re-implement a kehto primitive. Local layers exist only where `ShellAdapter` or `createRuntime` has no hook, and each is named in [Alpha status](https://kernlize.github.io/docs/alpha-status.md#upstream-gaps).
-- Imports events, relays, signing and accounts from applesauce only. `nostr-tools` is a transitive peer and `pnpm check:deps` fails if it is imported.
+- Imports events, relays, signing and accounts from applesauce only. `nostr-tools` is a peer dependency, required by kehto and applesauce, and `pnpm check:deps` fails if it is imported.
 - Holds no UI. `apps/web` supplies the iframe, the visibility, the prompts and the notices through `KernlHost`.
 - Serialises no private key. `PasswordAccount` is the only persisted form of a local key and it is applesauce's.
 
@@ -2480,12 +2503,12 @@ Generated module: [`_kernl_guard`](https://kernlize.github.io/docs/api/modules/_
 
 kernl has four packages under the `@kernl` scope, not yet published to npm (see [Install](#install)). Three are pure contracts and engines with zero framework dependencies; one composes them with kehto and applesauce. The shell app at `apps/web` is not published.
 
-| Package | Version | Role | Depends on |
-| --- | --- | --- | --- |
-| [`@kernl/guard`](https://kernlize.github.io/docs/packages/guard.md) | `0.1.0` | Ingress flood control, visibility gate, focus-aware firewall, CSP profile, mitigation descriptions. | `@kehto/firewall` |
-| [`@kernl/messaging`](https://kernlize.github.io/docs/packages/messaging.md) | `0.1.0` | Messaging provider contract, registry, composite direct-message adapter. | `@napplet/core` (types, peer) |
-| [`@kernl/bridges`](https://kernlize.github.io/docs/packages/bridges.md) | `0.1.0` | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy. | nothing |
-| [`@kernl/core`](https://kernlize.github.io/docs/packages/core.md) | `0.1.0` | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts, persistence. | the three above, `@kehto/*`, `applesauce-*`, `rxjs` |
+| Package | Version | Role | Dependencies | Peer dependencies |
+| --- | --- | --- | --- | --- |
+| [`@kernl/guard`](https://kernlize.github.io/docs/packages/guard.md) | `0.1.0` | Ingress flood control, visibility gate, focus-aware firewall, CSP profile, nested-frame lock, mitigation descriptions. | `@kehto/firewall` | `@napplet/core` |
+| [`@kernl/messaging`](https://kernlize.github.io/docs/packages/messaging.md) | `0.1.0` | Messaging provider contract, registry, composite direct-message adapter, in-memory backend. | none | `@napplet/core` (the `Dm*` wire types) |
+| [`@kernl/bridges`](https://kernlize.github.io/docs/packages/bridges.md) | `0.1.0` | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy. | none | none |
+| [`@kernl/core`](https://kernlize.github.io/docs/packages/core.md) | `0.1.0` | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts, persistence. | the three above, `@kehto/*`, `applesauce-*`, `rxjs` | `@napplet/core`, `@napplet/nap`, `@napplet/shim`, `nostr-tools` (required by kehto and applesauce; never imported) |
 
 ## Shared rules
 
@@ -2528,6 +2551,10 @@ Run `pnpm install` again after editing the manifest so pnpm links the workspace 
 # @kernl/messaging
 
 Messaging provider contract, registry, composite direct-message backend and an in-memory backend for the kernl shell. Pure: no relay code, no signer, no kehto dependency. Providers receive their backend constructor from the shell.
+
+> **No real messaging backend ships**
+>
+> This package ships no backend that sends anything over a network; the only backend in it is `createMemoryBackend`. The live shell supplies no backend through `KernlOptions.messagingBackends`, so all three providers report themselves unavailable there ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#messaging-providers-in-the-live-shell)). The offline preview (`?preview=1`) runs the same providers over the in-memory backend with a scripted correspondent, so messages sent there go nowhere.
 
 | Field | Value |
 | --- | --- |
@@ -2654,8 +2681,8 @@ Rules the repository enforces mechanically. Each policy names the script that ch
 | Policy | Checked by | Decision |
 | --- | --- | --- |
 | [Public vocabulary](https://kernlize.github.io/docs/policies/public-vocabulary.md) | `pnpm check:vocabulary` (`scripts/check-public-vocabulary.mjs`) | [D-006](https://kernlize.github.io/docs/decisions.md#d-006) |
-| [Security posture](https://kernlize.github.io/docs/policies/security-posture.md) | `features/` scenarios, `pnpm check:deps`, Playwright in `pnpm test:e2e` | [D-001](https://kernlize.github.io/docs/decisions.md#d-001), [D-002](https://kernlize.github.io/docs/decisions.md#d-002), [D-003](https://kernlize.github.io/docs/decisions.md#d-003) |
-| [Spec conformance](https://kernlize.github.io/docs/policies/spec-conformance.md) | `features/` scenarios; review. Running `@napplet/conformance` in the suite is [roadmap](https://kernlize.github.io/docs/roadmap.md#_7-conformance) work. | `AGENTS.md` "Spec before code" |
+| [Security posture](https://kernlize.github.io/docs/policies/security-posture.md) | `packages/*/features/` scenarios, `pnpm check:deps`, Playwright in `pnpm test:e2e` | [D-001](https://kernlize.github.io/docs/decisions.md#d-001), [D-002](https://kernlize.github.io/docs/decisions.md#d-002), [D-003](https://kernlize.github.io/docs/decisions.md#d-003) |
+| [Spec conformance](https://kernlize.github.io/docs/policies/spec-conformance.md) | `packages/*/features/` scenarios; review. Running `@napplet/conformance` in the suite is [roadmap](https://kernlize.github.io/docs/roadmap.md#_7-conformance) work. | `AGENTS.md` "Spec before code" |
 
 Two further gates apply to everything, including these pages:
 
@@ -2727,7 +2754,7 @@ Marketing adjectives, filler and hedges that hide a decision are out everywhere,
 
 # Security posture
 
-The rules the shell keeps when it runs untrusted code next to the user's identity. Each rule has a scenario in `features/` or a check in `scripts/`; a rule with neither is a wish.
+The rules the shell keeps when it runs untrusted code next to the user's identity. Each rule has a scenario in `packages/*/features/` or a check in `scripts/`; a rule with neither is a wish.
 
 ## Mount rules
 
@@ -2739,7 +2766,7 @@ The rules the shell keeps when it runs untrusted code next to the user's identit
 6. **The host page forbids frame navigation.** The HTML the server sends carries `KERNL_FRAME_POLICY_META`, kehto's `<meta http-equiv="Content-Security-Policy" content="frame-src 'none'">`, in its `<head>` before any script runs, as `apps/web/src/pages/app/index.astro` does. Applet frames still load, because their bytes arrive as `srcdoc`; a frame that tries to load or navigate to a URL is blocked, so an applet cannot replace its verified document before kehto sees its first load. kehto warns in the console when the policy is missing. See [Embed kernl core](https://kernlize.github.io/docs/how-tos/embed-kernl-core.md).
 7. **Remove the iframe on every revocation reason.** `window-message`, `second-hello`, `invalid-hello`, `second-load`, `port-closed` and `host` all end with the frame gone and the guard's state for the window forgotten. A revoked window's identity is never re-bound to the same frame.
 8. **No frame in the applet's markup.** `planMount` calls `assertAppletHasNoFrame` on the verified bytes before they become a `srcdoc`, and refuses markup containing an `iframe`, `frame`, `frameset`, `object`, `embed`, `portal` or `fencedframe` element with `denied:nested-frame`. It parses with the host's `DOMParser` when there is one and otherwise matches lexically, which may over-reject ([D-014](https://kernlize.github.io/docs/decisions.md#d-014)).
-9. **The frame lock runs before applet code.** `planMount` inserts `renderFrameLockScript()` immediately after kehto's namespace prelude. It installs the Trusted Types `default` policy, which refuses frame markup at every HTML string sink, and pins `createElement`, `createElementNS` and `createDocument` so they throw `denied:nested-frame` for a frame tag. When kehto's prepared head is not where `planMount` expects it, the mount is refused with `unavailable:frame-lock` rather than run without the lock. This is a port of kehto's unreleased `nestedContextLock`, removed when `@kehto/shell` ships it ([D-014](https://kernlize.github.io/docs/decisions.md#d-014)).
+9. **The frame lock runs before applet code.** `planMount` inserts `renderFrameLockScript()` immediately after kehto's namespace prelude. It installs the Trusted Types `default` policy, which refuses frame markup at every HTML string sink, and pins `createElement`, `createElementNS` and `createDocument` so they throw `denied:nested-frame` for a frame tag. Because frames can also be minted without a factory, the same script pins every DOM insertion method to refuse a node that is or contains a frame element, refuses custom elements that extend frames, and removes `XSLTProcessor`; a frame never becomes connected, so it never gets a realm. When kehto's prepared head is not where `planMount` expects it, the mount is refused with `unavailable:frame-lock` rather than run without the lock. This is a port of kehto's unreleased `nestedContextLock`, removed when `@kehto/shell` ships it ([D-014](https://kernlize.github.io/docs/decisions.md#d-014)).
 
 ## Identity rules
 
@@ -2755,7 +2782,7 @@ The rules the shell keeps when it runs untrusted code next to the user's identit
 
 ## Network rules
 
-16. **No applet network path exists outside the shell.** All bytes arrive through the `resource` domain and a bridge. An applet frame has no network of its own, and cannot make a child frame that would have one: kehto's prelude pins every `RTC*` global (and the `webkit`/`moz` variants) to `undefined`, read-only and non-configurable; rules 8 and 9 stop the applet from creating a child realm where those globals still work; and the CSP refuses `fetch`, WebSocket, images, frame loads and beacons. `tests/e2e/applet-network-sealed.spec.ts` proves this in a real browser: 15 frame-creation routes throw, no child realm and no peer-connection constructor exists, and no `srflx` or `relay` candidate is gathered while the host page's control reaches a public STUN server. The HTTP bridge enforces `https` only, 10 MiB, 20 s and a private-address block over IPv4 and fully parsed IPv6 literals ([Bridges](https://kernlize.github.io/docs/concepts/bridges.md#the-http-bridge)). In Node and on servers it follows up to 3 redirects by hand and re-checks every hop; in a browser a redirect is opaque to it and is refused with `denied:redirect-unverifiable`. Hostnames are checked as literals only: no resolver is wired, so a public name that resolves to a private address is not caught. Browser fetches are also subject to CORS: a request the browser blocks is `unavailable:network Failed to fetch`, and any other status-0 answer is `unavailable:network <type> response`.
+16. **No applet network path exists outside the shell.** All bytes arrive through the `resource` domain and a bridge. An applet frame has no network of its own, and cannot make a child frame that would have one: kehto's prelude pins every `RTC*` global (and the `webkit`/`moz` variants) to `undefined`, read-only and non-configurable; rules 8 and 9 stop the applet from creating a child realm where those globals still work; and the CSP refuses `fetch`, WebSocket, images, frame loads and beacons. `tests/e2e/applet-network-sealed.spec.ts` proves this in a real browser: 15 frame-creation routes throw, no child realm and no peer-connection constructor exists, and no `srflx` or `relay` candidate is gathered. When the host page can reach a public STUN server, the spec asserts that it does and that the applet produces no such candidate; otherwise that control is skipped. The HTTP bridge enforces `https` only, 10 MiB, 20 s and a private-address block over IPv4 and fully parsed IPv6 literals ([Bridges](https://kernlize.github.io/docs/concepts/bridges.md#the-http-bridge)). In Node and on servers it follows up to 3 redirects by hand and re-checks every hop; in a browser a redirect is opaque to it and is refused with `denied:redirect-unverifiable`. Hostnames are checked as literals only: no resolver is wired, so a public name that resolves to a private address is not caught. Browser fetches are also subject to CORS: a request the browser blocks is `unavailable:network Failed to fetch`, and any other status-0 answer is `unavailable:network <type> response`.
 17. **One `RelayPool`.** No service, provider or bridge opens its own connection. Adapters over the shared pool satisfy kehto's contracts.
 18. **Hidden windows are watched, not paused.** The visibility gate holds only a hidden window's window-level `hello`. Port traffic is observed just before kehto dispatches it, and the observation cannot hold it ([D-012](https://kernlize.github.io/docs/decisions.md#d-012)): a hidden window's activity is recorded and its overruns of the unfocused budget are reported, while its `resource.*` request past the hidden allowance quarantines it, and that request is not dispatched.
 
@@ -2766,11 +2793,11 @@ The rules the shell keeps when it runs untrusted code next to the user's identit
 
 ## Dependency rules
 
-21. **`nostr-tools` is never imported by kernl source.** It is a transitive peer of kehto and applesauce only.
+21. **`nostr-tools` is never imported by kernl source.** It is a direct peer dependency of `@kernl/core`, because kehto and applesauce require it, but no file under `packages/*/src` imports it.
 22. **Published packages have zero framework dependencies.** `svelte`, `react`, `vue`, `preact`, `solid-js` and `lit` are forbidden in every `packages/*/package.json`.
 23. **Leaf packages do not import `@kehto/*`**, except `@kernl/guard`, which imports `@kehto/firewall`. Only `@kernl/core` composes kehto.
 
-Rules 21 to 23 are enforced by `scripts/check-dependency-rules.mjs` (`pnpm check:deps`). Rules 1 to 20 are scenarios in `packages/*/features/` and `features/`, and the mount rules are additionally exercised in the browser by the Playwright suite.
+Rules 21 to 23 are enforced by `scripts/check-dependency-rules.mjs` (`pnpm check:deps`). Rules 1 to 20 are scenarios in `packages/*/features/` (the root `features/support/` only wires their step definitions into vitest), and the mount rules are additionally exercised in the browser by the Playwright suite.
 
 ## Reporting
 
@@ -2809,7 +2836,7 @@ kernl never re-implements a kehto primitive because it was easier than reading k
 
 ## What conformance is checked by
 
-- **Gherkin scenarios** in `features/` for every protocol-visible behaviour, named after the clause they implement where one exists.
+- **Gherkin scenarios** in `packages/*/features/` for every protocol-visible behaviour, named after the clause they implement where one exists.
 - **Review.** A change that touches an envelope shape, a domain's semantics or the handshake cites the clause in its description. A reviewer checks the clause, not the summary.
 
 `@napplet/conformance` (envelope validators per NAP domain, manifest validation and the reference mock shell's expectations of a host) is not part of the test suite yet; running it against the shell's bridge is on the [Roadmap](https://kernlize.github.io/docs/roadmap.md#_7-conformance).
@@ -3013,11 +3040,11 @@ The window manager contracts come from `@kehto/wm`. A narrow-viewport layout wit
 
 ## 7. Conformance
 
-- Run `@napplet/conformance` against the shell's bridge in `pnpm test`: envelope validators per NAP domain, manifest validation and the reference mock shell's expectations of a host. Today conformance is checked by the `features/` scenarios and review only ([Spec conformance](https://kernlize.github.io/docs/policies/spec-conformance.md)).
+- Run `@napplet/conformance` against the shell's bridge in `pnpm test`: envelope validators per NAP domain, manifest validation and the reference mock shell's expectations of a host. Today conformance is checked by the `packages/*/features/` scenarios and review only ([Spec conformance](https://kernlize.github.io/docs/policies/spec-conformance.md)).
 
 ## Not planned
 
-- A global configuration flag that loosens a mitigation for every applet. `SOUL.md` opinion three rules it out.
+- A flag in the hosted shell that turns a mitigation off or loosens it for every applet without the user. `SOUL.md` opinion three rules it out. `KernlOptions.guard.profile` lets an embedding host pick the starting limits only.
 - A second event library beside applesauce. `DECISIONS.md` [D-002](https://kernlize.github.io/docs/decisions.md#d-002) rules it out.
 - A "recommended" messaging provider. [D-009](https://kernlize.github.io/docs/decisions.md#d-009) rules it out.
 
@@ -3279,7 +3306,7 @@ Without `?preview=1`, `https://kernlize.github.io/app/` is the live shell: every
 ## 1. Clone, install and build
 
 ```bash
-git clone <kernl source repository URL> kernl
+git clone https://github.com/kernlize/web.git kernl
 cd kernl
 pnpm install
 pnpm build

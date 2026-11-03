@@ -1,14 +1,18 @@
 # Described, not ranked.
 
-> kernl supports several private-message providers and ranks none. Each is described by what it protects: forward secrecy, metadata, groups, what the other needs.
+> kernl describes several private-message providers and ranks none. Each is described by what it protects. In this alpha sending works only in the preview; the real backends are not connected yet.
 
-Private messaging in kernl works across several providers. **None of them is "the best".** The shell tells you plainly what each one protects, and you pick the one the person you are writing to can read.
+kernl is built to offer private messaging through several providers. **None of them is "the best".** The shell tells you plainly what each one protects, and you pick the one the person you are writing to can read.
+
+## Described and selectable; sending waits for backends.
+
+kernl is alpha software. Every provider below is described and you can choose one in the shell. Sending works in the [preview](https://kernlize.github.io/app/?preview=1), which keeps everything in your browser tab. In the live shell no provider has a backend yet, so each one shows as unavailable and a send fails with a plain reason instead of pretending.
 
 ## The same six questions, asked of each.
 
 ### Private messages
 
-The default. Each message is wrapped so the network cannot see who wrote it or what it says.
+The default. Each message is meant to be wrapped so the network cannot see who wrote it or what it says.
 
 - **Forward secrecy**: No
 - **Heals after a key leak**: No
@@ -47,4 +51,4 @@ Keys change with every message, so a leak today does not expose yesterday. Both 
 - **Other person needs this app**: Whether your correspondent must use an app that speaks the same provider.
 - **Experimental**: The provider is still changing and may lose history between versions. kernl says so before you enable it.
 
-Applets see one messaging surface that spans every provider you enabled. The choice of provider stays with you, is shown on every conversation, and can be changed. More in the [documentation](https://kernlize.github.io/docs/).
+Applets are given one messaging surface that spans every provider you enable. The choice of provider stays with you, is shown on every conversation, and can be changed. More in the [documentation](https://kernlize.github.io/docs/).

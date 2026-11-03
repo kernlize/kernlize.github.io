@@ -2,7 +2,7 @@
 
 > Bridges let kernl reach other networks for you. Web fetch works today; downloads, sharing and mail have their contracts in place and wait for their backends.
 
-A bridge is a service the shell owns that turns a link into bytes or a conversation on another network. Every bridge sits behind **the same consent and quota rules** as everything else an applet can ask for.
+A bridge is a service the shell owns that turns a link into bytes or a conversation on another network. An applet never talks to the other network itself; it asks the shell, and the shell answers. **In this alpha there is no consent prompt for bridges yet**: web fetch refuses private and local addresses by policy, and the other bridges are not connected to anything.
 
 ## What works today, and what is waiting.
 
@@ -36,7 +36,7 @@ A bridge without a backend reports itself as unavailable, and the shell shows ex
 
 1. **An applet asks; the shell resolves**
    The applet never touches the other network. It hands the shell a link and gets back bytes or a conversation, or a reason.
-2. **You see the request**
-   Each request shows up in the [guard](https://kernlize.github.io/guard/) with what it is for, and counts against the applet's budget.
+2. **Not yet: seeing each request**
+   Bridge requests are not listed in the [guard](https://kernlize.github.io/guard/) yet, and there is no per-applet allowance for them. Until those exist, the shell does not claim either.
 3. **Named for people**
    "Downloads", "sharing", "mail". Not the name of the wire format underneath. If you care which one it is, the documentation says.

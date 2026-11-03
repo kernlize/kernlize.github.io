@@ -39,7 +39,7 @@ When the toolkit offers a privacy or safety mitigation, kernl turns it on, in it
 
 ## One account, many networks, no brand names.
 
-Your account is how you are known, how applets are found and verified, and how you reach other people. It is not the only network kernl speaks. Downloads, sharing and mail plug in as [bridges](https://kernlize.github.io/bridges/), behind the same consent and quota rules as everything else.
+Your account is how you are known, how applets are found and verified, and how you reach other people. It is not the only network kernl speaks. Downloads, sharing and mail are meant to plug in as [bridges](https://kernlize.github.io/bridges/). Today only web fetch works; the others wait for backends, and there is no consent prompt or per-applet allowance for bridges yet.
 
 - Bridges are named by what they do for you, not by the wire format they speak.
 - This site does not name protocols. The protocol is the plumbing. The person is the point.
@@ -48,10 +48,10 @@ Your account is how you are known, how applets are found and verified, and how y
 
 ## No private-messaging system is "the best".
 
-kernl supports any reasonable private-messaging provider through one interface. You pick the one your correspondent can read, and the shell makes that choice visible and reversible.
+kernl is built to support any reasonable private-messaging provider through one interface. You pick the one your correspondent can read, and the shell makes that choice visible and reversible. In this alpha the providers are described and selectable, and sending works in the preview; the real backends are not connected yet.
 
 - The shell does not rank providers. It [describes them](https://kernlize.github.io/messaging/): forward secrecy or not, what the network can see, whether the other person needs the same app.
-- Applets see one messaging surface that spans every provider you enabled.
+- Applets are given one messaging surface that spans every provider you enable.
 
 ## The tie-breakers, in order.
 

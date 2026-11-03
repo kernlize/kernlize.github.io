@@ -51,7 +51,7 @@ It is built on [kehto](https://github.com/kehto/web), an open toolkit that leave
 
 ## Alpha, and said so.
 
-kernl is alpha software. The sandbox, the guard and private messaging work today. Bridges for downloads, sharing and mail have their contracts in place and wait for backends; the shell shows them as unavailable rather than pretending.
+kernl is alpha software. The sandbox and the guard work today. Private messaging providers are described and you can choose one, and sending works in the preview; the real messaging backends are not connected yet. Bridges for downloads, sharing and mail have their contracts in place and wait for backends too. The shell shows anything without a backend as unavailable rather than pretending.
 
 Applets are verified by content hash before they run and re-checked on every read from cache. If the bytes change, the applet's grants die with them.
 
@@ -101,7 +101,7 @@ Yes. The preview runs the whole shell in your browser with sample applets and a 
 
 ### Is it ready for daily use?
 
-Not yet. kernl is alpha software. The sandbox, the guard and private messaging work; downloads, sharing and mail are waiting for their backends, and the shell says so.
+Not yet. kernl is alpha software. The sandbox and the guard work. Private messaging is half done: the shell describes each provider and lets you pick one, and sending works in the preview, but the real backends are not connected yet. Downloads, sharing and mail are waiting for their backends too, and the shell says so.
 
 ---
 
@@ -148,7 +148,7 @@ When the toolkit offers a privacy or safety mitigation, kernl turns it on, in it
 
 ## One account, many networks, no brand names.
 
-Your account is how you are known, how applets are found and verified, and how you reach other people. It is not the only network kernl speaks. Downloads, sharing and mail plug in as [bridges](https://kernlize.github.io/bridges/), behind the same consent and quota rules as everything else.
+Your account is how you are known, how applets are found and verified, and how you reach other people. It is not the only network kernl speaks. Downloads, sharing and mail are meant to plug in as [bridges](https://kernlize.github.io/bridges/). Today only web fetch works; the others wait for backends, and there is no consent prompt or per-applet allowance for bridges yet.
 
 - Bridges are named by what they do for you, not by the wire format they speak.
 - This site does not name protocols. The protocol is the plumbing. The person is the point.
@@ -157,10 +157,10 @@ Your account is how you are known, how applets are found and verified, and how y
 
 ## No private-messaging system is "the best".
 
-kernl supports any reasonable private-messaging provider through one interface. You pick the one your correspondent can read, and the shell makes that choice visible and reversible.
+kernl is built to support any reasonable private-messaging provider through one interface. You pick the one your correspondent can read, and the shell makes that choice visible and reversible. In this alpha the providers are described and selectable, and sending works in the preview; the real backends are not connected yet.
 
 - The shell does not rank providers. It [describes them](https://kernlize.github.io/messaging/): forward secrecy or not, what the network can see, whether the other person needs the same app.
-- Applets see one messaging surface that spans every provider you enabled.
+- Applets are given one messaging surface that spans every provider you enable.
 
 ## The tie-breakers, in order.
 
@@ -228,15 +228,19 @@ Three profiles exist: strict, balanced and relaxed. The shell boots strict, ever
 
 # Described, not ranked.
 
-> kernl supports several private-message providers and ranks none. Each is described by what it protects: forward secrecy, metadata, groups, what the other needs.
+> kernl describes several private-message providers and ranks none. Each is described by what it protects. In this alpha sending works only in the preview; the real backends are not connected yet.
 
-Private messaging in kernl works across several providers. **None of them is "the best".** The shell tells you plainly what each one protects, and you pick the one the person you are writing to can read.
+kernl is built to offer private messaging through several providers. **None of them is "the best".** The shell tells you plainly what each one protects, and you pick the one the person you are writing to can read.
+
+## Described and selectable; sending waits for backends.
+
+kernl is alpha software. Every provider below is described and you can choose one in the shell. Sending works in the [preview](https://kernlize.github.io/app/?preview=1), which keeps everything in your browser tab. In the live shell no provider has a backend yet, so each one shows as unavailable and a send fails with a plain reason instead of pretending.
 
 ## The same six questions, asked of each.
 
 ### Private messages
 
-The default. Each message is wrapped so the network cannot see who wrote it or what it says.
+The default. Each message is meant to be wrapped so the network cannot see who wrote it or what it says.
 
 - **Forward secrecy**: No
 - **Heals after a key leak**: No
@@ -275,7 +279,7 @@ Keys change with every message, so a leak today does not expose yesterday. Both 
 - **Other person needs this app**: Whether your correspondent must use an app that speaks the same provider.
 - **Experimental**: The provider is still changing and may lose history between versions. kernl says so before you enable it.
 
-Applets see one messaging surface that spans every provider you enabled. The choice of provider stays with you, is shown on every conversation, and can be changed. More in the [documentation](https://kernlize.github.io/docs/).
+Applets are given one messaging surface that spans every provider you enable. The choice of provider stays with you, is shown on every conversation, and can be changed. More in the [documentation](https://kernlize.github.io/docs/).
 
 ---
 
@@ -285,7 +289,7 @@ Applets see one messaging surface that spans every provider you enabled. The cho
 
 > Bridges let kernl reach other networks for you. Web fetch works today; downloads, sharing and mail have their contracts in place and wait for their backends.
 
-A bridge is a service the shell owns that turns a link into bytes or a conversation on another network. Every bridge sits behind **the same consent and quota rules** as everything else an applet can ask for.
+A bridge is a service the shell owns that turns a link into bytes or a conversation on another network. An applet never talks to the other network itself; it asks the shell, and the shell answers. **In this alpha there is no consent prompt for bridges yet**: web fetch refuses private and local addresses by policy, and the other bridges are not connected to anything.
 
 ## What works today, and what is waiting.
 
@@ -319,8 +323,8 @@ A bridge without a backend reports itself as unavailable, and the shell shows ex
 
 1. **An applet asks; the shell resolves**
    The applet never touches the other network. It hands the shell a link and gets back bytes or a conversation, or a reason.
-2. **You see the request**
-   Each request shows up in the [guard](https://kernlize.github.io/guard/) with what it is for, and counts against the applet's budget.
+2. **Not yet: seeing each request**
+   Bridge requests are not listed in the [guard](https://kernlize.github.io/guard/) yet, and there is no per-applet allowance for them. Until those exist, the shell does not claim either.
 3. **Named for people**
    "Downloads", "sharing", "mail". Not the name of the wire format underneath. If you care which one it is, the documentation says.
 
@@ -365,7 +369,7 @@ How applets are packaged, addressed and verified, and the message domains an app
 4. **Verified bytes**
    Your applet is identified by the hash of its content. Ship a new version and it is a new identity with fresh grants. That is deliberate.
 5. **Messaging across providers**
-   One messaging surface spans every provider the user enabled. You do not pick the provider; the user does, and your applet works either way.
+   One messaging surface spans every provider the user enables. You do not pick the provider; the user does. In this alpha no provider has a backend in the live shell, so a send fails there with the reason `unavailable`; it only succeeds in the preview. Feature-detect messaging and handle `unavailable` as a normal answer, not a crash.
 
 *Source*
 
