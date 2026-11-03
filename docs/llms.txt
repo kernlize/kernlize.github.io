@@ -24,10 +24,11 @@ Markdown twins of every docs page, served at the HTML path with `.md` instead of
 ## Tutorials
 
 - [Run the shell](https://kernlize.github.io/docs/tutorials/run-the-shell.md): This tutorial takes you from nothing to an applet running in a window, signed in with your own account, and shows the Kernl calls behind each step.
+- [Embed kernl in a page](https://kernlize.github.io/docs/tutorials/embed-a-host-page.md): This tutorial builds the smallest page that runs a real applet under kernl: one HTML file, one script, an address field and a frame.
 
 ## How-tos
 
-- [Change the guard profile](https://kernlize.github.io/docs/how-tos/change-guard-profile.md): The shell boots every applet in strict.
+- [Change the guard profile](https://kernlize.github.io/docs/how-tos/change-guard-profile.md): The shell boots in strict.
 - [Add a messaging provider](https://kernlize.github.io/docs/how-tos/add-a-messaging-provider.md): A provider is a package change plus a docs page.
 - [Add a bridge backend](https://kernlize.github.io/docs/how-tos/add-a-bridge-backend.md): The four non-HTTP bridges are complete up to the backend interface they call.
 - [Grant and revoke](https://kernlize.github.io/docs/how-tos/grant-and-revoke.md): A grant is something the user gave and can take back.

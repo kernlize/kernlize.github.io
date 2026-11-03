@@ -8,7 +8,7 @@ kernl is alpha software, MIT licensed, built on the open kehto toolkit and the o
 
 - [kernl](https://kernlize.github.io/index.md): kernl is a shell that runs small applets in a sealed sandbox. Your identity, contacts, messages and files stay yours; applets borrow them only while you watch.
 - [Why](https://kernlize.github.io/why/index.md): The five opinions behind kernl, in plain words: one place for your things, a shell that contains applets, protections on by default, many networks, no ranking.
-- [Guard](https://kernlize.github.io/guard/index.md): What the kernl guard does between an applet and your network: a sealed sandbox, verified bytes, rate limits, flood control and consent, loosened only by you.
+- [Guard](https://kernlize.github.io/guard/index.md): What the kernl guard does between an applet and your network: a sealed sandbox, verified bytes, budgets, flood control and a question before anything destructive is signed, loosened only by you.
 - [Messaging](https://kernlize.github.io/messaging/index.md): kernl supports several private-message providers and ranks none. Each is described by what it protects: forward secrecy, metadata, groups, what the other needs.
 - [Bridges](https://kernlize.github.io/bridges/index.md): Bridges let kernl reach other networks for you. Web fetch works today; downloads, sharing and mail have their contracts in place and wait for their backends.
 - [Developers](https://kernlize.github.io/developers/index.md): How to build for kernl: write an applet in the open applet format, learn what the sealed sandbox and strict guard mean for your code, and read the docs first.

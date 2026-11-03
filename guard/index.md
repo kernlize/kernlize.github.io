@@ -1,42 +1,42 @@
 # Everything between an applet and the world.
 
-> What the kernl guard does between an applet and your network: a sealed sandbox, verified bytes, rate limits, flood control and consent, loosened only by you.
+> What the kernl guard does between an applet and your network: a sealed sandbox, verified bytes, budgets, flood control and a question before anything destructive is signed, loosened only by you.
 
-The guard is the set of protections that sit between an applet and you. It is **on from the first second**, in its strict setting. It tells you when it acts and why, and only you can loosen it, one applet at a time.
+The guard is the set of protections that sit between an applet and you. It is **on from the first second**, in its strict setting. It tells you when it acts and why, and only you can loosen it.
 
 ## Eleven protections, in plain words.
 
 1. **A sealed sandbox**
    Each applet runs in a frame with no address of its own and a policy that forbids every network call. The only way out is through the shell.
 2. **Identity bound to the bytes, with revocation**
-   An applet's identity is tied to the exact code you verified and to the live connection it runs over. If either changes, every grant it held ends at once and the frame is removed.
+   An applet's identity is tied to the exact code you verified and to the live connection it runs over. If either changes, the connection is cut and the frame is removed. What you allowed stays with that exact code, so it applies again when you reopen it.
 3. **Verified before it runs, re-checked from cache**
    Applet code is checked against its content hash before the first run. Cached copies are checked again on every read, so a tampered cache cannot slip past.
 4. **Replay detection**
    A message the shell has already handled is not handled twice, and a message meant for one window cannot be replayed into another.
 5. **Behavioural rate limits**
-   Each kind of request has its own budget per applet. An applet that asks too often is made to wait, and you can see the counter.
+   Each kind of request has its own budget per applet. A request over budget is refused before the shell acts on it.
 6. **Focus-aware tightening**
-   An applet you are not looking at gets a smaller budget. The shell decides what is focused; the applet is never asked.
-7. **Hidden-window deferral**
-   Traffic from a hidden or minimised applet waits until you bring it back. When you do, the queue drains in order.
+   An applet you are not looking at is measured against a smaller budget, and the guard tells you when it goes over. Going over is reported, not refused; the budget above still applies. The shell decides what is focused; the applet is never asked.
+7. **Hidden applets that keep downloading are stopped**
+   While an applet is minimised or hidden, the shell counts its downloads. One that goes past its allowance is quarantined: the shell closes it and tells you. Its other requests are recorded, not held back.
 8. **Flood control and quarantine**
-   An applet that floods the shell is queued, then quarantined. Quarantine lasts until you lift it.
+   The shell counts every message an applet sends. Bursts above the per-second rate are reported to you. One that keeps flooding is quarantined: its connection is cut and its window closed, and you can open it again when you choose.
 9. **Size caps**
-   Requests for files and subscriptions have a maximum size. Oversized ones are refused rather than buffered.
+   Requests for files and long-running searches are measured against a maximum size. An oversized one is reported to you; it is not stopped, because the shell measures it after it has been handled.
 10. **Device permissions denied**
     Camera, microphone, location and the rest are off for every applet. There is no prompt to be tricked into.
 11. **Consent for destructive changes**
-    Anything that deletes, publishes or sends on your behalf is shown to you as what it changes, and waits for your yes.
+    Before an applet changes your profile, who you follow, your connections or one of your lists, or deletes something you posted, the shell shows you what would change and waits for your answer. If you say no, nothing is signed. Everyday posts go through without a question, and the shell asks again every time.
 
 *What you see*
 
 ## Every refusal has a reason.
 
-The guard emits an event for every request it slows, defers, refuses or quarantines, with a stable reason you can read. Nothing is silently dropped.
+The guard records an event for every request it refuses, holds, reports or stops, with a stable reason you can read. Nothing is silently dropped.
 
 *Loosening it*
 
-## Per applet. By you.
+## By you, and only you.
 
-Three profiles exist: strict, balanced and relaxed. The shell boots strict. You can ease one applet from the grants panel; no configuration file or developer flag can ease them all. The [documentation](https://kernlize.github.io/docs/) lists each limit by profile.
+Three profiles exist: strict, balanced and relaxed. The shell boots strict, every time. For now the choice applies to the whole shell and is forgotten when you reload; easing one applet at a time is planned. No configuration file or developer flag can ease the guard. The [documentation](https://kernlize.github.io/docs/) lists each limit by profile.

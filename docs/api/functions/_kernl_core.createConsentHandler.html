@@ -16,11 +16,15 @@
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="createconsenthandler"><span class="tsd-kind-call-signature">createConsentHandler</span><span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">host</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Pick</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/_kernl_core.KernlHost.html" class="tsd-signature-type tsd-kind-interface">KernlHost</a><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">&quot;presentConsent&quot;</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">lookupBefore</span><span class="tsd-signature-symbol">:</span> <a href="../types/_kernl_core.LookupBefore.html" class="tsd-signature-type tsd-kind-type-alias">LookupBefore</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">resolveApplet</span><span class="tsd-signature-symbol">:</span> <a href="../types/_kernl_core.ResolveAppletIdentity.html" class="tsd-signature-type tsd-kind-type-alias">ResolveAppletIdentity</a><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">request</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">ConsentRequest</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span><a href="#createconsenthandler" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Turn kehto consent requests into host prompts that describe the change.</p>
-<p>A request without an event (kehto's <code>firewall-policy</code> prompt) or from a
-window the shell does not recognise is refused without asking: kernl never
-signs for an applet it cannot name, and its guard uses <code>allow</code>/<code>deny</code>
-policies, so a firewall prompt is not an expected path.</p>
+<div class="tsd-comment tsd-typography"><p>Answer kehto's own consent requests.</p>
+<p>The kehto runtime kernl pins emits only <code>firewall-policy</code> requests, which
+carry no event; kernl's guard decides firewall policy itself, so those are
+refused without asking. Destructive writes are not asked for here: kehto
+signs through <code>ShellAdapter.auth.getSigner</code>, and kernl gates that seam with
+<a href="_kernl_core.createSigningConsent.html" class="tsd-kind-function">createSigningConsent</a>. A request that does carry an event, from a
+window the shell recognises, is still described and put to the user, so a
+kehto release that adds such prompts is answered honestly; one from a
+window the shell cannot name is refused.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>

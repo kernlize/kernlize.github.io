@@ -20,13 +20,14 @@
 <p><code>relay</code>, <code>identity</code>, <code>theme</code>, <code>notify</code>, <code>link</code>, <code>resource</code>, <code>dm</code> and <code>outbox</code>
 are wired; every network path goes through the one pool, every resource
 fetch through the bridge registry's SSRF policy, links open only over
-<code>https:</code> and <code>mailto:</code>, and notifications surface through the host.</p>
+<code>https:</code> and <code>mailto:</code>, notifications surface through the host, and outbox
+publishes pass the consent gate before they are signed.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
 <li><span><span class="tsd-kind-parameter">deps</span>: <a href="../interfaces/_kernl_core.KernlServiceDeps.html" class="tsd-signature-type tsd-kind-interface">KernlServiceDeps</a></span>
-<div class="tsd-comment tsd-typography"><p>Pool, tiers, store, auth, host, registries and identity resolver.</p>
+<div class="tsd-comment tsd-typography"><p>Pool, tiers, store, auth, consent gate, host, registries and identity resolver.</p>
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <a href="../interfaces/_kernl_core.KernlServices.html" class="tsd-signature-type tsd-kind-interface">KernlServices</a></h4><p>The service registry and the theme and dm handles.</p>
 

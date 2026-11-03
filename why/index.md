@@ -23,7 +23,7 @@ A shell has two jobs. It gives you a place where your identity and your things a
 - Applets run in a sealed frame with no network of their own.
 - They never hold keys and never see text you did not ask to show them.
 - Every write the shell makes for an applet is shown to you as what it changes, not as code.
-- An applet's identity is bound to the exact bytes you verified. If they change, its grants end.
+- An applet's identity is bound to the exact bytes you verified. Changed bytes are a new applet, with no grants.
 
 03
 

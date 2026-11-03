@@ -14,23 +14,31 @@
 <section class="tsd-panel">
 <ul class="tsd-signatures">
 <li class="">
-<div class="tsd-signature tsd-anchor-link" id="createauthhooks"><span class="tsd-kind-call-signature">createAuthHooks</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">accounts</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">AccountManager</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">AuthHooks</span><a href="#createauthhooks" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-signature tsd-anchor-link" id="createauthhooks"><span class="tsd-kind-call-signature">createAuthHooks</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">accounts</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">AccountManager</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">consent</span><span class="tsd-signature-symbol">:</span> <a href="../types/_kernl_core.SigningConsent.html" class="tsd-signature-type tsd-kind-type-alias">SigningConsent</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">AuthHooks</span><a href="#createauthhooks" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
 <div class="tsd-comment tsd-typography"><p>kehto <code>AuthHooks</code> over the applesauce <code>AccountManager</code>.</p>
 <p><code>getSigner</code> returns null while nobody is signed in and for read-only accounts,
-so the runtime refuses writes instead of failing inside a signer that throws.</p>
+so the runtime refuses writes instead of failing inside a signer that throws.
+When kehto names the requesting window, the signer it gets back puts every
+<code>signEvent</code> through <code>consent</code> first, so a destructive write an applet asks
+for is shown to the user and signed only on yes (kehto's runtime signs
+applet publishes here and asks nobody). Without a window the shell is
+signing for itself and the plain signer is returned.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
 <li><span><span class="tsd-kind-parameter">accounts</span>: <span class="tsd-signature-type">AccountManager</span></span>
 <div class="tsd-comment tsd-typography"><p>The shell's account manager.</p>
+</div></li>
+<li><span><span class="tsd-kind-parameter">consent</span>: <a href="../types/_kernl_core.SigningConsent.html" class="tsd-signature-type tsd-kind-type-alias">SigningConsent</a></span>
+<div class="tsd-comment tsd-typography"><p>The gate from <code>createSigningConsent</code>.</p>
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">AuthHooks</span></h4><p>Hooks for <code>ShellAdapter.auth</code>.</p>
 
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-example">
-<h4 class="tsd-anchor-link" id="example">Example<a href="#example" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="ts"><span class="hl-0">const</span><span class="hl-1"> </span><span class="hl-2">auth</span><span class="hl-1"> = </span><span class="hl-3">createAuthHooks</span><span class="hl-1">(</span><span class="hl-4">accounts</span><span class="hl-1">);</span><br/><span class="hl-4">auth</span><span class="hl-1">.</span><span class="hl-3">getUserPubkey</span><span class="hl-1">(); </span><span class="hl-8">// hex pubkey or null</span>
+<h4 class="tsd-anchor-link" id="example">Example<a href="#example" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="ts"><span class="hl-0">const</span><span class="hl-1"> </span><span class="hl-2">auth</span><span class="hl-1"> = </span><span class="hl-3">createAuthHooks</span><span class="hl-1">(</span><span class="hl-4">accounts</span><span class="hl-1">, </span><span class="hl-4">consent</span><span class="hl-1">);</span><br/><span class="hl-4">auth</span><span class="hl-1">.</span><span class="hl-3">getUserPubkey</span><span class="hl-1">(); </span><span class="hl-8">// hex pubkey or null</span><br/><span class="hl-7">await</span><span class="hl-1"> </span><span class="hl-4">auth</span><span class="hl-1">.</span><span class="hl-3">getSigner</span><span class="hl-1">(</span><span class="hl-5">&#39;applet-1&#39;</span><span class="hl-1">)?.</span><span class="hl-3">signEvent</span><span class="hl-1">?.(</span><span class="hl-4">profileTemplate</span><span class="hl-1">); </span><span class="hl-8">// asks the user first</span>
 </code><button type="button">Copy</button></pre>
 
 </div></div></div></li></ul></section></div>
