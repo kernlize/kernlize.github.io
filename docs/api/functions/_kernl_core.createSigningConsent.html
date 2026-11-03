@@ -20,7 +20,8 @@
 applet.</p>
 <p>Routine kinds pass without a prompt. A destructive kind (see
 <a href="_kernl_core.isDestructiveKind.html" class="tsd-kind-function">isDestructiveKind</a>) is described against the account's current
-version from the event store and put to the user through
+version, from the event store or the network (see <a href="_kernl_core.lookupReplaceable.html" class="tsd-kind-function">lookupReplaceable</a>),
+and put to the user through
 <code>host.presentConsent</code>; the gate waits for the answer and nothing is signed
 unless it is yes. The summary's <code>event</code> is the unsigned draft: its <code>id</code> and
 <code>sig</code> are empty because signing has not happened yet.</p>

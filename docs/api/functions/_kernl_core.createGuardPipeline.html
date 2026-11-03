@@ -21,11 +21,15 @@ focus-aware firewall, then kehto's bridge.</p>
 <p>What is enforced where (D-001): kehto binds NAP traffic to a <code>MessagePort</code>
 the bridge owns, so the only window-level message the pipeline can hold or
 drop is <code>napplet.hello</code>. Port traffic reaches the pipeline through
-<code>ShellAdapter.onNappletMessage</code>, which is observe-only, so for it the guard
-is reactive: rejections and flags become events for the user, and a
-quarantine asks the shell to revoke the window. Pre-dispatch limits for port
-traffic come from the runtime firewall configured by
-<code>applyRuntimeFirewallRules</code>.</p>
+<code>ShellAdapter.onNappletMessage</code>, which kehto calls synchronously before it
+dispatches each envelope but treats as observe-only: its answer cannot hold,
+delay or refuse the envelope. Rejections and flags therefore become events
+for the user while the envelope is still handled. Quarantine is the one
+disposition with an effect on the envelope itself: the shell revokes the
+window inside the callback, kehto then finds no session for it, and the
+envelope that crossed the limit is dropped along with everything after it.
+Pre-dispatch limits for port traffic come from the runtime firewall
+configured by <code>applyRuntimeFirewallRules</code>.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>

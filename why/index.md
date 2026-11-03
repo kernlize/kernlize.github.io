@@ -32,8 +32,8 @@ A shell has two jobs. It gives you a place where your identity and your things a
 When the toolkit offers a privacy or safety mitigation, kernl turns it on, in its strict setting, and documents how to ease it. You matter more than the applet developer does. Within reason: an applet interface so tight that nothing can be written protects nobody.
 
 - The [guard](https://kernlize.github.io/guard/) ships strict, with focus-aware tightening.
-- Hidden and minimised applets have their traffic deferred.
-- A protection is loosened per applet, by you. Never globally, never by a flag.
+- Hidden and minimised applets are measured against a smaller budget, and one that keeps downloading while hidden is stopped.
+- A protection is loosened by you, never by a developer or a flag. Today that choice covers the whole shell until you reload; loosening one applet at a time is planned.
 
 04
 

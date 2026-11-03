@@ -92,7 +92,7 @@ kernl is a first draft. This page says what runs, what is a contract without an 
 - **Web fetch from the browser shell, beyond the simple case.** The HTTP bridge runs in the page, so it is subject to CORS, and an opaque redirect it cannot inspect is refused with `denied:redirect-unverifiable`. Web fetch works from the shell for `https` origins that permit cross-origin reads and answer without a redirect. Hostnames are checked as literals only; no resolver is wired. See [Bridges](https://kernlize.github.io/docs/concepts/bridges.md#the-http-bridge).
 - **Per-host bridge consent.** `createKernl` builds the bridge registry with `createDefaultBridges()` and no `authorize` hook, so a `resource` request from a granted applet is checked by the HTTP bridge's SSRF policy and nothing else. A host that wants a prompt per host or scheme passes its own registry in `KernlOptions.bridges`.
 - **Per-applet guard profiles.** `GuardFacade.setProfile` rebuilds the pipeline for the whole shell and is not persisted. The per-applet, remembered override [D-003](https://kernlize.github.io/docs/decisions.md#d-003) describes is not in this draft.
-- **Mobile layouts.** The layouts are desktop tilings over `@kehto/wm`. Narrow viewports get a single stacked window without gestures.
+- **Mobile layouts beyond the basics.** The layouts are desktop tilings over `@kehto/wm`. At 720 px wide and below the shell switches to a compact layout: every window fills the desktop, and the bar keeps **Open** and moves the guard, messages, layout, minimised windows, settings and sign-out into a **Menu** sheet; panels open as full-width sheets. There are no gestures.
 - **Multi-account switching.** `AccountManager` holds several accounts and the sign-in panel lists them, but switching means signing out and in.
 - **Grant persistence across devices.** Grants, relay tiers and messaging preferences persist in the host's storage only. There is no sync.
 - **Packages on npm.** The `@kernl/*` packages are not published; they are used from a clone of the source repository, which is private during the alpha. See [Packages](https://kernlize.github.io/docs/packages/index.md#install).
@@ -104,10 +104,10 @@ The [Roadmap](https://kernlize.github.io/docs/roadmap.md) orders this list.
 
 kernl composes kehto rather than forking it ([D-001](https://kernlize.github.io/docs/decisions.md#d-001)). Four seams in kehto are narrower than kernl wants. All four are to be filed upstream against `kehto/web`, rather than patched locally; no upstream issue exists for them yet. Each has a kernl layer that shrinks when it lands ([D-012](https://kernlize.github.io/docs/decisions.md#d-012)):
 
-1. **`ShellAdapter` does not forward `getFocusContext`, `onFirewallEvent` or `firewallPersistence` to the runtime.** kernl runs its focus-aware firewall in `@kernl/guard`, in front of the bridge for the window-level `hello` and reactively for port traffic, using the pure `evaluate()` engine with visibility supplied by the host. Because that layer never supplies `initElapsedMs`, kehto's init-burst guard does not fire there; the per-second burst is the ingress guard's, and `createGuardConfig` sets `firewall.burstGuard` to match.
+1. **`ShellAdapter` does not forward `getFocusContext`, `onFirewallEvent` or `firewallPersistence` to the runtime.** Without `getFocusContext` the runtime firewall treats every window as focused. kernl runs its focus-aware firewall in `@kernl/guard`, in front of the bridge for the window-level `hello` and as an observer of port traffic, using the pure `evaluate()` engine with visibility supplied by the host. Because that layer never supplies `initElapsedMs`, kehto's init-burst guard does not fire there; the per-second burst is the ingress guard's, and `createGuardConfig` sets `firewall.burstGuard` to match.
 2. **`createRuntime` hardcodes the ACL default policy to `'permissive'`.** kernl produces its restrictive posture with `KernlGrants.ensure`, which writes an explicit grant or revoke for every capability of every applet it plans, plus `capabilities.resolveEnvironment`, which narrows the advertised domains to the baseline and the user's grants. The permissive default is never reached for an applet kernl runs.
-3. **There is no pre-dispatch hook on port traffic.** `onNappletMessage` is observe-only, so kernl's ingress guard, visibility gate and focus firewall see a port envelope after the runtime dispatched it. Pre-dispatch limits come from the runtime's own firewall, configured through `applyRuntimeFirewallRules`; deferral while hidden is advisory for port traffic. See [Guard](https://kernlize.github.io/docs/concepts/guard.md#where-enforcement-happens).
-4. **`FirewallStateContainer` has no setter for `unfocusedMultiplier`.** The runtime firewall applies kehto's default multiplier before dispatch; the profile's value is applied only by kernl's reactive focus firewall.
+3. **There is no hook that can hold or drop port traffic.** kehto calls `onNappletMessage` synchronously before it dispatches each envelope, but ignores its answer, so kernl's ingress guard, visibility gate and focus firewall can count and report an envelope but not refuse or delay it. The one effect they have is quarantine: revoking the binding inside the hook stops the envelope that crossed the limit, because kehto then finds no session for the window. Refusals come from the runtime's own firewall, configured through `applyRuntimeFirewallRules`; deferral while hidden is advisory for port traffic. See [Guard](https://kernlize.github.io/docs/concepts/guard.md#where-enforcement-happens).
+4. **The runtime firewall never applies an unfocused multiplier.** Because of gap 1 the runtime sees every window as focused, so its multiplier, whatever the value, never applies; and `FirewallStateContainer` has no setter for `unfocusedMultiplier`, so kernl could not install the profile's value even if focus were forwarded. The profile's value is applied only by kernl's focus firewall, which reports overruns rather than refusing them.
 
 A fifth observation, not a gap kernl needs closed: the transport internals `createNip5dTransport` and `createShellReadyState` are not exported, so kernl uses `createShellBridge` unchanged.
 
@@ -160,10 +160,10 @@ Put a domain in `requires` only if your applet is useless without it. The launch
 
 ## Where the guard acts on your traffic
 
-kehto's bridge owns the port your applet talks over, and kernl sees that traffic only after the runtime has dispatched it ([D-012](https://kernlize.github.io/docs/decisions.md#d-012)). Two layers follow from that, and they behave differently:
+kehto's bridge owns the port your applet talks over. kernl sees each envelope synchronously, just before kehto dispatches it, but cannot hold or drop it ([D-012](https://kernlize.github.io/docs/decisions.md#d-012)). Two layers follow from that, and they behave differently:
 
-- **Before dispatch**, kehto's own runtime firewall enforces the profile's per-class rates, which `kernl.mount` installs for your applet's `dTag`. An over-budget envelope is refused by the runtime with an error that starts `firewall:`.
-- **After dispatch**, kernl's guard observes the same traffic with the shell's knowledge of visibility and focus. It records guard events and can quarantine your applet, but it cannot hold or refuse a single envelope.
+- **kehto's runtime firewall refuses.** It enforces the profile's per-class rates, which `kernl.mount` installs for your applet's `dTag`. An over-budget envelope is refused by the runtime with an error that starts `firewall:`.
+- **kernl's guard reports, and quarantines.** It observes the same traffic with the shell's knowledge of visibility and focus and records guard events. It cannot refuse a single envelope, with one exception: when an envelope pushes your applet over a quarantine limit, kernl revokes the binding inside that observation, so that envelope is not dispatched and your applet is closed.
 
 The window-level `hello` is the one message kernl filters before kehto sees it.
 
@@ -171,21 +171,21 @@ The window-level `hello` is the one message kernl filters before kehto sees it.
 
 The shell boots in `strict`. The numbers are in [Guard](https://kernlize.github.io/docs/concepts/guard.md#profiles); the behaviours you will notice:
 
-**Hidden windows are not paused.** While your window is minimised or the page is hidden, your envelopes are still dispatched; nothing is queued for later. The visibility gate holds only a window-level `hello` sent while hidden. What hiding changes is your budget: hidden implies unfocused, so the reactive firewall counts you at the unfocused capacity, and resource requests count against the hidden allowance below. Still design as if delivery can stall: do not time out a request after a few seconds, and do not assume a subscription delivers while you are hidden. A true pre-dispatch hold is requested upstream ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#upstream-gaps)).
+**Hidden windows are not paused.** While your window is minimised or the page is hidden, your envelopes are still dispatched; nothing is queued for later. The visibility gate holds only a window-level `hello` sent while hidden. What hiding changes is what kernl counts: hidden implies unfocused, so kernl's focus firewall measures you at the unfocused capacity and reports overruns, and resource requests count against the hidden allowance below, which does stop you. Still design as if delivery can stall: do not time out a request after a few seconds, and do not assume a subscription delivers while you are hidden. A true pre-dispatch hold is requested upstream ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#upstream-gaps)).
 
-**Hidden resource allowance.** A hidden window may make 8 `resource.*` requests; the ninth quarantines it with `flood:hidden-resource`. The count resets as soon as the window is visible again. Fetch what you need while visible.
+**Hidden resource allowance.** A hidden window may make 8 `resource.*` requests; the ninth quarantines it with `flood:hidden-resource`, and that ninth request is not dispatched. The count resets as soon as the window is visible again. Fetch what you need while visible.
 
-**Rate limits by operation class.** Each class has its own token bucket, keyed by your applet's `dTag`, so two windows of your applet share one budget. In `strict`: 30 `relay.subscribe` and 20 `relay.publish` per minute, 20 `dm.send` and 10 `intent.*` per minute, 120 `resource.*` and 60 `storage.set`/`storage.remove` per 10 seconds. These are the limits the runtime enforces before dispatch, with kehto's default unfocused multiplier; deletions (kind 5) count against the `relay.publish` budget there and have no bucket of their own. After dispatch, kernl's firewall counts the same classes again, plus 5 deletions per minute, at 0.25 of capacity while your window is not focused, and reports each overrun as a guard event such as `rate:relay:publish` or `rate:relay:publish:delete`. Those reports do not refuse anything.
+**Rate limits by operation class.** Each class has its own token bucket, keyed by your applet's `dTag`, so two windows of your applet share one budget. In `strict`: 30 `relay.subscribe` and 20 `relay.publish` per minute, 20 `dm.send` and 10 `intent.*` per minute, 120 `resource.*` and 60 `storage.set`/`storage.remove` per 10 seconds. These are the limits the runtime enforces before dispatch, at full capacity whether or not your window is focused: kehto's `ShellAdapter` does not forward focus to the runtime, so its unfocused multiplier never applies. Deletions (kind 5) count against the `relay.publish` budget there and have no bucket of their own. kernl's focus firewall counts the same classes again, plus 5 deletions per minute, at 0.25 of capacity while your window is not focused, and reports each overrun as a guard event such as `rate:relay:publish` or `rate:relay:publish:delete`. Those reports do not refuse anything.
 
-**Ingress flood control.** kernl counts 8 messages per second per window. Above that it reports `flood:burst` (and `flood:queue-full` once 64 are counted as waiting); for port traffic these are events only. The hard limit is real: 300 messages inside any rolling 10 seconds quarantines the window with `flood:quarantine`. Batch your writes and coalesce your subscriptions.
+**Ingress flood control.** kernl counts 8 messages per second per window. Above that it reports `flood:burst` (and `flood:queue-full` once 64 are counted as waiting); for port traffic these are events only. The hard limit is real: the 300th message inside any rolling 10 seconds quarantines the window with `flood:quarantine`, and that message is not dispatched. Batch your writes and coalesce your subscriptions.
 
 **Quarantine stops your applet.** A quarantined window has its binding revoked and its frame removed. The user sees "This applet was stopped." and can open your applet again in a fresh window; nothing resumes on its own.
 
-**Envelope caps.** `resource.*` envelopes over 64 KiB and `relay.subscribe`/`outbox.subscribe` (including `outbox.query`) envelopes over 256 KiB are reported as `size:<class>`. In this draft port traffic is observed after dispatch, so the cap is not enforced on the port; do not rely on that. Large filters are a smell; split them.
+**Envelope caps.** `resource.*` envelopes over 64 KiB and `relay.subscribe`/`outbox.subscribe` (including `outbox.query`) envelopes over 256 KiB are reported as `size:<class>`. kernl measures each envelope before dispatch but cannot hold it, so the cap is not enforced on the port; do not rely on that. Large filters are a smell; split them.
 
 **No init-burst exemption.** kehto's own init-burst guard is not what runs here: kernl counts the same 8 messages per second from the first message your applet sends. Load lazily: request the first screen, render, then fetch the rest.
 
-**Consent for destructive kinds.** When your applet asks the shell to sign an event of kind 0, 3, 5, 10002 or a list kind (10000–10099, 30000–30099), through `relay.publish` or `outbox.publish`, kernl shows the user a summary of what changes and waits. Expect the publish to take as long as a person takes to read. If they refuse, signing fails with `denied:consent` and nothing is published; you receive the normal error envelope. Every other kind is signed without a prompt, and nothing is remembered: the next destructive write asks again.
+**Consent for destructive kinds.** When your applet asks the shell to sign a replaceable event (kind 0, 3 or 10000–19999), an addressable event (30000–39999), a deletion (5) or a request to vanish (62), through `relay.publish` or `outbox.publish`, kernl looks up the version it replaces (for up to 4 seconds on the network), shows the user a summary of what changes and waits. Expect the publish to take as long as a person takes to read. If they refuse, signing fails with `denied:consent` and nothing is published; you receive the normal error envelope. Every other kind is signed without a prompt, and nothing is remembered: the next destructive write asks again.
 
 None of this changes the wire format. A refusal is a normal NAP error envelope; a guard event is visible to the user, not to your applet.
 
@@ -224,7 +224,7 @@ Scenarios worth writing for your own applet:
 
 ## Run it in kernl
 
-Follow [Run the shell](https://kernlize.github.io/docs/tutorials/run-the-shell.md), publish your applet with the napplet tooling to a relay in the shell's `apps` tier (by default `wss://relay.napplet.soy`), click **Open an applet** and paste its address. The launcher shows which switches your `requires` and `optional` produced. The guard panel (*Guard · strict · N* in the desktop bar) lists every guard event your applet triggered as a sentence that names the applet, what happened and why ("Applet … was refused: too many publishes" for `rate:relay:publish`); the window's grants panel shows how many guard events it has had this session. Together they are the fastest feedback you will get on posture.
+[Write an applet](https://kernlize.github.io/docs/tutorials/write-an-applet.md) walks through this end to end with a minimal applet. In short: follow [Run the shell](https://kernlize.github.io/docs/tutorials/run-the-shell.md), publish your applet with the napplet tooling to a relay in the shell's `apps` tier (by default `wss://relay.napplet.soy`), click **Open an applet** and paste its address. The launcher shows which switches your `requires` and `optional` produced. The guard panel (*Guard · strict · N* in the desktop bar) lists every guard event your applet triggered as a sentence that names the applet, what happened and why ("Applet … went over a limit: too many publishes" for `rate:relay:publish`; kernl reports these, and the runtime's rates do the refusing); the window's grants panel shows how many guard events it has had this session. Together they are the fastest feedback you will get on posture.
 
 ## Related
 
@@ -432,11 +432,12 @@ Before every request, including every redirect hop, the bridge checks the URL. A
 
 | Check | Blocked |
 | --- | --- |
-| `isPrivateAddress`, IPv4 | `0.0.0.0/8`, `10.0.0.0/8`, `100.64.0.0/10`, `127.0.0.0/8`, `169.254.0.0/16`, `172.16.0.0/12`, `192.168.0.0/16`, `224.0.0.0/3` (multicast, reserved and broadcast) |
-| `isPrivateAddress`, IPv6 | `::` and `::1`, `fe80::/10`, `fc00::/7`, `ff00::/8`; brackets are stripped; an IPv4-mapped address (`::ffff:127.0.0.1`) is judged as its IPv4 part |
+| `isPrivateAddress`, IPv4 | `0.0.0.0/8`, `10.0.0.0/8`, `100.64.0.0/10`, `127.0.0.0/8`, `169.254.0.0/16`, `172.16.0.0/12`, `192.0.0.0/24` (IETF protocol assignments), `192.168.0.0/16`, `198.18.0.0/15` (benchmarking), `224.0.0.0/3` (multicast, reserved and broadcast) |
+| `isPrivateAddress`, IPv6, judged by the embedded IPv4 address | IPv4-compatible `::/96` (which covers `::` and `::1`), IPv4-mapped `::ffff:0:0/96`, IPv4-translated `::ffff:0:0:0/96` and the well-known NAT64 prefix `64:ff9b::/96`: the low 32 bits are checked against the IPv4 list above, so `::ffff:127.0.0.1` is blocked and a NAT64 address for a public host is not |
+| `isPrivateAddress`, IPv6, blocked outright | link-local `fe80::/10`, deprecated site-local `fec0::/10`, unique-local `fc00::/7`, multicast `ff00::/8`, discard-only `100::/64`, local-use NAT64 `64:ff9b:1::/48`, and the tunnelling prefixes 6to4 `2002::/16` and Teredo `2001::/32`, whose embedded IPv4 address the bridge cannot vouch for |
 | `isBlockedHostname` | `localhost` and any name under `.localhost`, `.local` or `.internal`, case-insensitively, trailing dot ignored |
 
-Strings that are neither a valid IPv4 nor a valid IPv6 literal (`1.2.3`, `256.1.1.1`, `1::2::3`, `example.com`) are not addresses and pass `isPrivateAddress`; a hostname is judged by `isBlockedHostname` and, only if a resolver was supplied, by what it resolves to.
+An IPv6 literal is parsed to its full 128 bits before it is judged: `::` is expanded, a dotted IPv4 tail is converted, brackets and a zone suffix (`%eth0`) are stripped, and case is ignored. Every spelling of an address is therefore judged the same way, including the hex form `new URL` normalises `[::ffff:127.0.0.1]` to (`::ffff:7f00:1`). Strings that are neither a valid IPv4 nor a valid IPv6 literal (`1.2.3`, `256.1.1.1`, `1::2::3`, `example.com`) are not addresses and pass `isPrivateAddress`; a hostname is judged by `isBlockedHostname` and, only if a resolver was supplied, by what it resolves to. The shell supplies none, so in the composed shell the check is literal-only.
 
 Every request is made with `redirect: 'manual'`, so the bridge decides about each hop itself. What that yields depends on where the bridge runs:
 
@@ -445,7 +446,7 @@ Every request is made with `redirect: 'manual'`, so the bridge decides about eac
 
 Browser requests are also subject to CORS: the shell's page fetches the URL, so an origin that does not allow cross-origin reads fails, and the browser does not say why. A request the browser blocks, for CORS or because the network failed, surfaces as `unavailable:network Failed to fetch`; any other status-0 answer as `unavailable:network <type> response`, for example `unavailable:network opaque response`. In practice the web bridge in the shell works for `https` origins that permit cross-origin reads and answer without a redirect. Requests race `AbortSignal.timeout(timeoutMs)` and the caller's signal: the time limit fails with `unavailable:timeout`, a caller cancel with `unavailable:aborted`, any other fetch failure with `unavailable:network <message>`. Caller headers are forwarded on every hop.
 
-A response whose `content-length` exceeds `maxBytes` fails with `denied:too-large` before the body is read. Otherwise the `Response` is returned with its status and headers, and its body is streamed through a counter that errors the stream with `denied:too-large` the moment the limit is crossed. Before the request reaches the bridge, kehto's runtime firewall applies the `resource:fetch` rate kernl installed at mount. The guard's `hiddenResourceAllowance`, `maxResourceEnvelopeBytes` and reactive `resource:bytes` bucket see the envelope after dispatch: they report, and the hidden allowance quarantines, but they do not stop that request ([Guard](https://kernlize.github.io/docs/concepts/guard.md#where-enforcement-happens)).
+A response whose `content-length` exceeds `maxBytes` fails with `denied:too-large` before the body is read. Otherwise the `Response` is returned with its status and headers, and its body is streamed through a counter that errors the stream with `denied:too-large` the moment the limit is crossed. Before the request reaches the bridge, kehto's runtime firewall applies the `resource:fetch` rate kernl installed at mount and refuses a request over budget. kernl's guard sees the envelope just before kehto dispatches it but cannot hold it: `maxResourceEnvelopeBytes` and the focus firewall's `resource:bytes` bucket only report, while a hidden window's request past `hiddenResourceAllowance` quarantines the applet, and that request is not dispatched ([Guard](https://kernlize.github.io/docs/concepts/guard.md#where-enforcement-happens)).
 
 ## Backend-driven bridges
 
@@ -499,7 +500,7 @@ The guard is everything that stands between an applet and the user. Some of it i
 
 The rule from `SOUL.md`: if kehto ships a mitigation, kernl enables it by default and documents how to loosen it. Loosening is done by the user, never by a developer flag ([D-003](https://kernlize.github.io/docs/decisions.md#d-003)). In this draft the profile is shell-wide and resets to `strict` on every boot; per-applet profiles are planned ([Roadmap](https://kernlize.github.io/docs/roadmap.md#_6-guard)).
 
-**What runs before dispatch and what only watches.** For an applet's port traffic, which is everything after the handshake, the only limits enforced before kehto dispatches an envelope are kehto's runtime firewall rates, which kernl installs at mount ([Where enforcement happens](#where-enforcement-happens)). kernl's ingress guard and focus firewall see the same envelopes after dispatch: they record guard events and quarantine (revoke the binding) on floods, but they do not hold, drop or size-cap a port envelope. The visibility gate holds only the window-level `hello`. Signing consent is a third path, in the signer itself.
+**What refuses, what reports, what stops.** For an applet's port traffic, which is everything after the handshake, the limits that refuse an envelope are kehto's runtime firewall rates, which kernl installs at mount. kernl's ingress guard and focus firewall see each envelope synchronously, just before kehto dispatches it, but cannot hold or drop it: focus tightening, size caps, bursts and a hidden window's activity are reported as guard events, not refused. The exception is quarantine. When an envelope crosses the flood threshold, or a hidden window's download crosses its allowance, kernl revokes the binding inside the observation, so that envelope is not dispatched and the applet is closed ([Where enforcement happens](#where-enforcement-happens)). The visibility gate holds only the window-level `hello`. Signing consent is a third path, in the signer itself.
 
 ## The eleven mitigations
 
@@ -507,17 +508,17 @@ The rule from `SOUL.md`: if kehto ships a mitigation, kernl enables it by defaul
 
 | # | `id` | Title shown to the user | What it protects against | `provider` | `limit` in `strict` |
 | --- | --- | --- | --- | --- | --- |
-| 1 | `zero-network-sandbox` | Applets cannot reach the network on their own | Exfiltration, tracking pixels, loading code the user did not verify. The frame loads through `srcdoc` with `sandbox="allow-scripts"` and the CSP below; every byte from the network arrives through a shell service. | `kehto` | none |
+| 1 | `zero-network-sandbox` | Applets cannot reach the network on their own | Exfiltration, tracking pixels, loading code the user did not verify. The frame loads through `srcdoc` with `sandbox="allow-scripts"` and the CSP below, and kehto's prelude removes WebRTC before applet code runs ([No network path](#no-network-path)); every byte from the network arrives through a shell service. | `kehto` | none |
 | 2 | `bound-identity` | An applet is only trusted while its connection and code match | A reloaded or substituted document inheriting grants. Identity is `(dTag, artifactHash)` plus the one `MessagePort` transferred in `napplet.hello`. | `kehto` | none |
 | 3 | `verified-artifacts` | Applet code is verified before it runs, and again before reuse | A gateway or cache serving different code than the signed manifest names. Bytes are fetched by hash through `@kehto/nip/5d`, cached only after verification and re-verified on every read. | `kehto` | none |
 | 4 | `replay-detection` | Replayed messages are dropped | One frame speaking for another; replaying a handshake. A window-level message, a second `hello`, a `hello` without exactly one port, a second load or a closed port revokes the binding. | `kehto` | none |
-| 5 | `rate-limits` | Applets have a budget for how often they can act | Publishing, subscribing or spending quota at a rate no human interaction explains. Enforced before dispatch: kehto's runtime firewall refuses over-budget envelopes using the per-class rates kernl installs at mount, where deletions count against `relay:write`. After dispatch, kernl's focus firewall counts the same classes again, including a separate `relay:publish:delete` bucket, and reports overruns as `rate:<class>` events. | `both` | `publish 20 per 60s, delete 5 per 60s, messages 20 per 60s` |
-| 6 | `focus-tightening` | Applets you are not using are measured against a smaller budget | Background windows spending a foreground budget. Reported after dispatch: kernl's focus firewall counts an unfocused window at `unfocusedMultiplier` of capacity and emits a guard event when it goes over; it does not refuse. Focus is observed by the shell, never self-reported. Before dispatch the runtime applies kehto's default multiplier, because it has no setter for kernl's. | `kernl` | `25% of the focused budget` |
-| 7 | `hidden-deferral` | Hidden applets that keep downloading are stopped | Hidden or minimised applets consuming network budget the user cannot see. After dispatch, each `resource.*` request from a hidden window counts against `hiddenResourceAllowance`; the one past it quarantines the window (`flood:hidden-resource`), which revokes its binding. Other port traffic from a hidden window is recorded, not held. The visibility gate holds only a hidden window's window-level `hello`. | `kernl` | `8 downloads while hidden` |
-| 8 | `ingress-flood` | Applets that flood the shell are put in quarantine | A busy loop starving the shell's main thread. Per-window token bucket, observed after dispatch for port traffic: bursts above `ingressBurst` are reported (`flood:burst`, `flood:queue-full`), and crossing `quarantineThreshold` in 10 s quarantines the window, which revokes its binding. Only the window-level `hello` is actually queued or rejected. | `kernl` | `8 messages per second, 300 per 10s` |
-| 9 | `size-caps` | Oversized requests are reported | Memory pressure from oversized filters or payloads. `resource.*` and `relay.subscribe`/`outbox.subscribe` envelopes are measured after dispatch, by the ingress guard (`size:<class>`) and kehto's content matchers in the focus firewall (`matcher:size:<class>`), and an oversized one is reported as a guard event; it is not stopped. Only an oversized `hello` is rejected. | `kernl` | `downloads 64 KiB, queries 256 KiB` |
-| 10 | `device-denial` | Applets cannot use your camera, microphone or other devices | An applet reaching hardware or a controller the shell registered. Device and controller access is refused for every applet; there is no grant for it. | `kehto` | none |
-| 11 | `destructive-consent` | Deleting or overwriting asks you first | An applet acquiring authority the user did not knowingly give. `createSigningConsent` asks `host.presentConsent` before a destructive kind (0, 3, 5, 10002 and the list kinds) is signed for an applet, on both routes: the window signer from `ShellAdapter.auth.getSigner(windowId)` for `relay.publish`, and kernl's outbox gate for `outbox.publish`. A denial is `denied:consent` and nothing is signed. kehto's runtime has no such step. | `kernl` | none |
+| 5 | `rate-limits` | Applets have a budget for how often they can act | Publishing, subscribing or spending quota at a rate no human interaction explains. Refused before dispatch: kehto's runtime firewall refuses an over-budget envelope until the allowance refills, using the per-class rates kernl installs at mount, where deletions count against `relay:write`. kernl's focus firewall counts the same classes again as each envelope arrives, including a separate `relay:publish:delete` bucket, and reports overruns as `rate:<class>` events. | `both` | `publish 20 per 60s, delete 5 per 60s, messages 20 per 60s` |
+| 6 | `focus-tightening` | Applets you are not using are measured against a smaller budget | Background windows spending a foreground budget. Reported, not refused: kernl's focus firewall counts an unfocused window at `unfocusedMultiplier` of capacity as each envelope arrives and emits a guard event when it goes over, but the envelope is still dispatched. Focus is observed by the shell, never self-reported. The runtime firewall applies no unfocused multiplier at all: kehto's `ShellAdapter` does not forward `getFocusContext`, so the runtime treats every window as focused ([upstream gaps 1 and 4](https://kernlize.github.io/docs/alpha-status.md#upstream-gaps)). The rate-limits budget above still applies in full. | `kernl` | `25% of the focused budget` |
+| 7 | `hidden-deferral` | Hidden applets that keep downloading are stopped | Hidden or minimised applets consuming network budget the user cannot see. Each `resource.*` request from a hidden window counts against `hiddenResourceAllowance` as it arrives; the one past it quarantines the window (`flood:hidden-resource`): the binding is revoked inside the observation, so that request is not dispatched, and the frame is removed. Other port traffic from a hidden window is recorded, not held. The visibility gate holds only a hidden window's window-level `hello`. | `kernl` | `8 downloads while hidden` |
+| 8 | `ingress-flood` | Applets that flood the shell are put in quarantine | A busy loop starving the shell's main thread. Per-window token bucket, counted as each port envelope arrives: bursts above `ingressBurst` are reported (`flood:burst`, `flood:queue-full`) and still dispatched. The message that reaches `quarantineThreshold` in 10 s quarantines the window: the binding is revoked inside the observation, so that message is not dispatched, and the frame is removed. Only the window-level `hello` is actually queued or rejected. | `kernl` | `8 messages per second, 300 per 10s` |
+| 9 | `size-caps` | Oversized requests are reported | Memory pressure from oversized filters or payloads. `resource.*` and `relay.subscribe`/`outbox.subscribe` envelopes are measured as they arrive, by the ingress guard (`size:<class>`) and kehto's content matchers in the focus firewall (`matcher:size:<class>`), and an oversized one is reported as a guard event; it is not stopped. Only an oversized `hello` is rejected. | `kernl` | `downloads 64 KiB, queries 256 KiB` |
+| 10 | `device-denial` | Applets cannot use your camera, microphone or other devices | An applet reaching hardware. `denyNappletControllerAccess` gives the frame the Permissions Policy `gamepad 'none'; hid 'none'; usb 'none'`; the frame's `allow` attribute delegates nothing else, so camera, microphone and other powerful features stay off. There is no grant for any of them. | `kehto` | none |
+| 11 | `destructive-consent` | Deleting or overwriting asks you first | An applet acquiring authority the user did not knowingly give. `createSigningConsent` asks `host.presentConsent` before a destructive kind (every replaceable kind 0, 3, 10000–19999; every addressable kind 30000–39999; 5; 62) is signed for an applet, after looking up the current version in the store and then on the outbox and discovery relays for up to `CURRENT_VERSION_TIMEOUT_MS` (4000 ms); if none is found the summary says "Current version: could not be loaded; this replaces it entirely". It runs on both routes: the window signer from `ShellAdapter.auth.getSigner(windowId)` for `relay.publish`, and kernl's outbox gate for `outbox.publish`. A denial is `denied:consent` and nothing is signed; answers are not remembered, and the shell's own signing is not gated. kehto's runtime has no such step. | `kernl` | none |
 
 `enabled` is `true` for every row in every profile; the field exists for the UI contract. Two things the old shape of this list claimed are not separate mitigations: the opaque-origin frame and the CSP are one row (`zero-network-sandbox`), and kehto's init-burst guard is not a row at all, for the reason given under [Layers](#layers). See `mitigations.feature`, scenario "every mitigation is described once, in display order".
 
@@ -539,7 +540,7 @@ kehto's firewall treats the operation class as an opaque key. `classifyEnvelope`
 | `relay.close`, `outbox.close`, `storage.get`, `storage.keys`, `shell.*`, `inc.*`, `theme.*`, `identity.*`, other `dm.*` | `control` |
 | anything else (`clipboard.write`, …) | `generic` |
 
-`relay:publish:delete` gives kind 5 deletions their own, tighter bucket in kernl's reactive focus firewall, so a burst of deletes is reported as `rate:relay:publish:delete`. Before dispatch there is no separate delete bucket: kehto's runtime firewall keys by capability, and deletions share the `relay:write` budget with other publishes ([translation table](#where-enforcement-happens)). What stops an unwanted deletion is signing consent, not the rate. See `classification.feature`.
+`relay:publish:delete` gives kind 5 deletions their own, tighter bucket in kernl's focus firewall, so a burst of deletes is reported as `rate:relay:publish:delete`. In the layer that refuses there is no separate delete bucket: kehto's runtime firewall keys by capability, and deletions share the `relay:write` budget with other publishes ([translation table](#where-enforcement-happens)). What stops an unwanted deletion is signing consent, not the rate. See `classification.feature`.
 
 ## Profiles
 
@@ -576,7 +577,7 @@ Every rate kernl registers in kehto has exceed action `block`; kehto's own defau
 
 ## Layers
 
-Three stateful objects, each built from the same `GuardConfig`, each keyed by `windowId`, each with a `forget(windowId)` to call on revocation. This section describes each layer's own API, which is what a caller that sits in front of dispatch gets. In the composed shell that is true only for the window-level `hello`; for port traffic the dispositions below become events and, for `quarantine`, a revocation ([Where enforcement happens](#where-enforcement-happens)).
+Three stateful objects, each built from the same `GuardConfig`, each keyed by `windowId`, each with a `forget(windowId)` to call on revocation. This section describes each layer's own API, which is what a caller that sits in front of dispatch gets. In the composed shell that is true only for the window-level `hello`; for port traffic the dispositions below become events and, for `quarantine`, a revocation that also stops the envelope that triggered it ([Where enforcement happens](#where-enforcement-happens)).
 
 | Layer | Enforces | Factory |
 | --- | --- | --- |
@@ -594,13 +595,13 @@ Three stateful objects, each built from the same `GuardConfig`, each keyed by `w
 
 ## Where enforcement happens
 
-kehto's bridge owns the `MessagePort` an applet speaks over and shows the host that traffic only through the observe-only `ShellAdapter.onNappletMessage` hook, so kernl cannot sit between the port and the runtime ([D-001](https://kernlize.github.io/docs/decisions.md#d-001)). Enforcement is therefore layered ([D-012](https://kernlize.github.io/docs/decisions.md#d-012)):
+kehto's bridge owns the `MessagePort` an applet speaks over and shows the host that traffic only through `ShellAdapter.onNappletMessage`. kehto's `dispatchEnvelope` calls that hook synchronously for each envelope, before it resolves the window's session and hands the envelope to the runtime, and ignores the hook's answer. kernl therefore observes every envelope before dispatch but cannot hold or drop it ([D-001](https://kernlize.github.io/docs/decisions.md#d-001)). Enforcement is layered ([D-012](https://kernlize.github.io/docs/decisions.md#d-012)):
 
 | Traffic | Where | How |
 | --- | --- | --- |
 | The window-level `napplet.hello` | kernl, before kehto sees it | `Kernl.handleWindowMessage` resolves the sending window from `originRegistry`, never from the message, and runs ingress guard → visibility gate → focus firewall before `bridge.handleMessage`. This is the one message the pipeline can hold or drop; any other window-level message from a bound applet is kehto's `window-message` revocation. |
-| Port traffic, before dispatch | kehto's runtime firewall, configured by kernl | `kernl.mount` calls `applyRuntimeFirewallRules(bridge.runtime.firewallState, config, dTag)`, which installs the profile's per-class rates for that applet with policy `allow`. The runtime refuses over-budget envelopes itself. |
-| Port traffic, after dispatch | kernl, reactive | `onNappletMessage` feeds `GuardPipeline.observe`: the ingress guard and the focus firewall advance their counters and emit events; a `quarantine` disposition calls `onQuarantine`, which marks the handle revoked with reason `quarantine` and calls `bridge.revokeNapplet(windowId, 'host')`. Nothing can be held or dropped here. |
+| Port traffic, observed | kernl, inside `onNappletMessage`, before dispatch | `onNappletMessage` feeds `GuardPipeline.observe`: the ingress guard and the focus firewall advance their counters and emit events, and the envelope continues to the runtime. A `quarantine` disposition calls `onQuarantine`, which marks the handle revoked with reason `quarantine` and calls `bridge.revokeNapplet(windowId, 'host')` while kehto is still inside the hook. kehto then finds no session for the window and does not dispatch the envelope, and the frame is removed. Quarantine is the only outcome here that stops an envelope. |
+| Port traffic, refused | kehto's runtime firewall, configured by kernl | `kernl.mount` calls `applyRuntimeFirewallRules(bridge.runtime.firewallState, config, dTag)`, which installs the profile's per-class rates for that applet with policy `allow`. The runtime refuses over-budget envelopes itself, before it handles them. Rates are installed at mount: a window keeps the rates it was mounted with until it is opened again. |
 
 The runtime keys its rates by the sender capability a message needs, while the guard classifies by what a message does. `RUNTIME_OP_CLASSES` translates:
 
@@ -608,7 +609,7 @@ The runtime keys its rates by the sender capability a message needs, while the g
 | --- | --- |
 | `relay:subscribe` | `relay:read` |
 | `relay:publish` | `relay:write` |
-| `relay:publish:delete` | none; deletions share `relay:write` before dispatch and keep their own bucket only in the reactive layer |
+| `relay:publish:delete` | none; deletions share `relay:write` in the runtime and keep their own bucket only in kernl's focus firewall, which reports |
 | `outbox:subscribe` | `outbox:read` |
 | `outbox:publish` | `outbox:write` |
 | `resource:bytes` | `resource:fetch` |
@@ -618,18 +619,18 @@ The runtime keys its rates by the sender capability a message needs, while the g
 | `control` | none; control envelopes need no capability |
 | `generic` | the per-applet global rate (`setGlobalRate`) |
 
-Two limits of this arrangement are stated plainly. `FirewallStateContainer` has no setter for `unfocusedMultiplier`, so the runtime firewall applies kehto's default multiplier before dispatch and the profile's value (`0.25` in `strict`) only in the reactive focus firewall. And hidden-window deferral is advisory for port traffic in this draft: the visibility gate holds only window-level messages, and by the time `observe` sees a port envelope the runtime has already dispatched it, so for a hidden window the gate's effect is the tightened budget, the hidden-resource allowance that still quarantines, and the event trail, not a held queue. Both are recorded as upstream gaps in [Alpha status](https://kernlize.github.io/docs/alpha-status.md#upstream-gaps).
+Two limits of this arrangement are stated plainly. The runtime firewall never applies an unfocused multiplier: kehto's `ShellAdapter` does not forward `getFocusContext`, so the runtime builds every observation as focused, and `FirewallStateContainer` has no setter for `unfocusedMultiplier` either. The profile's value (`0.25` in `strict`) is applied only by kernl's focus firewall, which reports. And hidden-window deferral is advisory for port traffic in this draft: the visibility gate holds only window-level messages, and `observe` cannot hold a port envelope, so for a hidden window the gate's effect is the tightened, reported budget, the hidden-resource allowance that quarantines, and the event trail, not a held queue. Both are recorded as upstream gaps in [Alpha status](https://kernlize.github.io/docs/alpha-status.md#upstream-gaps).
 
 ## Dispositions and reasons
 
 `IngressGuard.admit()` returns one of four dispositions:
 
-| Disposition | Meaning | For the window-level `hello` | For port traffic (after dispatch) |
+| Disposition | Meaning | For the window-level `hello` | For port traffic (observed, not held) |
 | --- | --- | --- | --- |
-| `pass` | Within budget. | Forwarded to the bridge after the visibility gate and the focus firewall. | Nothing; the envelope was already dispatched. |
-| `defer` | The per-second burst is spent; the envelope is queued. | Held; `drainAll` forwards it as tokens refill. | A `flood:burst` event. Nothing is held. |
-| `reject` | The queue is full or the envelope is over its size cap. | Dropped. | A `flood:queue-full` or `size:<class>` event. Nothing is dropped. |
-| `quarantine` | The window hit the quarantine threshold or the hidden resource allowance, or is still quarantined. | Dropped, and the window is revoked. | `onQuarantine` revokes the binding and removes the frame. |
+| `pass` | Within budget. | Forwarded to the bridge after the visibility gate and the focus firewall. | Nothing; the envelope is dispatched. |
+| `defer` | The per-second burst is spent; the envelope is queued. | Held; `drainAll` forwards it as tokens refill. | A `flood:burst` event. The envelope is still dispatched. |
+| `reject` | The queue is full or the envelope is over its size cap. | Dropped. | A `flood:queue-full` or `size:<class>` event. The envelope is still dispatched. |
+| `quarantine` | The window hit the quarantine threshold or the hidden resource allowance, or is still quarantined. | Dropped, and the window is revoked. | `onQuarantine` revokes the binding inside the hook, so this envelope is not dispatched, and the frame is removed. |
 
 Every disposition other than `pass`, and every `pass` the firewall flagged, emits a `GuardEvent` with a stable prefixed reason. The user sees these events; secrets never appear in them.
 
@@ -657,6 +658,14 @@ default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'un
 ```
 
 An applet that needs a network resource asks the `resource` domain, and the request goes through a [bridge](https://kernlize.github.io/docs/concepts/bridges.md). See `csp.feature`, scenario "the relaxed profile does not loosen the CSP".
+
+## No network path
+
+The CSP is half of `zero-network-sandbox`. The other half is kehto's prelude, which `prepareNappletSrcdoc` puts in the frame right after the CSP `<meta>`, so it runs before any applet code. Before it opens the port to the shell, the prelude takes every global whose name starts with `RTC`, plus `webkitRTCPeerConnection`, `mozRTCPeerConnection`, `webkitRTCSessionDescription`, `mozRTCSessionDescription`, `webkitRTCIceCandidate` and `mozRTCIceCandidate`, and redefines each as `undefined`, read-only, non-configurable and non-enumerable. The names still exist, but no value can be put back: `delete` and assignment leave them `undefined`. A peer connection would otherwise be a way out the CSP does not cover.
+
+Everything else is refused by the CSP: `fetch` and WebSocket by `connect-src 'none'`, images by `img-src data: blob:`, nested frames by `frame-src 'none'` and `child-src 'none'`, and beacons by `connect-src`. `navigator.sendBeacon` still returns `true`, because it only reports that the beacon was queued; the request is refused when the browser sends it, and fails with `csp`.
+
+`tests/e2e/applet-network-sealed.spec.ts` proves this in Chromium. It builds an applet frame the way kernl does (`createAppletCsp('strict')`, kehto's `prepareNappletSrcdoc`, `sandbox="allow-scripts"`, a host page carrying `KERNL_FRAME_POLICY_META`), runs applet code that tries each way out, and asserts that `fetch` fails, the WebSocket never opens, every `RTC*` global is pinned to `undefined` and cannot be restored, the image and the nested frame do not load, the browser reports a CSP violation for each attempt including the beacon, and no request reaches the network layer: every outbound request fails with `csp`.
 
 ## What the guard is not
 
@@ -719,21 +728,25 @@ The practical effect for an applet: `requires` in the manifest is honoured as a 
 
 ## Consent for destructive writes
 
-Most writes an applet asks the shell to sign are additive: a note, a reaction, a list item. Some replace or erase the account's public record, and kernl asks before signing those. The check is kernl's, not kehto's: kehto's runtime has no consent step for destructive signing. `createKernl` builds one gate with `createSigningConsent` (`consent/handler.ts`) and puts both routes an applet's write can take through it:
+Most writes an applet asks the shell to sign are additive: a note, a reaction, a comment. Some replace or erase the account's public record, and kernl asks before signing those. The check is kernl's, not kehto's: kehto's runtime has no consent step for destructive signing. `createKernl` builds one gate with `createSigningConsent` (`consent/handler.ts`) and puts both routes an applet's write can take through it:
 
 - **`relay.publish`.** kehto signs through `ShellAdapter.auth.getSigner(windowId)`; the signer kernl returns for a window awaits the gate in `signEvent` before the account signs.
 - **`outbox.publish`.** kehto's outbox service signs without naming the window, so kernl gates `outbox.publish` in the service wrapper (`kernl-services.ts`) before the message reaches the service; a refusal is answered as `outbox.publish.result` with `ok: false`.
 
-For a kind `isDestructiveKind` accepts, the gate runs `describeChange(draft, before, applet)` (`consent/describe-change.ts`), with `before` the current version of the replaceable event from the `EventStore`:
+`isDestructiveKind` accepts every replaceable kind (0, 3, 10000–19999), because signing one overwrites the version before it; every addressable kind (30000–39999), for the same reason; kind 5, a deletion; and kind 62, a request to vanish. For those, the gate first looks up the current version: `lookupReplaceable` reads the `EventStore` and, on a miss, asks the user's outbox and discovery relays through the applesauce address loader, waiting at most `CURRENT_VERSION_TIMEOUT_MS` (4000 ms). It then runs `describeChange(draft, before, applet)` (`consent/describe-change.ts`):
 
 | Kind | Severity | What the user sees |
 | --- | --- | --- |
 | `0` | `destructive` | "Update your profile": one line per changed field, with the value before and after. |
 | `3` | `destructive` | "Change who you follow": follows added and removed, counted, the first three named by abbreviated key. |
-| `5` | `destructive` | "Delete N events": one line per event id. |
+| `5` | `destructive` | "Delete N events": one line per event id (`e` tag), and one "Delete every version of" line per address (`a` tag). |
+| `62` | `destructive` | "Ask services to erase your account": everything the account published, and which services are asked. |
 | `10002` | `destructive` | "Change your connections list": relays added and removed with their read/write markers. |
 | 10000–10099, 30000–30099 | `destructive` | "Change the list …": entries added and removed. |
+| any other replaceable or addressable kind | `destructive` | "Replace your kind N event": tags added and removed, and "Content: Replaced" when the content changes, without copying it. |
 | everything else | `routine` | No prompt; the event is signed without asking. |
+
+When no current version is found, in the store or on the network within the timeout, a replaceable or addressable summary starts with "Current version: could not be loaded; this replaces it entirely" (`UNKNOWN_CURRENT_VERSION`), so the user is not shown a first version that seems to remove nothing.
 
 The gate calls `host.presentConsent({ summary, resolve })` and waits. *Allow* signs the event. Deny or dismiss rejects with `denied:consent`: nothing is signed and nothing is published. The core never times a prompt out. A destructive write from a window kernl did not mount is refused with `denied:unknown-applet`, one while nobody is signed in with `denied:signed-out`, and a write whose kind is not a number with `invalid:event-kind`.
 
@@ -745,11 +758,11 @@ Three limits are deliberate:
 
 kehto's own `ConsentRequest` is a different thing: the runtime raises it, without an event, when a firewall policy is `prompt`. `createConsentHandler` is registered for it and refuses those without asking; a future request that carries an event, from a window the shell can name, would be described and put to the user. kernl's runtime rules set policy `allow`, so the firewall path is not expected.
 
-Deletions are not rate-limited more tightly than other publishes before dispatch: kind 5 shares the `relay:write` budget in kehto's runtime firewall. The guard's separate `relay:publish:delete` bucket runs only in the reactive layer, where an overrun becomes a guard event ([Guard](https://kernlize.github.io/docs/concepts/guard.md#where-enforcement-happens)).
+Deletions are not rate-limited more tightly than other publishes before dispatch: kind 5 shares the `relay:write` budget in kehto's runtime firewall. The guard's separate `relay:publish:delete` bucket runs only in kernl's own focus firewall, which observes each envelope before dispatch but cannot hold it, so an overrun becomes a guard event ([Guard](https://kernlize.github.io/docs/concepts/guard.md#where-enforcement-happens)).
 
 ## What the applet learns
 
-The applet learns its own narrowed environment through `shell.init`. It does not learn why a domain is missing, whether other applets have it, or what the user's other grants are. It never sees `window.nostr`, a key, the `EventStore`, or plaintext the user did not ask the shell to show it.
+The applet learns its own narrowed environment through `shell.init`. It does not learn why a domain is missing, whether other applets have it, or what the user's other grants are. The shell never gives it `window.nostr`, a key, the `EventStore`, or plaintext the user did not ask the shell to show it.
 
 ## Related
 
@@ -901,7 +914,7 @@ Format: `D-NNN · title` → Context, Decision, Consequences, Reversal cost.
 - Focus-aware rate limiting runs in `@kernl/guard` using the pure `@kehto/firewall` `evaluate()` engine with focus supplied by kernl's window manager. The runtime's built-in firewall is additionally tightened through `bridge.runtime.firewallState`.
 - A restrictive grant posture is produced with `capabilities.resolveEnvironment`, which narrows the advertised domains per applet identity until the user grants them, plus explicit `aclState.grant` calls. The runtime's permissive default is never reached for a domain the user has not granted.
 
-**Consequences.** Four upstream gaps are recorded against kehto/web rather than patched locally: (1) forward the firewall hooks through `ShellAdapter`; (2) let the host choose the ACL default policy; (3) offer a pre-dispatch hook on port traffic, since `onNappletMessage` is observe-only; (4) expose a setter for the runtime firewall's `unfocusedMultiplier`. When any of them lands, the corresponding kernl layer shrinks (see D-012).
+**Consequences.** Four upstream gaps are recorded against kehto/web rather than patched locally: (1) forward the firewall hooks through `ShellAdapter`; (2) let the host choose the ACL default policy; (3) offer a hook that can hold or drop port traffic, since `onNappletMessage` runs before dispatch but its answer is ignored; (4) let the runtime firewall apply an unfocused multiplier, which needs (1)'s `getFocusContext` and a setter for `unfocusedMultiplier`; until then the runtime treats every window as focused. When any of them lands, the corresponding kernl layer shrinks (see D-012).
 
 **Reversal cost.** Low. Both local layers sit behind interfaces in `@kernl/guard` and `@kernl/core` and can be deleted when upstream provides the hook.
 
@@ -1014,19 +1027,19 @@ Published packages have zero framework dependencies, matching kehto's rule. The 
 
 **Decision.** `apps/web/src/shell/preview-kernl.ts` implements the same `Kernl` contract as `@kernl/core` using the real `@kernl/guard`, `@kernl/messaging` (memory backend with a scripted correspondent) and `@kernl/bridges` packages, a real applesauce `AccountManager`, and two sample applets whose `srcdoc` carries the guard's CSP and exercises consent, notifications, flooding and link opening. `?preview=1` selects it; the live path falls back to it only when `createKernl` is unavailable, and says so in a notice.
 
-**Consequences.** Preview behaviour is held to the same vocabulary and accessibility rules as the live shell. Sample applets are the first place a new mitigation is demonstrated.
+**Consequences.** Preview behaviour is held to the same vocabulary and accessibility rules as the live shell, and to the same rules where it stands in for it: it asks before a write only for the kinds `@kernl/core`'s `isDestructiveKind` accepts and describes them with `describeChange`, its guard observes without holding anything back and stops an applet only by quarantine (D-012), it starts `strict` on every load, and its sample applets remove WebRTC the way kehto's prelude does. Sample applets are the first place a new mitigation is demonstrated.
 
 **Reversal cost.** Low; the preview is one module behind the contract.
 
-## D-012 · Guard enforcement is layered: configured before dispatch, reactive after
+## D-012 · Guard enforcement is layered: observed before dispatch, non-blocking; quarantine stops the triggering message
 
-**Context.** kehto's bridge owns the `MessagePort` an applet speaks over, and exposes applet traffic to the host only through the observe-only `onNappletMessage` hook. kernl cannot sit between the port and the runtime (D-001).
+**Context.** kehto's bridge owns the `MessagePort` an applet speaks over, and exposes applet traffic to the host only through `ShellAdapter.onNappletMessage`. kehto's `dispatchEnvelope` calls that hook synchronously for each envelope, before it resolves the window's session and dispatches the envelope to the runtime, and ignores the hook's answer. kernl cannot sit between the port and the runtime (D-001).
 
-**Decision.** Two layers. Before dispatch, kernl configures kehto's own runtime firewall from the guard profile when an applet is mounted (`applyRuntimeFirewallRules`, translating op classes through `RUNTIME_OP_CLASSES`), so kehto rejects over-budget envelopes itself. After dispatch, kernl's ingress guard, visibility gate and focus firewall observe the same traffic with the shell's focus and visibility; a `quarantine` disposition revokes the applet's binding, and every other non-pass disposition is surfaced to the user as a guard event. The window-level `hello` is the one message kernl filters before kehto sees it.
+**Decision.** Two layers. kehto's own runtime firewall is the layer that refuses: kernl installs the guard profile's per-class rates in it when an applet is mounted (`applyRuntimeFirewallRules`, translating op classes through `RUNTIME_OP_CLASSES`), and kehto rejects over-budget envelopes before it handles them. kernl's ingress guard, visibility gate and focus firewall observe every envelope inside `onNappletMessage`, before dispatch, with the shell's focus and visibility, but cannot hold or drop it: focus tightening, size caps, bursts and a hidden window's activity are surfaced to the user as guard events and the envelope is still dispatched. A `quarantine` disposition, from a flood or from a hidden window's downloads past the allowance, revokes the applet's binding inside that same callback, so kehto finds no session for the window, the message that crossed the limit is not dispatched, and the applet is closed. The window-level `hello` is the one message kernl can hold or drop before kehto sees it.
 
-**Consequences.** Deferral while hidden is advisory in this draft: the applet's envelope has already reached the runtime by the time the gate observes it, so the gate's effect is the tightened budget and the event trail, not a held queue. The upstream request that would make it a true pre-dispatch hook is recorded with D-001's gaps.
+**Consequences.** Deferral while hidden is advisory in this draft: the gate cannot hold a port envelope, so its effect is the tightened, reported budget, the hidden-download allowance that quarantines, and the event trail, not a held queue. The runtime firewall applies no unfocused multiplier, because kehto does not forward focus to it (D-001, gaps 1 and 4); the profile's multiplier is applied only by kernl's focus firewall, which reports. Rates are installed at mount, so a window keeps the rates it was mounted with when the profile changes. The upstream requests that would turn the observing layer into a true pre-dispatch hook are recorded with D-001's gaps.
 
-**Reversal cost.** Low; the pipeline sits behind `createGuardPipeline` and shrinks when kehto exposes a pre-dispatch hook.
+**Reversal cost.** Low; the pipeline sits behind `createGuardPipeline` and shrinks when kehto exposes a hook that can hold or drop an envelope.
 
 ## D-013 · The site is served at a domain root
 
@@ -1380,7 +1393,9 @@ The shell boots in `strict`. In this draft a user can switch the whole shell to 
 
 1. Open the guard panel from the desktop bar (*Guard · strict · N*).
 2. Under *Profile*, pick `balanced` or `relaxed`. The list of mitigations updates to show the new limit for each one. The CSP does not change; it never does.
-3. The change calls `kernl.guard.setProfile(profile)`, which rebuilds every guard layer for every open window at once; held messages are dropped and counters restart, so a quarantined window is released. It is not persisted: a reload starts in `strict` again.
+3. The change calls `kernl.guard.setProfile(profile)`. kernl's own counting layers switch to the new limits at once: the ingress guard, visibility gate and focus firewall are rebuilt from the new profile, their counters restart and the window-level messages they held are dropped. The rates kehto's runtime firewall refuses with do not change for windows that are already open: they keep the rates they were mounted with, and only applets opened after the change get the new ones. Close and reopen a window to give it the new rates. The choice is not persisted: a reload starts in `strict` again.
+
+A quarantined applet stays closed whatever the profile: its binding was revoked and its frame removed when it was quarantined. Its window's grants panel offers **Release from quarantine**, which clears kernl's quarantine record for that window (`kernl.guard.release(windowId)`) and the panel's marker; it does not bring the frame back. To run the applet again, open it again: a new window starts with a fresh budget.
 
 The per-applet, remembered override that [D-003](https://kernlize.github.io/docs/decisions.md#d-003) describes is listed under [Alpha status](https://kernlize.github.io/docs/alpha-status.md#what-does-not-work-yet).
 
@@ -1416,7 +1431,7 @@ function guardFor(profile: GuardProfile, onEvent: (event: GuardEvent) => void) {
 3. Call `release(windowId)` on the old ingress guard, or simply drop it: quarantine lives in the guard instance and does not survive the swap.
 4. If the shell also runs kehto's runtime firewall from `config.firewall`, hand it the new `FirewallConfig`. Per-applet rates are not in a fresh config; `applyNappletRules(config, dTag)` adds them, and the focus firewall does this itself on first observation.
 
-`@kernl/core` does this inside `createGuardPipeline`: `GuardFacade.setProfile(profile)` rebuilds the three layers from `createGuardConfig(profile)`, clears what they held, re-applies the known visibility of every window and emits on `profile$`; `GuardFacade.release(windowId)` lifts a quarantine on its own. Applets mounted after the change get the new profile's rates in kehto's runtime firewall through `applyRuntimeFirewallRules`; windows already open keep the runtime rates they were mounted with until they are opened again. The [core page](https://kernlize.github.io/docs/packages/core.md#the-kernl-surface) documents that surface.
+`@kernl/core` does this inside `createGuardPipeline`: `GuardFacade.setProfile(profile)` rebuilds the three layers from `createGuardConfig(profile)`, clears what they held, re-applies the known visibility of every window and emits on `profile$`; `GuardFacade.release(windowId)` clears a quarantine record on its own, which does not bring back a frame that was already removed. Applets mounted after the change get the new profile's rates in kehto's runtime firewall through `applyRuntimeFirewallRules`; windows already open keep the runtime rates they were mounted with until they are opened again. The [core page](https://kernlize.github.io/docs/packages/core.md#the-kernl-surface) documents that surface.
 
 ## What a profile cannot change
 
@@ -1558,7 +1573,7 @@ Put it in the `<head>` of the HTML the server sends, before any script runs, as 
 | Member | What the core expects |
 | --- | --- |
 | `storage` | A synchronous `StorageLike` (`getItem`, `setItem`, `removeItem`). `localStorage` satisfies it. Grants, accounts, relay tiers and messaging preferences persist here under `kernl:` keys. |
-| `presentConsent(prompt)` | Called when an applet window asks to sign, through `relay.publish` or `outbox.publish`, a destructive change (profile, follows, deletions, connections list, lists). `prompt.summary.event` is the unsigned draft. Show `prompt.summary` (title, lines) and call `prompt.resolve(true \| false)`. `false`, which you also send on dismiss, makes signing fail with `denied:consent`. The core never times out. Routine writes never reach this hook. |
+| `presentConsent(prompt)` | Called when an applet window asks to sign, through `relay.publish` or `outbox.publish`, a destructive change: any replaceable or addressable kind (profile, follows, connections list, lists, other records), a deletion or a request to vanish. The core looks up the current version first, waiting up to `CURRENT_VERSION_TIMEOUT_MS` for the network, so the prompt can arrive a few seconds after the request. `prompt.summary.event` is the unsigned draft. Show `prompt.summary` (title, lines) and call `prompt.resolve(true \| false)`. `false`, which you also send on dismiss, makes signing fail with `denied:consent`. The core never times out. Routine writes never reach this hook. |
 | `notify(notice)` | Show `{ title, body?, windowId?, tone }`. Applets reach it through the `notify` domain; the guard and revocations use it too. |
 | `openLink(url)` | Open a URL outside the shell. It is called only after the link service allowed the protocol (`https:`, `mailto:`); confirming with the user is your choice. |
 | `getVisibility(windowId)` | Current visibility for a window, when the core needs it synchronously: return `{ visible, focused, msSinceFocusGain? }`. The guard asks the first time it meets a window you have not reported with `handle.setVisibility`; after that it uses what you report. |
@@ -1675,7 +1690,7 @@ A grant is something the user gave and can take back. This page covers what the 
 
 **Before the first run.** After `kernl.resolve` verifies the applet, the launcher compares its `requires` and `optional` lists with the baseline and with what this identity already has (`kernl.grants.get(identity)`). Each domain is a switch: the baseline fixed on, everything else pre-set to what this identity was granted before, so a first run starts with every grantable switch off. Required domains are marked as such and a warning names the ones still off. *Run* applies the switches with `allowDomain` and `revokeDomain`, then calls `kernl.plan`. A required domain left off appears in `MountPlan.missingRequired`; the applet mounts anyway and sees that domain as unavailable.
 
-**During use.** kernl asks before signing a destructive change. Whether the applet publishes through `relay.publish` (signed through `ShellAdapter.auth.getSigner(windowId)`) or `outbox.publish` (gated in kernl's outbox service wrapper), the write passes `createSigningConsent`: for a destructive kind it runs `describeChange` on the unsigned draft, calls `host.presentConsent` and waits. The host shows the title ("Update your profile", "Change who you follow", "Delete 2 events", "Change your connections list", "Change the list …") and one line per change with the value before and after. The applet is named by its display name and the short hash of its build. *Allow* resolves the prompt with `true` and the event is signed; dismissing it resolves `false`, the write fails with `denied:consent`, and nothing is signed or published. Routine writes (notes, reactions and other kinds outside the destructive set) are signed without a prompt, and the shell's own signing is never gated. Nothing is remembered; the next destructive write asks again. kehto's runtime has no destructive-signing consent of its own; this is kernl's.
+**During use.** kernl asks before signing a destructive change. Whether the applet publishes through `relay.publish` (signed through `ShellAdapter.auth.getSigner(windowId)`) or `outbox.publish` (gated in kernl's outbox service wrapper), the write passes `createSigningConsent`: for a destructive kind (any replaceable or addressable kind, a deletion or a request to vanish) it looks up the current version, in the event store and then on the outbox and discovery relays for up to 4 seconds, runs `describeChange` on the unsigned draft, calls `host.presentConsent` and waits. The host shows the title ("Update your profile", "Change who you follow", "Delete 2 events", "Ask services to erase your account", "Change your connections list", "Change the list …", "Replace your kind N event") and one line per change with the value before and after; when the current version could not be loaded, the first line says so. The applet is named by its display name and the short hash of its build. *Allow* resolves the prompt with `true` and the event is signed; dismissing it resolves `false`, the write fails with `denied:consent`, and nothing is signed or published. Routine writes (notes, reactions and other kinds outside the destructive set) are signed without a prompt, and the shell's own signing is never gated. Nothing is remembered; the next destructive write asks again. kehto's runtime has no destructive-signing consent of its own; this is kernl's.
 
 **In the grants panel.** Every domain the shell offers, as a switch; a **Block applet** button (**Unblock applet** once blocked); and, when the guard has quarantined the window, **Release from quarantine**. The panel reads `kernl.grants.get(identity)` and re-renders on `kernl.grants.changes$`.
 
@@ -1758,7 +1773,7 @@ kehto ships `@kehto/{acl,firewall,runtime,shell,services,nip,wm}` and deliberate
 | --- | --- |
 | Event layer | [applesauce](https://applesauce.build) v7 only. One `EventStore`, one `RelayPool`, one `AccountManager` per shell. `nostr-tools` is never imported by kernl source. |
 | Containment | Opaque-origin `srcdoc` iframe, `sandbox="allow-scripts"`, zero-network CSP, every network path through a shell service the user can see, rate-limit and revoke. |
-| Mitigations | Every kehto mitigation ships on, in the `strict` [guard](https://kernlize.github.io/docs/concepts/guard.md) profile. kehto's runtime firewall enforces the profile's rates before dispatch; kernl's own layers watch port traffic after dispatch, report what they see and quarantine floods. Only the user loosens the profile: shell-wide in this draft, reset to `strict` on every boot, per applet later. A developer flag never loosens it. |
+| Mitigations | Every kehto mitigation ships on, in the `strict` [guard](https://kernlize.github.io/docs/concepts/guard.md) profile. kehto's runtime firewall refuses requests over the profile's rates; kernl's own layers observe every port message just before dispatch, report what they see and quarantine floods, which stops the message that crossed the limit. Only the user loosens the profile: shell-wide in this draft, reset to `strict` on every boot, per applet later. A developer flag never loosens it. |
 | Protocols | One identity layer, many [bridges](https://kernlize.github.io/docs/concepts/bridges.md) named by what they do for the user, never by the wire format. |
 | Messaging | Any reasonable private-messaging protocol, exposed through one contract. [Providers](https://kernlize.github.io/docs/concepts/messaging.md) describe their security properties truthfully and the shell does not rank them. |
 
@@ -1768,7 +1783,7 @@ kernl does not fork kehto ([D-001](https://kernlize.github.io/docs/decisions.md#
 
 **Use the shell.** Try the hosted preview at [kernlize.github.io/app/?preview=1](https://kernlize.github.io/app/?preview=1), which needs no install and no account, or open the live shell, sign in with a browser extension or a remote signer, and open an applet by its address. Start with [Run the shell](https://kernlize.github.io/docs/tutorials/run-the-shell.md), then read [Grant and revoke](https://kernlize.github.io/docs/how-tos/grant-and-revoke.md) to understand what the shell asks you and why.
 
-**Build an applet for it.** Applets are ordinary NIP-5D napplets; kernl adds nothing to the wire format. What kernl changes is the posture: fewer domains advertised until granted, budgets that tighten while hidden or unfocused, and quarantine for floods. [Applets under kernl](https://kernlize.github.io/docs/concepts/applets-under-kernl.md) tells you what to expect and how to test against it.
+**Build an applet for it.** Applets are ordinary NIP-5D napplets; kernl adds nothing to the wire format. What kernl changes is the posture: fewer domains advertised until granted, rate limits, closer watch while hidden or unfocused, and quarantine for floods. [Write an applet](https://kernlize.github.io/docs/tutorials/write-an-applet.md) builds, tests, publishes and opens one; [Applets under kernl](https://kernlize.github.io/docs/concepts/applets-under-kernl.md) tells you what to expect and how to test against it.
 
 **Extend the shell.** [Embed kernl core](https://kernlize.github.io/docs/how-tos/embed-kernl-core.md) in your own page, add a [messaging provider](https://kernlize.github.io/docs/how-tos/add-a-messaging-provider.md) or a [bridge backend](https://kernlize.github.io/docs/how-tos/add-a-bridge-backend.md), or change how the guard is composed. Start with [Architecture](https://kernlize.github.io/docs/concepts/architecture.md) and the [package pages](https://kernlize.github.io/docs/packages/index.md).
 
@@ -1861,7 +1876,7 @@ A bridge resolves a protocol-specific locator to bytes, a job or a conversation 
 | `HttpBridgeOptions` | interface | `{ policy?: Partial<HttpPolicy>; fetch?: typeof fetch; resolveHost?: (host: string) => Promise<readonly string[]> }`. |
 | `DEFAULT_HTTP_POLICY` | `HttpPolicy` | `{ allowedSchemes: ['https:'], maxRedirects: 3, maxBytes: 10485760, timeoutMs: 20000, allowPrivateHosts: [] }`. Scheme entries carry the colon, as `URL.protocol` does. |
 | `HttpPolicy` | interface | `allowedSchemes`, `maxRedirects`, `maxBytes`, `timeoutMs`, `allowPrivateHosts`. |
-| `isPrivateAddress` | `(ip: string) => boolean` | True for literal IPv4 or IPv6 addresses (brackets allowed, IPv4-mapped IPv6 unwrapped) in the unspecified, loopback, private, shared, link-local, unique-local, multicast or reserved ranges. False for public addresses and for strings that are not an IP. Ranges are listed in [Bridges](https://kernlize.github.io/docs/concepts/bridges.md#the-http-bridge). |
+| `isPrivateAddress` | `(ip: string) => boolean` | True for literal IPv4 or IPv6 addresses in the unspecified, loopback, private, shared, link-local, IETF protocol assignment, benchmarking, multicast or reserved IPv4 ranges, and the link-local, site-local, unique-local, multicast, discard, local NAT64, 6to4 or Teredo IPv6 ranges. IPv6 is parsed to its full 128 bits (brackets and zone suffix stripped); an address that embeds an IPv4 destination (mapped, compatible, translated, NAT64 `64:ff9b::/96`) is judged by that destination. False for public addresses and for strings that are not an IP. Ranges are listed in [Bridges](https://kernlize.github.io/docs/concepts/bridges.md#the-http-bridge). |
 | `isBlockedHostname` | `(host: string) => boolean` | True for `localhost` and names under `.localhost`, `.local` or `.internal`, in any case, with or without a trailing dot. |
 
 ### Backend-driven bridges
@@ -1988,7 +2003,7 @@ if (plan.missingRequired.length === 0) kernl.mount(plan, iframe);
 6. **ShellAdapter.** `createShellAdapter` builds kehto's adapter from the relay-pool hooks, the relay-config hooks over the tiers, `createAuthHooks(accounts, consent)`, the service registry, `capabilities.resolveEnvironment` from `createEnvironmentResolver(grants)`, `onNappletRevoked` (removes the frame through the handle) and `onNappletMessage` (feeds `pipeline.observe`). Choices kehto left open are fixed here: applets cannot create windows (`createWindow` returns null), hotkeys are not forwarded, there is no worker relay, update behaviour is `banner`, signatures are verified by applesauce's `verifyEvent`, `link.isAvailable` is true and `getNip66Suggestions` is null.
 7. **Bridge.** `createShellBridge(adapter)`, unchanged ([D-001](https://kernlize.github.io/docs/decisions.md#d-001)).
 8. **Grants.** `createGrants({ acl: bridge.runtime.aclState, storage: host.storage, availableDomains: () => buildShellCapabilities(adapter).domains })`. The grants layer writes kehto's ACL explicitly for every applet, see [Grants](#grants).
-9. **Consent.** Before steps 5 and 6, `createSigningConsent({ host, lookupBefore: lookupReplaceable(eventStore), resolveApplet: identityOf, pubkey })` builds the gate, and both of the routes an applet's write can take pass through it: `relay.publish` is signed through `ShellAdapter.auth.getSigner(windowId)`, whose `signEvent` calls the gate first, and `outbox.publish` is gated in the outbox service wrapper before kehto signs it. For a kind `isDestructiveKind` accepts (0, 3, 5, 10002 and the list kinds), the gate describes the draft against the current version in the event store, calls `host.presentConsent` and waits; anything but yes rejects with `denied:consent` and nothing is signed. Routine kinds are not prompted; the shell's own signing (no window) is not gated; answers are not remembered. kehto's runtime has no destructive-signing consent of its own. Separately, `bridge.registerConsentHandler(createConsentHandler(host, lookupReplaceable(eventStore), identityOf))` answers kehto's own `ConsentRequest`, which the runtime raises only for a firewall `prompt` policy and without an event, so the handler refuses it without asking.
+9. **Consent.** Before steps 5 and 6, `lookupReplaceable(eventStore, { loader: createReplaceableLoader(eventStore, pool, tiers), relays: () => [...outbox, ...discovery] })` builds the before lookup and `createSigningConsent({ host, lookupBefore, resolveApplet: identityOf, pubkey })` builds the gate, and both of the routes an applet's write can take pass through it: `relay.publish` is signed through `ShellAdapter.auth.getSigner(windowId)`, whose `signEvent` calls the gate first, and `outbox.publish` is gated in the outbox service wrapper before kehto signs it. For a kind `isDestructiveKind` accepts (every replaceable and addressable kind, 5 and 62), the gate describes the draft against the current version, from the event store or else from the outbox and discovery relays within `CURRENT_VERSION_TIMEOUT_MS`, calls `host.presentConsent` and waits; anything but yes rejects with `denied:consent` and nothing is signed. Routine kinds are not prompted; the shell's own signing (no window) is not gated; answers are not remembered. kehto's runtime has no destructive-signing consent of its own. Separately, `bridge.registerConsentHandler(createConsentHandler(host, lookupBefore, identityOf))` answers kehto's own `ConsentRequest`, which the runtime raises only for a firewall `prompt` policy and without an event, so the handler refuses it without asking.
 10. **Session.** `accounts.active$` drives `session$` (`toSession(account)` or null) and calls `bridge.publishIdentityChanged(pubkey)` with the active pubkey or `''` on sign-out, so bound applets hear every identity change through kehto's live port.
 11. **Lifecycle.** `createAppletLifecycle` with `options.artifactCache ?? openDefaultArtifactCache` and `host.fetchBlob ?? defaultFetchBlob`.
 
@@ -2014,7 +2029,7 @@ The host is the only way the core reaches the user or the page. Applets never re
 | Member | What it is |
 | --- | --- |
 | `accounts`, `eventStore`, `pool`, `bridge` | The applesauce `AccountManager`, `EventStore` and `RelayPool`, and kehto's `ShellBridge`. The web shell hides all but `accounts` from its UI. |
-| `guard: GuardFacade` | `config`, `profile$`, `setProfile(profile)`, `events$`, `mitigations()`, `release(windowId)`. `setProfile` rebuilds every guard layer shell-wide; held messages are dropped and counters restart. It is not persisted. |
+| `guard: GuardFacade` | `config`, `profile$`, `setProfile(profile)`, `events$`, `mitigations()`, `release(windowId)`. `setProfile` rebuilds kernl's guard layers shell-wide; held window-level messages are dropped and counters restart. Open windows keep the runtime firewall rates they were mounted with. It is not persisted. |
 | `grants: Grants` | The user-facing grants surface, see [Grants](#grants). |
 | `relays: RelayTiers` | `get()`, `add(tier, url)`, `remove(tier, url)`, `changes$`. `add` throws `invalid:relay-url` for anything that is not `ws://` or `wss://`. |
 | `messaging`, `bridges` | The registries the services read. |
@@ -2122,12 +2137,18 @@ Unknown domains need no capability (`capabilitiesForDomain('made-up')` is `[]`).
 | --- | --- | --- | --- |
 | `0` | `destructive` | Update your profile | One line per changed field among name, display name, about, picture, banner, verified address, payment address and website; or "No profile fields change". |
 | `3` | `destructive` | Change who you follow | "Follows added" and "Follows removed" with counts and the first three pubkeys abbreviated; or "No entries change". |
-| `5` | `destructive` | Delete N event(s) | One "Delete" line per `e` tag, abbreviated. |
+| `5` | `destructive` | Delete N event(s) | One "Delete" line per `e` tag, abbreviated, and one "Delete every version of" line per `a` tag, naming the address as `kind:pubkey…:identifier`. |
+| `62` | `destructive` | Ask services to erase your account | "Erase: Everything this account has published" and "Services asked": every service when the `relay` tags are absent or include `ALL_RELAYS`, else the first three named. |
 | `10002` | `destructive` | Change your connections list | "Connections added" and "Connections removed" with read/write markers. |
 | 10000–10099, 30000–30099 | `destructive` | Change the list "title or d tag", or "Change a list" | "Entries added" and "Entries removed" as `tag:value`. |
+| any other replaceable (10100–19999) or addressable (30100–39999) kind | `destructive` | Replace your kind N event, with the `title` or `d` tag in quotes when there is one | "Entries added" and "Entries removed" over the tags other than `d`, `title` and `description`, and "Content: Replaced" when the content differs, without copying it. |
 | anything else | `routine` | Publish a note, repost, reaction, comment, article, sealed message, legacy private message, payment receipt, or "kind N event" | One "Content" line with a 140-character preview. |
 
-`isDestructiveKind(kind)` is true for exactly the `destructive` rows. `createSigningConsent(options)` returns the `SigningConsent` gate, `(windowId, template) => Promise<void>`: it resolves at once for a routine kind; for a destructive one it builds an unsigned draft (empty `id` and `sig`; this draft is the summary's `event`), describes it against `lookupBefore`, and resolves only when `host.presentConsent` answers yes. It rejects with `denied:consent` when the user refuses, `denied:unknown-applet` for a destructive write from a window the shell did not mount, `denied:signed-out` for a destructive write while nobody is signed in, and `invalid:event-kind` when the kind is not a number.
+`isDestructiveKind(kind)` is true for exactly the `destructive` rows: every replaceable kind (0, 3, 10000–19999), every addressable kind (30000–39999), 5 and 62.
+
+`LookupBefore` is `(kind, pubkey, identifier?) => Promise<NostrEvent | undefined>`. `lookupReplaceable(store, options?)` builds one: the store answers first; on a miss, and only when `options.loader` is given, the applesauce address loader asks `options.relays()` and the lookup waits at most `options.timeoutMs` (default `CURRENT_VERSION_TIMEOUT_MS`, 4000 ms) and takes the newest version that arrived. A loader that fails or stays silent yields `undefined`. When a replaceable or addressable write is described and no current version was found, the summary's first line is `UNKNOWN_CURRENT_VERSION`, "Current version: could not be loaded; this replaces it entirely", so it never reads as a first version that removes nothing.
+
+`createSigningConsent(options)` returns the `SigningConsent` gate, `(windowId, template) => Promise<void>`: it resolves at once for a routine kind; for a destructive one it builds an unsigned draft (empty `id` and `sig`; this draft is the summary's `event`), describes it against `lookupBefore`, and resolves only when `host.presentConsent` answers yes. It rejects with `denied:consent` when the user refuses, `denied:unknown-applet` for a destructive write from a window the shell did not mount, `denied:signed-out` for a destructive write while nobody is signed in, and `invalid:event-kind` when the kind is not a number.
 
 `createConsentHandler(host, lookupBefore, resolveApplet)` answers kehto's own `ConsentRequest`. The kehto runtime kernl pins raises only `firewall-policy` requests, which carry no event, and the handler refuses those without asking. A request that does carry an event, from a window the shell can name, would be described and put to the user, so a later kehto release that adds such prompts is answered honestly; one from an unknown window is refused.
 
@@ -2209,11 +2230,14 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `capabilitiesForDomain` | `(domain: string) => readonly Capability[]` | Empty for unknown domains. |
 | `capabilitiesForDomains` | `(domains: readonly string[]) => readonly Capability[]` | Union in table order. |
 | `describeChange` | `(event: NostrEvent, before: NostrEvent \| undefined, applet: AppletIdentity) => ConsentSummary` | The kind table above. |
-| `isDestructiveKind` | `(kind: number) => boolean` | True for 0, 3, 5, 10002, 10000–10099 and 30000–30099. |
+| `isDestructiveKind` | `(kind: number) => boolean` | True for every replaceable kind (0, 3, 10000–19999), every addressable kind (30000–39999), 5 and 62. |
 | `createSigningConsent` | `(options: SigningConsentOptions) => SigningConsent` | The gate both signing routes pass; see [Consent summaries](#consent-summaries). |
 | `abbreviate` | `(hex: string) => string` | First eight characters and an ellipsis. |
 | `createConsentHandler` | `(host: Pick<KernlHost, 'presentConsent'>, lookupBefore: LookupBefore, resolveApplet: ResolveAppletIdentity) => (request: ConsentRequest) => void` | For `bridge.registerConsentHandler`. |
-| `lookupReplaceable` | `(store: Pick<EventStore, 'getReplaceable'>) => LookupBefore` | Finds the current replaceable event for the diff. |
+| `lookupReplaceable` | `(store: Pick<EventStore, 'getReplaceable'>, options?: LookupReplaceableOptions) => LookupBefore` | Finds the current version for the diff: the store first, then `options.loader` over `options.relays()` for up to `options.timeoutMs`. |
+| `LookupReplaceableOptions` | interface | `{ loader?: AddressPointerLoader; relays?: () => readonly string[]; timeoutMs?: number }`. Without `loader` the lookup reads the store only. |
+| `CURRENT_VERSION_TIMEOUT_MS` | `4000` | How long a consent prompt waits for the network to return the current version. |
+| `UNKNOWN_CURRENT_VERSION` | `ConsentLine` | `{ label: 'Current version', after: 'could not be loaded; this replaces it entirely' }`, the first line of a destructive summary whose current version was not found. |
 | `Grants`, `GrantRecord`, `KernlGrants`, `GrantsOptions`, `ConsentSummary`, `ConsentLine`, `ConsentPrompt`, `LookupBefore`, `ResolveAppletIdentity`, `SigningConsent`, `SigningConsentOptions`, `SigningTemplate` | types | `GrantRecord` is `{ identity, domains, capabilities, blocked, stateQuotaBytes }`. |
 
 ### Applesauce adapters
@@ -2226,6 +2250,7 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `createAuthHooks` | `(accounts: AccountManager, consent: SigningConsent) => AuthHooks` | kehto's auth over the account manager; a signer asked for with a window id passes `consent` before signing. |
 | `wrapAccountSigner` | `(account: IAccount) => Signer` | The NIP-07-shaped signer kehto expects. |
 | `isReadOnlyAccount` | `(account: IAccount) => boolean` | True for `ReadonlyAccount`. |
+| `createReplaceableLoader` | `(store: EventStore, pool: ApplesaucePool, tiers: RelayTiers) => AddressPointerLoader` | The applesauce address loader for replaceable and addressable events the store lacks: it asks the pointer's relays, then the `discovery` tier, and adds what it finds to the store. Used by `createIdentityProviders` and the consent lookup. |
 | `createIdentityProviders` | `(store: EventStore, pool: ApplesaucePool, tiers: RelayTiers, options?: IdentityProviderOptions) => IdentityProviders` | Profile, follows, mutes and relays from the store, loaded once from the `discovery` tier on a miss; lists, zaps, blocked and badges are empty. |
 | `createRelayPoolHooks` | `(pool: ApplesaucePool, tiers: RelayTiers) => RelayPoolHooks` | kehto's relay-pool hooks, including one scoped relay per window. |
 | `createRelayPoolLike` | `(pool: ApplesaucePool) => RelayPoolLike` | `subscription`, `request`, `publish` over the one pool. |
@@ -2650,40 +2675,41 @@ The rules the shell keeps when it runs untrusted code next to the user's identit
 1. **`srcdoc`, never `src`.** The applet document is the verified bytes with the shell prelude and CSP injected outside the signed content. A `src` URL would give the applet an origin and a network path the shell does not mediate.
 2. **`sandbox="allow-scripts"` only.** `mountApplet` sets the attribute to exactly `allow-scripts`, replacing any tokens the host set. Never `allow-same-origin`, never `allow-top-navigation`, never `allow-popups`. The frame has an opaque origin and cannot reach the shell's storage or DOM.
 3. **The guard's CSP, unchanged by profile.** `createAppletCsp(profile)` is applied through `prepareNappletSrcdoc`; it returns the same policy for every profile. No grant, profile or setting alters it. See [Guard](https://kernlize.github.io/docs/concepts/guard.md#why-csp-never-loosens).
-4. **`denyNappletControllerAccess(frame)`** on the attached, still empty frame, before any applet document exists, so the applet cannot reach a service worker or controller the shell registered.
+4. **No controllers.** On the attached, still empty frame, before any applet document exists, `mountApplet` calls kehto's `denyNappletControllerAccess(frame)`, which rewrites the frame's `allow` attribute (its Permissions Policy) to end in `gamepad 'none'; hid 'none'; usb 'none'` and drops any entry the host had set for those three features. A frame without `getAttribute` gets the same value as `CONTROLLER_DENY_POLICY`. This rule is about game controllers and USB or HID devices only. Workers, service workers included, are refused by the CSP's `worker-src 'none'` (rule 3), not by this policy.
 5. **Order: attached empty frame → harden → register → set environment → observe frame → assign `srcdoc`.** The host attaches the iframe to the document first, with no `src` or `srcdoc` (`mountApplet` throws `invalid:frame-detached` without a `contentWindow`). Then `mountApplet` sets `sandbox` and the controller policy, `originRegistry.register(contentWindow, windowId, identity)`, then `originRegistry.setEnvironment(contentWindow, environment)`, then `bridge.observeFrame(frame, windowId)`, then `frame.srcdoc = plan.srcdoc`. Assigning `srcdoc` first would let the document's first message arrive before the shell knows who it is.
-6. **Remove the iframe on every revocation reason.** `window-message`, `second-hello`, `invalid-hello`, `second-load`, `port-closed` and `host` all end with the frame gone and the guard's state for the window forgotten. A revoked window's identity is never re-bound to the same frame.
+6. **The host page forbids frame navigation.** The HTML the server sends carries `KERNL_FRAME_POLICY_META`, kehto's `<meta http-equiv="Content-Security-Policy" content="frame-src 'none'">`, in its `<head>` before any script runs, as `apps/web/src/pages/app/index.astro` does. Applet frames still load, because their bytes arrive as `srcdoc`; a frame that tries to load or navigate to a URL is blocked, so an applet cannot replace its verified document before kehto sees its first load. kehto warns in the console when the policy is missing. See [Embed kernl core](https://kernlize.github.io/docs/how-tos/embed-kernl-core.md).
+7. **Remove the iframe on every revocation reason.** `window-message`, `second-hello`, `invalid-hello`, `second-load`, `port-closed` and `host` all end with the frame gone and the guard's state for the window forgotten. A revoked window's identity is never re-bound to the same frame.
 
 ## Identity rules
 
-7. **Verified bytes come from `@kehto/nip/5d` `resolveNapplet`.** Gateways and caches are accelerators; the hash is the identity. Cached bytes are re-verified on every read.
-8. **Identity is `(dTag, artifactHash)` plus one port.** Grants are keyed by that identity; a new build is a new identity with no grants.
-9. **Restrictive by narrowing.** `resolveEnvironment` returns only granted domains; kehto intersects, so the hook can only remove. The runtime's permissive default is never reached for an ungranted domain.
+8. **Verified bytes come from `@kehto/nip/5d` `resolveNapplet`.** Gateways and caches are accelerators; the hash is the identity. Cached bytes are re-verified on every read.
+9. **Identity is `(dTag, artifactHash)` plus one port.** Grants are keyed by that identity; a new build is a new identity with no grants.
+10. **Restrictive by narrowing.** `resolveEnvironment` returns only granted domains; kehto intersects, so the hook can only remove. The runtime's permissive default is never reached for an ungranted domain.
 
 ## Key rules
 
-10. **Keys live only inside applesauce signer instances.** `ExtensionSigner`, `NostrConnectSigner`, `PasswordAccount`'s wrapped signer. kernl never holds raw key bytes and never serialises a private key outside `PasswordAccount`.
-11. **Applets never see `window.nostr`.** The sandbox has no extension injection, and the shell does not forward one.
-12. **Destructive signatures wait for the user.** An applet can ask for a signature only through a granted domain. When an applet window asks the shell to sign a destructive kind (0, 3, 5, 10002 and the list kinds 10000–10099, 30000–30099), `@kernl/core`'s consent gate shows the change as a semantic diff through `host.presentConsent` and waits; a denial fails with `denied:consent` and nothing is signed or published. Both routes pass the gate: `relay.publish` through the signer kernl returns from `ShellAdapter.auth.getSigner(windowId)`, and `outbox.publish` in kernl's outbox service wrapper, because kehto's outbox service signs without naming the window. The shell's own signing, with no window, is not gated. Routine kinds are signed without a prompt, and answers are not remembered. kehto's runtime has no such step; this rule is kernl's.
+11. **Keys live only inside applesauce signer instances.** `ExtensionSigner`, `NostrConnectSigner`, `PasswordAccount`'s wrapped signer. kernl never holds raw key bytes and never serialises a private key outside `PasswordAccount`.
+12. **The shell never gives an applet `window.nostr`.** kehto's prelude installs `window.napplet` and nothing that signs; the shell does not forward the page's signer, and every signature an applet gets goes through rule 13. kernl does not control browser extensions: one that injects scripts into every frame can still reach into an applet's frame and expose its own signing object there, which no rule on this page governs. The guarantee is about what the shell provides, not about what the user's extensions add.
+13. **Destructive signatures wait for the user.** An applet can ask for a signature only through a granted domain. When an applet window asks the shell to sign a destructive kind (every replaceable kind: 0, 3 and 10000–19999; every addressable kind, 30000–39999; a deletion, kind 5; a request to vanish, kind 62), `@kernl/core`'s consent gate looks up the version it replaces, in the event store and then over the outbox and discovery relays for up to `CURRENT_VERSION_TIMEOUT_MS` (4 s), shows the change as a semantic diff through `host.presentConsent` and waits. When no current version is found, the summary says so first ("Current version: could not be loaded; this replaces it entirely") rather than reading as a harmless first version; a denial fails with `denied:consent` and nothing is signed or published. Both routes pass the gate: `relay.publish` through the signer kernl returns from `ShellAdapter.auth.getSigner(windowId)`, and `outbox.publish` in kernl's outbox service wrapper, because kehto's outbox service signs without naming the window. The shell's own signing, with no window, is not gated. Routine kinds are signed without a prompt, and answers are not remembered. kehto's runtime has no such step; this rule is kernl's.
 
 ## Network rules
 
-13. **No applet network path exists outside the shell.** All bytes arrive through the `resource` domain and a bridge. The HTTP bridge enforces `https` only, 10 MiB, 20 s and a private-address block. In Node and on servers it follows up to 3 redirects by hand and re-checks every hop; in a browser a redirect is opaque to it and is refused with `denied:redirect-unverifiable`. Hostnames are checked as literals only: no resolver is wired, so a public name that resolves to a private address is not caught. Browser fetches are also subject to CORS: a request the browser blocks is `unavailable:network Failed to fetch`, and any other status-0 answer is `unavailable:network <type> response`.
-14. **One `RelayPool`.** No service, provider or bridge opens its own connection. Adapters over the shared pool satisfy kehto's contracts.
-15. **Hidden windows get a smaller budget, not a pause.** The visibility gate holds only a hidden window's window-level `hello`; port traffic is dispatched and observed afterwards ([D-012](https://kernlize.github.io/docs/decisions.md#d-012)). A hidden window counts at the unfocused budget, and its `resource.*` requests past the hidden allowance quarantine it.
+14. **No applet network path exists outside the shell.** All bytes arrive through the `resource` domain and a bridge. An applet frame has no network of its own: kehto's prelude pins every `RTC*` global (and the `webkit`/`moz` variants) to `undefined`, read-only and non-configurable, and the CSP refuses `fetch`, WebSocket, images, nested frames and beacons. `tests/e2e/applet-network-sealed.spec.ts` proves this in a real browser. The HTTP bridge enforces `https` only, 10 MiB, 20 s and a private-address block over IPv4 and fully parsed IPv6 literals ([Bridges](https://kernlize.github.io/docs/concepts/bridges.md#the-http-bridge)). In Node and on servers it follows up to 3 redirects by hand and re-checks every hop; in a browser a redirect is opaque to it and is refused with `denied:redirect-unverifiable`. Hostnames are checked as literals only: no resolver is wired, so a public name that resolves to a private address is not caught. Browser fetches are also subject to CORS: a request the browser blocks is `unavailable:network Failed to fetch`, and any other status-0 answer is `unavailable:network <type> response`.
+15. **One `RelayPool`.** No service, provider or bridge opens its own connection. Adapters over the shared pool satisfy kehto's contracts.
+16. **Hidden windows are watched, not paused.** The visibility gate holds only a hidden window's window-level `hello`. Port traffic is observed just before kehto dispatches it, and the observation cannot hold it ([D-012](https://kernlize.github.io/docs/decisions.md#d-012)): a hidden window's activity is recorded and its overruns of the unfocused budget are reported, while its `resource.*` request past the hidden allowance quarantines it, and that request is not dispatched.
 
 ## Log rules
 
-16. **Secrets never appear in logs, guard events or consent summaries.** `GuardEvent.reason` is a stable prefixed string; `NappletRevocation.detail` never includes message payloads; `describeChange` output names fields, not key material.
-17. **Guard events are shown to the user**, with the applet and the reason. They are not sent anywhere.
+17. **Secrets never appear in logs, guard events or consent summaries.** `GuardEvent.reason` is a stable prefixed string; `NappletRevocation.detail` never includes message payloads; `describeChange` output names fields, not key material.
+18. **Guard events are shown to the user**, with the applet and the reason. They are not sent anywhere.
 
 ## Dependency rules
 
-18. **`nostr-tools` is never imported by kernl source.** It is a transitive peer of kehto and applesauce only.
-19. **Published packages have zero framework dependencies.** `svelte`, `react`, `vue`, `preact`, `solid-js` and `lit` are forbidden in every `packages/*/package.json`.
-20. **Leaf packages do not import `@kehto/*`**, except `@kernl/guard`, which imports `@kehto/firewall`. Only `@kernl/core` composes kehto.
+19. **`nostr-tools` is never imported by kernl source.** It is a transitive peer of kehto and applesauce only.
+20. **Published packages have zero framework dependencies.** `svelte`, `react`, `vue`, `preact`, `solid-js` and `lit` are forbidden in every `packages/*/package.json`.
+21. **Leaf packages do not import `@kehto/*`**, except `@kernl/guard`, which imports `@kehto/firewall`. Only `@kernl/core` composes kehto.
 
-Rules 18 to 20 are enforced by `scripts/check-dependency-rules.mjs` (`pnpm check:deps`). Rules 1 to 17 are scenarios in `packages/*/features/` and `features/`, and the mount rules are additionally exercised in the browser by the Playwright suite.
+Rules 19 to 21 are enforced by `scripts/check-dependency-rules.mjs` (`pnpm check:deps`). Rules 1 to 18 are scenarios in `packages/*/features/` and `features/`, and the mount rules are additionally exercised in the browser by the Playwright suite.
 
 ## Reporting
 
@@ -2811,7 +2837,7 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 | `denied:plaintext-key-persistence` | `@kernl/core` | `KernlAccountManager.addAccount` | The account type stores a raw secret key (`PLAINTEXT_KEY_ACCOUNT_TYPES`). |
 | `invalid:relay-url` | `@kernl/core` | `RelayTiers.add` | The URL is not `ws://` or `wss://`. |
 | `denied:read-only` | `@kernl/core` | the outbox service's signer | The session cannot sign, so an outbox publish is refused. |
-| `denied:consent` | `@kernl/core` | `createSigningConsent`, through the window signer (`relay.publish`) or the outbox gate (`outbox.publish`) | An applet window asked to sign a destructive kind (0, 3, 5, 10002, the list kinds) and the user denied or dismissed `host.presentConsent`. Nothing was signed or published. |
+| `denied:consent` | `@kernl/core` | `createSigningConsent`, through the window signer (`relay.publish`) or the outbox gate (`outbox.publish`) | An applet window asked to sign a destructive kind (any replaceable or addressable kind, 5 or 62) and the user denied or dismissed `host.presentConsent`. Nothing was signed or published. |
 | `denied:unknown-applet` | `@kernl/core` | `createSigningConsent` | A destructive write from a window the shell did not mount. |
 | `denied:signed-out` | `@kernl/core` | `createSigningConsent` | A destructive write (in practice an `outbox.publish`) while nobody is signed in. |
 | `invalid:event-kind` | `@kernl/core` | `createSigningConsent` | The event's `kind` is not a number. |
@@ -2844,7 +2870,7 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 
 The guard reports each non-pass decision as a `GuardEvent` with a `disposition` (`defer`, `reject`, `quarantine`, `flag`) and one of these reasons. They reach the user through `kernl.guard.events$` and the shell's guard panel. The numbers are per profile; see [Guard](https://kernlize.github.io/docs/concepts/guard.md#profiles).
 
-For an applet's port traffic these layers run after kehto dispatched the envelope ([D-012](https://kernlize.github.io/docs/decisions.md#d-012)): an event records what happened, and only a `quarantine` changes anything, by revoking the binding. `defer` and `reject` hold or drop only the window-level `hello`.
+For an applet's port traffic these layers observe each envelope just before kehto dispatches it but cannot hold it ([D-012](https://kernlize.github.io/docs/decisions.md#d-012)): an event records what happened, and only a `quarantine` changes anything, by revoking the binding, which also stops the envelope that crossed the limit. `defer` and `reject` hold or drop only the window-level `hello`.
 
 | Reason | Emitted by | Disposition | Meaning |
 | --- | --- | --- | --- |
@@ -2882,8 +2908,8 @@ None is filed yet. Each item shrinks kernl when it lands; see [Alpha status](htt
 
 - Forward `getFocusContext`, `onFirewallEvent` and `firewallPersistence` through `ShellAdapter` so the runtime's own firewall can be focus-aware without a second engine in front of it.
 - Let the host choose the ACL default policy in `createRuntime`, so a restrictive shell does not have to write every capability explicitly.
-- Offer a pre-dispatch hook on port traffic, so the visibility gate can hold a hidden applet's envelopes instead of observing them after dispatch.
-- Expose a setter for the runtime firewall's `unfocusedMultiplier`, so the profile's focus tightening applies before dispatch as well as after.
+- Offer a hook that can hold or drop port traffic, so the visibility gate can hold a hidden applet's envelopes instead of only observing them before dispatch.
+- Expose a setter for the runtime firewall's `unfocusedMultiplier`. Together with the forwarded `getFocusContext`, it lets the runtime refuse an unfocused window at the profile's tightened budget instead of treating every window as focused.
 
 ## 2. Bridge backends
 
@@ -3166,9 +3192,13 @@ Open the hosted preview:
 https://kernlize.github.io/app/?preview=1
 ```
 
-The preview runs the same shell UI over an offline stand-in for the `Kernl` contract, with two sample applets and no network ([D-011](https://kernlize.github.io/docs/decisions.md#d-011)).
+The preview runs the same shell UI over an offline stand-in for the `Kernl` contract, with two sample applets and no network ([D-011](https://kernlize.github.io/docs/decisions.md#d-011)). It behaves like the live shell where it stands in for it: it asks before a write only for the kinds `@kernl/core` rates destructive, using the core's own `isDestructiveKind` and `describeChange`; its guard observes and stops an applet only by quarantine; it starts in `strict` on every load; and its sample applets remove WebRTC the way kehto's prelude does. Messaging works only here, because the live shell has no messaging backend yet ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#messaging-providers-in-the-live-shell)).
 
-**You should now see** a card headed "Who is at the keyboard?" with a **Try the preview** button. Click it, then **Open an applet**; the launcher lists the sample applets *Notes* and *Pulse*, each with an **Open** button. Open one and click **Run**, and it appears in a window.
+**You should now see** a card headed "Who is at the keyboard?" with a **Try the preview** button. Click it, then **Open an applet**; under "Sample applets" the launcher lists *Notes* and *Pulse*, each with an **Open** button. Open *Notes*, turn on the *network* switch (it starts off, like every grant on a first run), and click **Run**. It appears in a window with buttons to try:
+
+- **Publish a note** goes out without a prompt: a note is routine.
+- **Update your profile** and **Delete a note** ask first: the consent dialog shows what changes, and nothing happens until you answer.
+- **Flood the shell** sends 40 network reads at once; the guard panel (*Guard · strict · N* in the bar) records the burst.
 
 Without `?preview=1`, `https://kernlize.github.io/app/` is the live shell: everything below from step 3 on works there too, against real relays.
 
@@ -3213,7 +3243,7 @@ The first load shows the shell with no account. `boot.ts` has called `createKern
 Under "Sign in another way", pick one:
 
 - **Use a browser extension** (button **Use**, shown only when an extension is present). The shell wraps the extension in an applesauce `ExtensionAccount`; your key stays in the extension.
-- **Connect a remote signer** (button **Connect**). Paste a `bunker://` address into "Signer address" and click **Connect**, or click **Or pair from the signer** to get a pairing address for your signer app. Either way the shell holds a `NostrConnectAccount` over an applesauce `NostrConnectSigner` that talks through the shell's own `RelayPool`.
+- **Connect a remote signer** (button **Connect**). Either paste the code your signer app shows (a `bunker://` URI) into "Pairing code from your signer app" and click **Connect**, or click **Or pair from the signer**: the shell shows a QR code to scan with your signer app and a **Copy pairing code** button for pasting it there instead (a `nostrconnect://` URI), then waits with "Waiting for the signer to accept…". Either way the shell holds a `NostrConnectAccount` over an applesauce `NostrConnectSigner` that talks through the shell's own `RelayPool`.
 - **Read-only** (button **Choose**). Paste a public key into "Account id" and click **Continue**. The session is `readOnly`, applets see the identity, and every write is refused because `createAuthHooks` returns no signer.
 - **Create a local account** (button **Create**). Choose a password, repeat it, and click **Create and sign in**. The shell generates a key inside an applesauce `PasswordSigner` and persists it as a `PasswordAccount`, whose serialised form is NIP-49 encrypted. A plaintext-key account is refused by `KernlAccountManager` with `denied:plaintext-key-persistence`.
 
@@ -3232,7 +3262,9 @@ const session = await kernl.login(account);
 session.readOnly; // true for a ReadonlyAccount; writes are then refused
 ```
 
-**You should now see** the desktop: an **Open an applet** button, "Workspace 1 · 0 windows", "No applets open.", and on the right *Guard · strict · 0*, **Messages** and your account name, whose menu holds **Settings** and **Sign out**.
+**You should now see** the desktop: an **Open an applet** button, "Workspace 1 · 0 windows" with a button naming the current layout (`floating` or `tiled`; click it to switch), "No applets open. Press Alt + / or use the button above.", and on the right *Guard · strict · 0*, **Messages** and your account name, whose menu holds **Settings** and **Sign out**. At 720 px wide or less the bar shows **Open** and a **Menu** button instead; the menu sheet holds the guard, messages, layout, minimised windows, **Settings** and **Sign out**, and each window fills the screen.
+
+**Settings** lists the four server tiers (Discovery, Applet catalogue, Your connections, General) by display name, so `wss://relay.damus.io` reads `damus.io`; add one by typing it into "Server address" (a bare hostname gets `wss://`). Under "Bridges" it names each bridge by what it does, *Downloads (web)*, *Downloads (from peers)*, *Downloads (archives)*, *Sharing* and *Mail*, with an "Availability" of "Ready" or "Needs a backend" and what the other side learns. "About" shows the shell's version, `kernl 0.1.0`, and whether it is live or the offline preview.
 
 ## 4. Open an applet by address
 
@@ -3265,9 +3297,9 @@ The window's iframe is mounted with `kernl.mount(plan, iframe)`: the frame gets 
 
 ## 5. Watch the guard
 
-The desktop bar shows *Guard · strict · N*, where N counts guard events this session. Click it to see the profile, the eleven protections with the limit each one applies in the current profile (`kernl.guard.mitigations()`), and "Recent events" (`kernl.guard.events$`). Each event is a sentence naming the applet, what happened and why, for example "Applet Notes was refused: too many publishes", which is the guard's `rate:relay:publish`. A quarantined applet has its binding revoked and its frame removed; the window shows "This applet was stopped." and a notice says so.
+The desktop bar shows *Guard · strict · N*, where N counts guard events this session. Click it to see the profile, the eleven protections with the limit each one applies in the current profile (`kernl.guard.mitigations()`), and "Recent events" (`kernl.guard.events$`). Each event is a sentence naming the applet, what happened and why, for example "Applet Notes went over a limit: too many publishes", which is the guard's `rate:relay:publish`. A quarantined applet has its binding revoked and its frame removed; the window shows "This applet was stopped." and a notice says so.
 
-Changing the profile here calls `kernl.guard.setProfile(profile)`, which rebuilds the guard for every window and is not remembered across reloads. [Change the guard profile](https://kernlize.github.io/docs/how-tos/change-guard-profile.md) has the details and the numbers.
+Changing the profile here calls `kernl.guard.setProfile(profile)`. kernl's own counting switches at once; windows already open keep the refusal rates they were mounted with until you open them again, and the choice is not remembered across reloads. [Change the guard profile](https://kernlize.github.io/docs/how-tos/change-guard-profile.md) has the details and the numbers.
 
 **You should now see** the guard panel with `strict (default)` selected and, for a quiet applet, no events.
 
@@ -3285,3 +3317,207 @@ Each window's **Grants** button opens its grants panel. It lists every domain th
 - [Applets under kernl](https://kernlize.github.io/docs/concepts/applets-under-kernl.md) if you came here to test your own applet.
 - [Embed kernl core](https://kernlize.github.io/docs/how-tos/embed-kernl-core.md) to run the core in your own page instead of `apps/web`.
 - [Deploy](https://kernlize.github.io/docs/how-tos/deploy.md) to publish your own instance of the shell.
+
+---
+
+<!-- https://kernlize.github.io/docs/tutorials/write-an-applet.md -->
+
+# Write an applet
+
+This tutorial builds a small applet as one HTML file, checks it against the limits kernl will hold it to, publishes it with the applet format's own tooling, and opens it in kernl. The applet shows who is signed in, lists recent notes when it is allowed to read the network, and posts a note. It takes about thirty minutes, most of it in publishing.
+
+kernl adds nothing to the applet format, so nothing here is kernl-specific except the last two steps. The authority on the format is [napplet.run](https://napplet.run/docs/), the [getting-started guide](https://napplet.run/docs/guide/getting-started.html) and the [NAP documents](https://github.com/napplet/naps). [Applets under kernl](https://kernlize.github.io/docs/concepts/applets-under-kernl.md) explains the posture your applet meets; this page is the hands-on version.
+
+> **Alpha**
+>
+> kernl is a first draft, and so is the protocol. Step 3 needs a clone of the kernl source repository, which is private during the alpha ([Packages](https://kernlize.github.io/docs/packages/index.md#install)); the other steps do not.
+
+## Prerequisites
+
+- A text editor and a browser.
+- The `napplet` CLI for publishing. Install it with `curl -fsSL https://napplet.run/install.sh | sh` (Windows: `irm https://napplet.run/install.ps1 | iex`), then check it with `napplet --version`.
+- A key to sign the applet's manifest with. `napplet deploy` asks for one when it has none: a remote signer, a stored reference or a pasted secret.
+
+## 1. Write the applet
+
+Create a folder `hello-kernl` with one file, `index.html`:
+
+```html
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Hello kernl</title>
+  <meta name="description" content="Shows who is signed in, lists recent notes and posts one.">
+  <meta name="napplet-id" content="hello-kernl">
+  <meta name="napplet-optional" content="relay">
+  <style>
+    body { font: 15px/1.5 system-ui, sans-serif; margin: 1.5rem; }
+    li { margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body>
+  <h1>Hello kernl</h1>
+  <p id="who">Waiting for the shell…</p>
+  <section id="network" hidden>
+    <form id="post">
+      <input id="text" placeholder="Say something" required>
+      <button>Post</button>
+    </form>
+    <ul id="notes"></ul>
+  </section>
+  <p id="status" role="status"></p>
+  <script type="module">
+    const napplet = window.napplet;
+    const status = (text) => { document.getElementById('status').textContent = text; };
+
+    if (!napplet?.shell) {
+      status('Open this page in an applet shell, such as kernl.');
+    } else {
+      await napplet.shell.ready();
+
+      const pubkey = napplet.identity ? await napplet.identity.getPublicKey() : '';
+      document.getElementById('who').textContent = pubkey ? `Signed in as ${pubkey.slice(0, 8)}…` : 'Nobody is signed in.';
+
+      if (napplet.shell.supports('relay')) {
+        document.getElementById('network').hidden = false;
+        const list = document.getElementById('notes');
+        const seen = new Set();
+        napplet.relay.subscribe({ kinds: [1], limit: 10 }, ({ event }) => {
+          if (seen.has(event.id)) return;
+          seen.add(event.id);
+          const item = document.createElement('li');
+          item.textContent = event.content.slice(0, 280);
+          list.prepend(item);
+        }, () => status('Up to date.'));
+
+        document.getElementById('post').addEventListener('submit', async (submit) => {
+          submit.preventDefault();
+          const input = document.getElementById('text');
+          try {
+            await napplet.relay.publish({ kind: 1, content: input.value, tags: [], created_at: Math.floor(Date.now() / 1000) });
+            input.value = '';
+            status('Posted.');
+          } catch (error) {
+            status(`Not posted: ${error.message}`);
+          }
+        });
+      } else {
+        status('Allow network access to see and post notes.');
+      }
+    }
+  </script>
+</body>
+</html>
+```
+
+What each part does:
+
+- **The `<meta>` tags are publishing hints.** `napplet deploy` reads `description`, `napplet-id` (the applet's name in its address) and `napplet-optional` from the head and signs them into the manifest. `relay` is optional here, not required, because the applet still does something without it. A domain listed in `napplet-requires` would be marked "the applet says it needs this" in kernl's launcher. Neither grants anything: the user decides.
+- **`window.napplet` is the whole API.** The shell injects it before your code runs; the applet loads no library. Outside a shell it is missing, which is why the script checks `napplet?.shell` first. `@napplet/sdk` wraps the same object in typed named exports if you prefer a bundler ([`@napplet/sdk`](https://www.npmjs.com/package/@napplet/sdk)).
+- **Feature detection, not assumption.** `napplet.shell.supports('relay')` is true only when the shell put `relay` on `window.napplet`, which in kernl means the user granted it. Without the grant the applet still shows who is signed in, because `identity` is one of kernl's baseline domains.
+- **`shell.ready()`** waits for the shell's answer to the applet's `hello`, so the domains are settled before the applet reads them.
+- **Routine writes only.** A kind 1 note is routine, so kernl signs it without a prompt. If your applet updated the user's profile (kind 0) or deleted something (kind 5), kernl would show the user what changes and wait; a refusal arrives as an error that names `denied:consent`.
+- **Errors are shown, not thrown away.** A publish over the shell's budget is refused with an error that starts `firewall:`; the applet prints it.
+
+The file has no network access of its own and needs none: inline script and style are allowed, and everything else goes through the shell ([No network path](https://kernlize.github.io/docs/concepts/guard.md#no-network-path)).
+
+**Checkpoint.** Open `index.html` directly in a browser. You should see "Hello kernl" and "Open this page in an applet shell, such as kernl." Nothing else happens, because there is no shell.
+
+## 2. Know the limits it will meet
+
+Under kernl's `strict` profile, which every load starts in, the limits that matter for this applet are:
+
+| What the applet does | Limit in `strict` | What happens past it |
+| --- | --- | --- |
+| Posts notes (`relay.publish`) | 20 per 60 s per applet | kehto's runtime firewall refuses the publish; the applet sees an error starting `firewall:` |
+| Reads the network (`relay.subscribe`) | 30 per 60 s | refused the same way |
+| Sends messages to the shell at all | 8 per second | reported to the user as a burst, still handled |
+| Sends messages to the shell at all | 300 in any 10 s | the applet is quarantined: the message that crossed the limit is dropped and the applet is closed |
+| Downloads while hidden (`resource.*`) | 8 | the ninth quarantines the applet |
+
+This applet opens one subscription and publishes once per click, so it stays far inside every limit. The full list is in [Guard](https://kernlize.github.io/docs/concepts/guard.md#profiles).
+
+## 3. Test it against the guard
+
+kernl's guard is a pure package, so you can replay your applet's traffic through it in a test, without a browser, and see which events the user would see. This needs the kernl source ([Packages](https://kernlize.github.io/docs/packages/index.md#install)). The function below feeds the guard each message the way the shell does: the ingress guard counts it first, and the focus firewall measures it unless it was held or quarantined.
+
+```ts
+import { createFocusFirewall, createGuardConfig, createIngressGuard, type GuardEnvelope, type GuardEvent } from '@kernl/guard';
+
+const events: GuardEvent[] = [];
+let clock = 0;
+const config = createGuardConfig('strict');
+const options = { config, now: () => clock, onEvent: (event: GuardEvent) => events.push(event) };
+const ingress = createIngressGuard(options);
+const firewall = createFocusFirewall(options);
+
+function send(envelope: GuardEnvelope, visibility = { visible: true, focused: true }): string {
+  const disposition = ingress.admit('w1', 'hello-kernl', envelope, visibility);
+  if (disposition === 'pass') firewall.observe('w1', 'hello-kernl', envelope, visibility);
+  return disposition;
+}
+
+// Start-up: the readiness signal, the identity read and the one subscription.
+send({ type: 'shell.ready' });
+send({ type: 'identity.getPublicKey' });
+send({ type: 'relay.subscribe', size: 120 });
+
+// A user, or a bug, that posts once a second for a minute.
+const firstReport: number[] = [];
+for (let post = 1; post <= 60; post += 1) {
+  clock += 1000;
+  const before = events.length;
+  send({ type: 'relay.publish', kind: 1, size: 300 });
+  if (events.length > before) firstReport.push(post);
+}
+
+const reasons = new Set(events.map((event) => event.reason));
+// Start-up is quiet. From about the 30th post on, the posts outrun the
+// 20-per-minute budget: `reasons` is { 'rate:relay:publish' } and `firstReport[0]`
+// is near 30. In the shell, kehto's runtime firewall, which kernl configures
+// with the same rates, refuses those posts.
+```
+
+Change the loop to model your own applet: a burst of subscriptions on start-up, a hidden window (`send(envelope, { visible: false, focused: false })`) or a background poll. What `events` holds is what the guard panel would show the user. [Applets under kernl](https://kernlize.github.io/docs/concepts/applets-under-kernl.md#test-against-the-guard) adds the visibility gate and lists scenarios worth writing.
+
+To see the applet run inside a real shell runtime on your machine, the napplet CLI can serve it in kehto's Paja preview (`napplet paja`, see the [CLI reference](https://napplet.run/docs/)). Paja runs the same kehto runtime kernl composes, without kernl's opinions: it is a quick way to check the applet's behaviour, not kernl's guard.
+
+## 4. Publish it
+
+Publishing signs a manifest that names your file by its hash, uploads the file to a Blossom server and announces the manifest on relays. kernl verifies the hash before anything runs, so the bytes it runs are exactly the bytes you published.
+
+From the `hello-kernl` folder:
+
+```bash
+napplet init --source-dir . --name hello-kernl --title "Hello kernl" --relay wss://relay.napplet.soy --server https://blossom.example
+napplet deploy --dry-run
+napplet deploy
+```
+
+Replace `https://blossom.example` with a Blossom server you can upload to; `napplet init` without flags suggests some. `wss://relay.napplet.soy` is the relay in kernl's applet catalogue tier by default, so kernl finds the manifest there without extra settings. `napplet deploy --dry-run` shows the plan and the signed manifest without uploading anything; `napplet deploy` does the upload and prints the applet's address, an `naddr1…` string. Copy it.
+
+If you build with Vite instead of writing one file by hand, `@napplet/vite-plugin` inlines your code into a single `index.html` and writes the same manifest fields from its options (`nappletType`, `requires`, `optional`); `napplet create` starts such a project. The [napplet.run docs](https://napplet.run/docs/) cover both paths.
+
+**Checkpoint.** `napplet deploy` reports the upload and the publish as complete and prints an `naddr1…` address.
+
+## 5. Open it in kernl
+
+Open the shell, either the hosted one at `https://kernlize.github.io/app/` or your own from [Run the shell](https://kernlize.github.io/docs/tutorials/run-the-shell.md), and sign in. The offline preview (`?preview=1`) cannot open your applet: it has no network and runs only its two sample applets.
+
+1. Click **Open an applet**, paste the address into "Applet address" and click **Look up**. kernl fetches the manifest, verifies its signature, fetches your file by hash and verifies it.
+2. The launcher shows the title, publisher and description, and under "What it may use" a switch for *network*, marked "optional" and off. Click **Run** with it off first.
+3. The window shows "Signed in as …" and "Allow network access to see and post notes." That is your feature detection at work.
+4. Click the window's **Grants** button and turn *network* on. The grant applies to the running window's next request, but the domains an applet was told about at start-up do not change until it is opened again, so close the window and open the applet again from "Recent" in the launcher.
+5. Now the notes appear and **Post** works without a prompt.
+
+If you published to a relay that is not in kernl's catalogue tier and the address carries no relay hint, the lookup finds nothing: add the relay under **Settings**, "Applet catalogue", "Server address", and try again.
+
+**You should now see** your applet in a window titled "Hello kernl", and *Guard · strict · 0* in the bar: a well-behaved applet triggers no guard events. Click it to see the protections and, if you push the applet past a limit, the events it caused, each naming your applet.
+
+## Where next
+
+- [Applets under kernl](https://kernlize.github.io/docs/concepts/applets-under-kernl.md) for every limit and how the guard treats hidden and unfocused windows.
+- [Guard](https://kernlize.github.io/docs/concepts/guard.md) for the numbers in all three profiles.
+- [Identity and grants](https://kernlize.github.io/docs/concepts/identity-and-grants.md) for what changes when you publish a new build: a new hash is a new identity with no grants.
+- [Troubleshooting](https://kernlize.github.io/docs/guides/troubleshooting.md) when the launcher says it cannot find or verify your applet.

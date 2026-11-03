@@ -16,8 +16,9 @@
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="isdestructivekind"><span class="tsd-kind-call-signature">isDestructiveKind</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">kind</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span><a href="#isdestructivekind" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Whether <a href="_kernl_core.describeChange.html" class="tsd-kind-function">describeChange</a> rates a kind <code>destructive</code>: profiles, follows,
-deletions, the connections list and every list kind.</p>
+<div class="tsd-comment tsd-typography"><p>Whether <a href="_kernl_core.describeChange.html" class="tsd-kind-function">describeChange</a> rates a kind <code>destructive</code>: every replaceable
+and addressable kind (signing one overwrites the version before it),
+deletions, and requests to vanish.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
@@ -29,7 +30,7 @@ deletions, the connections list and every list kind.</p>
 
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-example">
-<h4 class="tsd-anchor-link" id="example">Example<a href="#example" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="ts"><span class="hl-3">isDestructiveKind</span><span class="hl-1">(</span><span class="hl-9">0</span><span class="hl-1">); </span><span class="hl-8">// true</span><br/><span class="hl-3">isDestructiveKind</span><span class="hl-1">(</span><span class="hl-9">1</span><span class="hl-1">); </span><span class="hl-8">// false</span>
+<h4 class="tsd-anchor-link" id="example">Example<a href="#example" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="ts"><span class="hl-3">isDestructiveKind</span><span class="hl-1">(</span><span class="hl-9">0</span><span class="hl-1">); </span><span class="hl-8">// true</span><br/><span class="hl-3">isDestructiveKind</span><span class="hl-1">(</span><span class="hl-9">30311</span><span class="hl-1">); </span><span class="hl-8">// true</span><br/><span class="hl-3">isDestructiveKind</span><span class="hl-1">(</span><span class="hl-9">1</span><span class="hl-1">); </span><span class="hl-8">// false</span>
 </code><button type="button">Copy</button></pre>
 
 </div></div></div></li></ul></section></div>

@@ -119,9 +119,13 @@ windows are forwarded so the bridge can report them as unrouted.</p>
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="observe-1"><span class="tsd-kind-call-signature">observe</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">windowId</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">napplet</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">message</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">GuardDisposition</span><a href="#observe-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Observe one envelope that already travelled over a bound port. Nothing can
-be held or dropped here; counters advance, events are emitted and a
-quarantine triggers <code>onQuarantine</code>.</p>
+<div class="tsd-comment tsd-typography"><p>Observe one envelope that arrived over a bound port. kehto calls this
+synchronously just before it dispatches the envelope to the runtime, and
+ignores the return value, so nothing can be held or delayed here:
+counters advance and events are emitted. A quarantine triggers
+<code>onQuarantine</code>, and when that revokes the binding (as <code>createKernl</code> does)
+kehto no longer finds the window's session and drops this envelope
+instead of dispatching it.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>

@@ -30,7 +30,7 @@ Contacts, messages, files and your account are read by the shell on the applet's
 
 ### A network it reaches through you
 
-Everything an applet sends or fetches goes through the guard. You can see it, slow it down, or cut it off, per applet, at any time.
+Everything an applet sends or fetches goes through the guard, which records what it refuses, reports and stops. You can block an applet, take back any grant, or make the guard stricter for the whole shell, at any time.
 
 ## kernl is opinionated so you don't have to be.
 
@@ -41,7 +41,7 @@ It is built on [kehto](https://github.com/kehto/web), an open toolkit that leave
 2. **The shell empowers you and contains the applet**
    Those are its only two jobs, in that order.
 3. **Protections are on by default**
-   You loosen them per applet. A developer flag never can.
+   The shell starts strict on every visit. Only you can ease it, for the whole shell until you reload; easing one applet at a time is planned. A developer flag never can.
 4. **One account, many networks, no brand names**
    Downloads, sharing and mail plug in as bridges named by what they do for you.
 5. **No private-messaging system is "the best"**
@@ -69,7 +69,7 @@ No subscription and no paid features. The whole shell is the free version.
 
 ### MIT
 
-Read it, fork it, run your own copy. The source is public and so are the decisions behind it.
+The source is private during alpha and opens under the MIT licence with the first public release. The decisions behind it are public now.
 
 *To try it*
 
@@ -93,7 +93,7 @@ No applet ever does. You can sign in with a browser extension or a remote signer
 
 ### What does kernl cost?
 
-Nothing. kernl is free and open source under the MIT licence. There is no account to buy and no paid tier.
+Nothing. kernl is free, with no account to buy and no paid tier. It is MIT licensed; the source is private during alpha and opens with the first public release.
 
 ### Can I try it without signing in?
 
@@ -141,8 +141,8 @@ A shell has two jobs. It gives you a place where your identity and your things a
 When the toolkit offers a privacy or safety mitigation, kernl turns it on, in its strict setting, and documents how to ease it. You matter more than the applet developer does. Within reason: an applet interface so tight that nothing can be written protects nobody.
 
 - The [guard](https://kernlize.github.io/guard/) ships strict, with focus-aware tightening.
-- Hidden and minimised applets have their traffic deferred.
-- A protection is loosened per applet, by you. Never globally, never by a flag.
+- Hidden and minimised applets are measured against a smaller budget, and one that keeps downloading while hidden is stopped.
+- A protection is loosened by you, never by a developer or a flag. Today that choice covers the whole shell until you reload; loosening one applet at a time is planned.
 
 04
 
@@ -361,7 +361,7 @@ How applets are packaged, addressed and verified, and the message domains an app
 2. **Grants, not permissions**
    Ask for the domains you need. The shell narrows what it advertises to what the user has granted, shows every write as what it changes, and lets the user take a grant back.
 3. **The strict profile**
-   Rate limits, size caps, hidden-window deferral and focus-aware tightening are on. Design for them: batch requests, do less when hidden, and expect a refusal to carry a stable reason you can show.
+   Rate limits, size caps, a hidden-window download allowance and focus-aware tightening are on. Design for them: batch requests, do less when hidden, and expect a refusal to carry a stable reason you can show.
 4. **Verified bytes**
    Your applet is identified by the hash of its content. Ship a new version and it is a new identity with fresh grants. That is deliberate.
 5. **Messaging across providers**

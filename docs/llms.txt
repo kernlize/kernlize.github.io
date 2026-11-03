@@ -25,6 +25,7 @@ Markdown twins of every docs page, served at the HTML path with `.md` instead of
 
 - [Run the shell](https://kernlize.github.io/docs/tutorials/run-the-shell.md): This tutorial takes you from nothing to an applet running in a window, signed in with your own account, and shows the Kernl calls behind each step.
 - [Embed kernl in a page](https://kernlize.github.io/docs/tutorials/embed-a-host-page.md): This tutorial builds the smallest page that runs a real applet under kernl: one HTML file, one script, an address field and a frame.
+- [Write an applet](https://kernlize.github.io/docs/tutorials/write-an-applet.md): This tutorial builds a small applet as one HTML file, checks it against the limits kernl will hold it to, publishes it with the applet format's own tooling, and opens it in kernl.
 
 ## How-tos
 

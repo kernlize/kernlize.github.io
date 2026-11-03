@@ -22,8 +22,10 @@ avoid protocol vocabulary: they say network, applet and account. Every
 mitigation is enabled in every profile; only the <code>limit</code> text changes.
 Each summary claims only what is enforced where D-012 places it: limits
 the runtime applies before an applet's request is handled are described as
-refusals, and what kernl observes afterwards is described as reported or,
-for quarantine, as closing the applet.</p>
+refusals. kernl sees each request just before the runtime handles it but
+cannot hold it back, so what kernl measures is described as reported; the
+one exception is quarantine, which closes the applet before the request
+that crossed the limit is handled, so that request is described as dropped.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>

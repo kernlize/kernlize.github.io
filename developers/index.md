@@ -31,7 +31,7 @@ How applets are packaged, addressed and verified, and the message domains an app
 2. **Grants, not permissions**
    Ask for the domains you need. The shell narrows what it advertises to what the user has granted, shows every write as what it changes, and lets the user take a grant back.
 3. **The strict profile**
-   Rate limits, size caps, hidden-window deferral and focus-aware tightening are on. Design for them: batch requests, do less when hidden, and expect a refusal to carry a stable reason you can show.
+   Rate limits, size caps, a hidden-window download allowance and focus-aware tightening are on. Design for them: batch requests, do less when hidden, and expect a refusal to carry a stable reason you can show.
 4. **Verified bytes**
    Your applet is identified by the hash of its content. Ship a new version and it is a new identity with fresh grants. That is deliberate.
 5. **Messaging across providers**

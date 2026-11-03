@@ -24,7 +24,7 @@ Contacts, messages, files and your account are read by the shell on the applet's
 
 ### A network it reaches through you
 
-Everything an applet sends or fetches goes through the guard. You can see it, slow it down, or cut it off, per applet, at any time.
+Everything an applet sends or fetches goes through the guard, which records what it refuses, reports and stops. You can block an applet, take back any grant, or make the guard stricter for the whole shell, at any time.
 
 ## kernl is opinionated so you don't have to be.
 
@@ -35,7 +35,7 @@ It is built on [kehto](https://github.com/kehto/web), an open toolkit that leave
 2. **The shell empowers you and contains the applet**
    Those are its only two jobs, in that order.
 3. **Protections are on by default**
-   You loosen them per applet. A developer flag never can.
+   The shell starts strict on every visit. Only you can ease it, for the whole shell until you reload; easing one applet at a time is planned. A developer flag never can.
 4. **One account, many networks, no brand names**
    Downloads, sharing and mail plug in as bridges named by what they do for you.
 5. **No private-messaging system is "the best"**
@@ -63,7 +63,7 @@ No subscription and no paid features. The whole shell is the free version.
 
 ### MIT
 
-Read it, fork it, run your own copy. The source is public and so are the decisions behind it.
+The source is private during alpha and opens under the MIT licence with the first public release. The decisions behind it are public now.
 
 *To try it*
 
@@ -87,7 +87,7 @@ No applet ever does. You can sign in with a browser extension or a remote signer
 
 ### What does kernl cost?
 
-Nothing. kernl is free and open source under the MIT licence. There is no account to buy and no paid tier.
+Nothing. kernl is free, with no account to buy and no paid tier. It is MIT licensed; the source is private during alpha and opens with the first public release.
 
 ### Can I try it without signing in?
 

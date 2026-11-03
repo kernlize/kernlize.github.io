@@ -14,21 +14,30 @@
 <section class="tsd-panel">
 <ul class="tsd-signatures">
 <li class="">
-<div class="tsd-signature tsd-anchor-link" id="lookupreplaceable"><span class="tsd-kind-call-signature">lookupReplaceable</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">store</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Pick</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">EventStore</span><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">&quot;getReplaceable&quot;</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a href="../types/_kernl_core.LookupBefore.html" class="tsd-signature-type tsd-kind-type-alias">LookupBefore</a><a href="#lookupreplaceable" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-signature tsd-anchor-link" id="lookupreplaceable"><span class="tsd-kind-call-signature">lookupReplaceable</span><span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">store</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Pick</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">EventStore</span><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">&quot;getReplaceable&quot;</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">options</span><span class="tsd-signature-symbol">?:</span> <a href="../interfaces/_kernl_core.LookupReplaceableOptions.html" class="tsd-signature-type tsd-kind-interface">LookupReplaceableOptions</a><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a href="../types/_kernl_core.LookupBefore.html" class="tsd-signature-type tsd-kind-type-alias">LookupBefore</a><a href="#lookupreplaceable" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>A <a href="../types/_kernl_core.LookupBefore.html" class="tsd-kind-type-alias">LookupBefore</a> over the shell's event store.</p>
+<div class="tsd-comment tsd-typography"><p>A <a href="../types/_kernl_core.LookupBefore.html" class="tsd-kind-type-alias">LookupBefore</a> over the shell's event store and, on a miss, the
+network.</p>
+<p>The store answers first. When it holds no version, the applesauce address
+loader asks the given relays and the lookup waits at most <code>timeoutMs</code> for
+an answer, then takes the newest version that arrived. A loader that fails
+or stays silent yields undefined, which the consent summary reports as a
+current version that could not be loaded.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
 <li><span><span class="tsd-kind-parameter">store</span>: <span class="tsd-signature-type">Pick</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">EventStore</span><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">&quot;getReplaceable&quot;</span><span class="tsd-signature-symbol">&gt;</span></span>
 <div class="tsd-comment tsd-typography"><p>The event store that holds the current replaceable events.</p>
+</div></li>
+<li><span><span class="tsd-kind-parameter">options</span>: <a href="../interfaces/_kernl_core.LookupReplaceableOptions.html" class="tsd-signature-type tsd-kind-interface">LookupReplaceableOptions</a><span class="tsd-signature-symbol"> = {}</span></span>
+<div class="tsd-comment tsd-typography"><p>Network loader, relays and timeout.</p>
 </div></li></ul></div>
-<h4 class="tsd-returns-title">Returns <a href="../types/_kernl_core.LookupBefore.html" class="tsd-signature-type tsd-kind-type-alias">LookupBefore</a></h4><p>A lookup for <a href="_kernl_core.createConsentHandler.html" class="tsd-kind-function">createConsentHandler</a>.</p>
+<h4 class="tsd-returns-title">Returns <a href="../types/_kernl_core.LookupBefore.html" class="tsd-signature-type tsd-kind-type-alias">LookupBefore</a></h4><p>A lookup for <a href="_kernl_core.createConsentHandler.html" class="tsd-kind-function">createConsentHandler</a> and <a href="_kernl_core.createSigningConsent.html" class="tsd-kind-function">createSigningConsent</a>.</p>
 
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-example">
-<h4 class="tsd-anchor-link" id="example">Example<a href="#example" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="ts"><span class="hl-3">createConsentHandler</span><span class="hl-1">(</span><span class="hl-4">host</span><span class="hl-1">, </span><span class="hl-3">lookupReplaceable</span><span class="hl-1">(</span><span class="hl-4">eventStore</span><span class="hl-1">), </span><span class="hl-4">resolveApplet</span><span class="hl-1">);</span>
+<h4 class="tsd-anchor-link" id="example">Example<a href="#example" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="ts"><span class="hl-0">const</span><span class="hl-1"> </span><span class="hl-2">lookupBefore</span><span class="hl-1"> = </span><span class="hl-3">lookupReplaceable</span><span class="hl-1">(</span><span class="hl-4">eventStore</span><span class="hl-1">, { </span><span class="hl-4">loader</span><span class="hl-1">, </span><span class="hl-3">relays</span><span class="hl-4">:</span><span class="hl-1"> () </span><span class="hl-0">=&gt;</span><span class="hl-1"> </span><span class="hl-4">tiers</span><span class="hl-1">.</span><span class="hl-3">get</span><span class="hl-1">().</span><span class="hl-4">discovery</span><span class="hl-1"> });</span><br/><span class="hl-3">createConsentHandler</span><span class="hl-1">(</span><span class="hl-4">host</span><span class="hl-1">, </span><span class="hl-4">lookupBefore</span><span class="hl-1">, </span><span class="hl-4">resolveApplet</span><span class="hl-1">);</span>
 </code><button type="button">Copy</button></pre>
 
 </div></div></div></li></ul></section></div>

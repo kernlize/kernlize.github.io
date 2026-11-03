@@ -26,8 +26,8 @@ hides: a redirect arrives as an opaque response and is refused with
 request the browser blocks, or an opaque answer, is <code>unavailable:network</code>.
 On a server, redirects arrive as 3xx with a location and are followed.</p>
 <p>The fetch API cannot pin a connection to a validated address, so the resolver
-check narrows the DNS-rebinding window without closing it; the shell closes it
-by also fetching through a guard that resolves names once.</p>
+check narrows the DNS-rebinding window without closing it. kernl's shell wires
+no resolver today, so hostnames are judged as literals only.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
