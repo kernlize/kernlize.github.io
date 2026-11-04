@@ -19,10 +19,12 @@
 <div class="tsd-comment tsd-typography"><p>Build everything <code>mountApplet</code> needs, without touching the DOM.</p>
 <p>The environment is kehto's <code>resolveShellEnvironment</code>, so it is the live
 domains narrowed by the host's <code>capabilities.resolveEnvironment</code> (kernl's
-grants). The CSP is the guard's zero-network profile plus its Trusted Types
-directives, inserted first in <code>&lt;head&gt;</code> by <code>prepareNappletSrcdoc</code> along with
-the mandatory namespace prelude and then the guard's frame lock. Markup that
-declares a nested frame is refused before any of that (D-014).
+grants). The CSP is the guard's zero-network profile, inserted first in
+<code>&lt;head&gt;</code> by <code>prepareNappletSrcdoc</code> with kehto's nested-context lock enabled
+(<code>experimental.nestedContextLock</code>): the policy gains kehto's Trusted Types
+directives and the mandatory namespace prelude installs kehto's creation
+lock. kernl's insertion lock follows the prelude. Markup that declares a
+nested frame is refused by kehto's scan before any of that (D-014).
 <code>missingRequired</code> lists what the applet asked for and will not get, so the
 host can warn before mounting.</p>
 </div>
@@ -37,6 +39,9 @@ host can warn before mounting.</p>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-throws">
 <h4 class="tsd-anchor-link" id="throws">Throws<a href="#throws" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p><code>Error('denied:nested-frame')</code> when the verified markup declares a frame element.</p>
+</div>
+<div class="tsd-tag-throws">
+<h4 class="tsd-anchor-link" id="throws-1">Throws<a href="#throws-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p><code>Error('unavailable:frame-lock')</code> when kehto's head cannot be found to place the insertion lock.</p>
 </div>
 <div class="tsd-tag-example">
 <h4 class="tsd-anchor-link" id="example">Example<a href="#example" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="ts"><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-0">plan</span><span class="hl-1"> = </span><span class="hl-5">planMount</span><span class="hl-1">({ </span><span class="hl-2">summary</span><span class="hl-1">, </span><span class="hl-2">indexHtml</span><span class="hl-1">, </span><span class="hl-2">adapter</span><span class="hl-1">, </span><span class="hl-2">guardProfile:</span><span class="hl-1"> </span><span class="hl-7">&#39;strict&#39;</span><span class="hl-1">, </span><span class="hl-2">windowId:</span><span class="hl-1"> </span><span class="hl-7">&#39;w1&#39;</span><span class="hl-1"> });</span><br/><span class="hl-2">plan</span><span class="hl-1">.</span><span class="hl-2">sandbox</span><span class="hl-1">; </span><span class="hl-3">// &#39;allow-scripts&#39;</span>

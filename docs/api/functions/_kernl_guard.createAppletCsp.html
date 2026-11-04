@@ -22,8 +22,8 @@ nothing: D-003 lets a user loosen limits and thresholds, never the sandbox.
 A direct network path would bypass the consent, quota and revocation model
 that every other mitigation depends on, so <code>connect-src</code> stays <code>'none'</code> and
 the directives match kehto's zero-network baseline exactly. The Trusted
-Types directives ride alongside, so no applet realm can mint a nested frame
-(D-014).</p>
+Types directives that arm the nested-context lock are not here: kehto
+appends them when the mount plan enables its lock (D-014).</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
@@ -31,11 +31,11 @@ Types directives ride alongside, so no applet realm can mint a nested frame
 <li><span><span class="tsd-kind-parameter">_profile</span>: <a href="../types/_kernl_guard.GuardProfile.html" class="tsd-signature-type tsd-kind-type-alias">GuardProfile</a></span>
 <div class="tsd-comment tsd-typography"><p>Ignored; present so the CSP is requested alongside the config.</p>
 </div></li></ul></div>
-<h4 class="tsd-returns-title">Returns <a href="../interfaces/_kernl_guard.AppletCsp.html" class="tsd-signature-type tsd-kind-interface">AppletCsp</a></h4><p>Connection grants (none), the directive source lists and the Trusted Types directives.</p>
+<h4 class="tsd-returns-title">Returns <a href="../interfaces/_kernl_guard.AppletCsp.html" class="tsd-signature-type tsd-kind-interface">AppletCsp</a></h4><p>Connection grants (none) and the directive source lists.</p>
 
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-example">
-<h4 class="tsd-anchor-link" id="example">Example<a href="#example" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="ts"><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-0">csp</span><span class="hl-1"> = </span><span class="hl-5">createAppletCsp</span><span class="hl-1">(</span><span class="hl-7">&#39;relaxed&#39;</span><span class="hl-1">);</span><br/><span class="hl-2">csp</span><span class="hl-1">.</span><span class="hl-2">connectOrigins</span><span class="hl-1">; </span><span class="hl-3">// []</span><br/><span class="hl-2">csp</span><span class="hl-1">.</span><span class="hl-2">directives</span><span class="hl-1">[</span><span class="hl-7">&#39;connect-src&#39;</span><span class="hl-1">]; </span><span class="hl-3">// [&quot;&#39;none&#39;&quot;]</span><br/><span class="hl-2">csp</span><span class="hl-1">.</span><span class="hl-2">trustedTypes</span><span class="hl-1">; </span><span class="hl-3">// &quot;require-trusted-types-for &#39;script&#39;; trusted-types default&quot;</span>
+<h4 class="tsd-anchor-link" id="example">Example<a href="#example" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="ts"><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-0">csp</span><span class="hl-1"> = </span><span class="hl-5">createAppletCsp</span><span class="hl-1">(</span><span class="hl-7">&#39;relaxed&#39;</span><span class="hl-1">);</span><br/><span class="hl-2">csp</span><span class="hl-1">.</span><span class="hl-2">connectOrigins</span><span class="hl-1">; </span><span class="hl-3">// []</span><br/><span class="hl-2">csp</span><span class="hl-1">.</span><span class="hl-2">directives</span><span class="hl-1">[</span><span class="hl-7">&#39;connect-src&#39;</span><span class="hl-1">]; </span><span class="hl-3">// [&quot;&#39;none&#39;&quot;]</span>
 </code><button type="button">Copy</button></pre>
 
 </div></div></div></li></ul></section></div>
