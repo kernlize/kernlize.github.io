@@ -198,11 +198,11 @@ The guard is the set of protections that sit between an applet and you. It is **
 5. **Behavioural rate limits**
    Reading, publishing, messaging, storage and downloads each have an allowance per applet, set before it starts. A request over its allowance is refused until the allowance refills. Deletions count against publishing, and are also counted on their own so you can see an applet that deletes a lot.
 6. **Focus-aware tightening**
-   An applet you are not looking at is measured against a smaller budget, and the guard tells you when it goes over. Going over is reported, not refused; the budget above still applies. The shell decides what is focused; the applet is never asked.
-7. **Hidden applets that keep downloading are stopped**
-   While an applet is minimised or hidden, the shell counts its downloads. One that goes past its allowance is quarantined: the download that crossed the allowance is dropped, and the shell closes it and tells you. Its other requests are recorded, not held back.
+   An applet you are not looking at is measured against a smaller budget. A request over it is refused before it is handled, and the guard tells you; the applet can try again once you switch to it. The budget above still applies. The shell decides what is focused; the applet is never asked.
+7. **Hidden applets cannot act until you can see them**
+   While an applet is minimised or hidden, the shell refuses its requests before they are handled, except the messages that let you close, theme or reach it; the applet can try again once it is visible. One that keeps asking for downloads past its allowance is quarantined: the download that crossed the allowance is dropped, and the shell closes it and tells you.
 8. **Flood control and quarantine**
-   The shell counts every message an applet sends. Bursts above the per-second rate are reported to you. One that keeps flooding is quarantined: the message that crossed the limit is dropped, and the shell closes the applet and tells you. You can open it again when you choose.
+   The shell counts every message an applet sends. Requests in a burst above the per-second rate are refused before they are handled, and the shell tells you; messages that keep the window controllable still get through. One that keeps flooding is quarantined: the message that crossed the limit is dropped, and the shell closes the applet and tells you. You can open it again when you choose.
 9. **Oversized requests are refused**
    Requests for files and long-running searches are measured against a maximum size. One that is too large is refused before it is handled, so nothing it asked for is fetched, and the shell tells you.
 10. **Device permissions denied**

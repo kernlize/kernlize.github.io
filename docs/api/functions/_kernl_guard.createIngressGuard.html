@@ -22,7 +22,9 @@ empty, envelopes queue (<code>defer</code>) up to <code>ingressQueue</code> and 
 <code>drain</code> as tokens refill; past the queue they are rejected. A window that
 sends <code>quarantineThreshold</code> messages inside ten seconds, or fetches more
 than <code>hiddenResourceAllowance</code> resources while hidden, is quarantined until
-the user releases it. Oversized envelopes are rejected outright.</p>
+the user releases it. Oversized envelopes are rejected outright. A caller
+that refuses deferred traffic instead of holding it passes <code>hold: false</code>:
+the burst is reported as <code>defer</code> but nothing is queued.</p>
 <p>The guard emits an event for every disposition other than <code>pass</code>, so the
 user can see what an applet tried to do (D-003).</p>
 </div>
