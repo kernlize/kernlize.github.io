@@ -45,7 +45,7 @@ It is built on [kehto](https://github.com/kehto/web), an open toolkit that leave
 
 ## Alpha, and said so.
 
-kernl is alpha software. The sandbox and the guard work today. Private and legacy messages work when your account can encrypt; ratchet sessions are not available yet. Downloads, sharing and mail work by handing off to an app on your device; in-shell backends are planned. The shell shows anything it cannot do as unavailable rather than pretending.
+kernl is alpha software. The sandbox and the guard work today. Private, legacy and ratchet messages work when your account can encrypt; ratchet sessions are experimental. Downloads, sharing and mail work by handing off to an app on your device; in-shell backends are planned. The shell shows anything it cannot do as unavailable rather than pretending.
 
 Applets are verified by content hash before they run and re-checked on every read from cache. If the bytes change, the applet's grants die with them.
 
@@ -95,4 +95,4 @@ Yes. The preview runs the whole shell in your browser with sample applets and a 
 
 ### Is it ready for daily use?
 
-Not yet. kernl is alpha software. The sandbox and the guard work. Private and legacy messages work once you sign in with an account that can encrypt, such as a browser extension, a remote signer or a local account; ratchet sessions are not available yet. Downloads, sharing and mail work by handing off to an app on your device, after the shell asks you; in-shell backends are planned.
+Not yet. kernl is alpha software. The sandbox and the guard work. Private, legacy and ratchet messages work once you sign in with an account that can encrypt, such as a browser extension, a remote signer or a local account; ratchet sessions are experimental. Downloads, sharing and mail work by handing off to an app on your device, after the shell asks you; in-shell backends are planned.

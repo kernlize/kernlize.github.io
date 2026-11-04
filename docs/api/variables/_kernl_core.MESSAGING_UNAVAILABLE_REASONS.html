@@ -12,9 +12,9 @@
 <li><a href="" aria-current="page">MESSAGING_UNAVAILABLE_REASONS</a></li></ul>
 <h1>Variable MESSAGING_UNAVAILABLE_REASONS<code class="tsd-tag">Const</code></h1></div>
 <div class="tsd-signature"><span class="tsd-kind-variable">MESSAGING_UNAVAILABLE_REASONS</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Readonly</span><span class="tsd-signature-symbol">&lt;</span><br/>    <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">&quot;signInRequired&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;signerCannotEncrypt&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;noRuntime&quot;</span><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol"> = ...</span></div>
-<div class="tsd-comment tsd-typography"><p>The reasons kernl gives for a provider that cannot run. <code>private</code> and
-<code>legacy</code> report the first two, which follow the active account; <code>ratchet</code>
-reports <code>noRuntime</code> because no runtime ships with the shell.</p>
+<div class="tsd-comment tsd-typography"><p>The reasons kernl gives for a provider that cannot run. Every provider
+reports the first two, which follow the active account; <code>noRuntime</code> is
+reported only by a <code>ratchet</code> or <code>group</code> provider a host registered without a backend.</p>
 </div>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-example">

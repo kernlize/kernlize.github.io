@@ -1,12 +1,12 @@
 # Described, not ranked.
 
-> kernl describes several private-message providers and ranks none. Each is described by what it protects. Private and legacy messages work in the live shell when your account can encrypt; ratchet sessions are not available yet.
+> kernl describes several private-message providers and ranks none. Each is described by what it protects. Private, legacy and ratchet messages work in the live shell when your account can encrypt; ratchet sessions are experimental.
 
 kernl is built to offer private messaging through several providers. **None of them is "the best".** The shell tells you plainly what each one protects, and you pick the one the person you are writing to can read.
 
 ## Two providers send today; one is still to come.
 
-kernl is alpha software. Private messages and legacy messages work in the live shell once you sign in with an account that can encrypt: a browser extension, a remote signer or a local account on this device. A read-only account cannot, and the shell says so. Ratchet sessions need a runtime kernl does not ship yet, so they show as unavailable with a plain reason instead of pretending. The [preview](https://kernlize.github.io/app/?preview=1) lets you try all three without an account, and keeps everything in your browser tab.
+kernl is alpha software. Private messages and legacy messages work in the live shell once you sign in with an account that can encrypt: a browser extension, a remote signer or a local account on this device. A read-only account cannot, and the shell says so. Ratchet sessions work the same way and are experimental: the person you write to needs an app that speaks them, they are one to one, and the keys that change with every message are kept on this device, locked so only your account can open them. Clearing this site's data ends those sessions. Group sessions work the same way and are experimental too: everyone you add needs an app that speaks them and must have used it once, so that you can invite them; your groups are kept on this device, locked to your account, while their messages last only until you reload. The [preview](https://kernlize.github.io/app/?preview=1) lets you try private and legacy messages without an account, and keeps everything in your browser tab; ratchet sessions need the live shell.
 
 Your messages are opened by your own account, in the Messages panel, for you. An applet sees your messages only if you grant it messages, and you can take that grant back.
 
@@ -43,6 +43,17 @@ Keys change with every message, so a leak today does not expose yesterday. Both 
 - **Metadata protection**: Partial
 - **Other person needs this app**: Yes
 - **Groups**: No
+- **Experimental**: Yes
+
+### Group sessions
+
+A group shares keys that change as it talks and as people join or leave, so a leak exposes neither what came before nor, once the group moves on, what comes after. Everyone in it needs an app that speaks it.
+
+- **Forward secrecy**: Yes
+- **Heals after a key leak**: Yes
+- **Metadata protection**: Partial
+- **Other person needs this app**: Yes
+- **Groups**: Yes
 - **Experimental**: Yes
 
 ## What the rows mean.

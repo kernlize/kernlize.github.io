@@ -67,7 +67,7 @@ kernl is a first draft. This page says what runs, what is a contract without an 
 | --- | --- | --- |
 | Guard | `@kernl/guard` | Three profiles (`createGuardConfig`, `applyNappletRules`), envelope classification, ingress flood control with quarantine, visibility gate, focus-aware firewall over `@kehto/firewall`'s `evaluate()`, the fixed zero-network CSP, an insertion lock on top of kehto's nested-context lock ([D-014](https://kernlize.github.io/docs/decisions.md#d-014)), eleven mitigation descriptions for the UI. Pure, fully specified in `packages/guard/features/`. |
 | Messaging | `@kernl/messaging` | `MessagingProvider`, `MessagingBackend`, `MessagingRegistry` with saved-preference restore, the composite backend with `provider:innerId` namespacing, `describeProvider` rows, a complete in-memory backend (`createMemoryBackend`) used by the preview and the tests, and three providers (`private`, `legacy`, `ratchet`) built with `defineProvider` from backends the shell injects. The network backends for `private` and `legacy` are in `@kernl/core` (`createPrivateMessagesBackend`, `createLegacyMessagesBackend`) and are wired in the live shell ([below](#messaging-providers-in-the-live-shell)). |
-| Bridges | `@kernl/bridges` | `Locator` parsing for the web schemes, `magnet:`, `nzb:`, `slsk:` and `mailto:`, the `Bridge` contract, the registry with its `authorize` hook and outcome events, a complete HTTP bridge with SSRF policy, the four backend-driven bridges up to their backend interface, `createHandoffBackends`, which serves all four by opening the locator in an app on the user's device, `createBridgeResourceResolver` for kehto's resource service, and `describeBridge` rows. |
+| Bridges | `@kernl/bridges` | `Locator` parsing for the web schemes, `magnet:`, `nzb:`, `slsk:` and `mailto:`, the `Bridge` contract, the registry with its `authorize` hook and outcome events, a complete HTTP bridge with SSRF policy, the four backend-driven bridges up to their backend interface, `createHandoffBackends`, which serves all four by opening the locator in an app on the user's device, `createWebTorrentBackend`, which downloads magnet links inside the shell page over WebRTC, `createBridgeResourceResolver` for kehto's resource service, and `describeBridge` rows. |
 | Composition | `@kernl/core` | `createKernl` over one applesauce `EventStore`, `RelayPool` and `AccountManager`, with kehto's real `createShellBridge` exercised end to end in `kernl.feature`: an applet is decoded, resolved, planned and mounted, binds its port through the guarded `handleWindowMessage`, completes `shell.ready`, is answered by the theme, identity and resource services, and is quarantined and revoked when it floods. Relay tiers, the applesauce adapters, the guard pipeline and runtime firewall rules, grants over `bridge.runtime.aclState`, consent summaries, the default registries and the layouts each have their own feature file. |
 | Shell UI | `apps/web` | Landing site at `/` and the shell at `/app/`: sign-in (browser extension, remote signer, read-only, password-protected local account), open by address with the required and optional domains as choices, windows, a grants panel per window, a shell-wide guard panel with the event log, the provider picker, and the offline preview behind `?preview=1` ([D-011](https://kernlize.github.io/docs/decisions.md#d-011)), hosted at [kernlize.github.io/app/?preview=1](https://kernlize.github.io/app/?preview=1). |
 
@@ -81,14 +81,16 @@ kernl is a first draft. This page says what runs, what is a contract without an 
 | --- | --- | --- |
 | `private` | The active account's signer exposes `nip44` (browser extension, remote signer, password-protected local account) | `sign-in-required` with no active account; `signer-cannot-encrypt` when the signer has no `nip44` (a read-only account) |
 | `legacy` | The active account's signer exposes `nip04` | `sign-in-required` with no active account; `signer-cannot-encrypt` when the signer has no `nip04` |
-| `ratchet` | Never in this draft | `no-runtime`: a double-ratchet runtime has to be supplied |
+| `ratchet` (experimental) | The active account's signer exposes `nip44`, which seals the session state kept on this device | `sign-in-required` with no active account; `signer-cannot-encrypt` without `nip44` |
+| `group` (experimental) | The active account's signer exposes `nip44`, which opens invitations and seals the group state kept on this device | `sign-in-required` with no active account; `signer-cannot-encrypt` without `nip44` |
 
 `private` sends to the recipient's kind 10050 inbox relays, falling back to the sender's `outbox` and `super` tiers when the recipient publishes none, and wraps a copy to the sender so the conversation reads the same on every device. `legacy` is metadata-exposing: sender, recipient and timing are public on the event, and the picker says so. The Messages panel decrypts the user's own messages without a consent prompt, because the shell asks on the user's behalf; an applet reaches messages only through the `dm` domain grant. The preview still uses the in-memory backend.
 
 ## What does not work yet
 
-- **In-shell transfer backends.** Downloads, sharing and mail work only by hand-off: `createKernl` passes `host.openLink` to `createDefaultBridges`, so the torrent, NZB, Soulseek and mail bridges open the locator's canonical address in an app on the user's device after the user confirms leaving kernl. kernl makes no connection for these; what the device app then does on its own network is outside kernl's view and control. No backend moves the data inside the shell, and there is no downloads view. A `job` result from a hand-off is an id, not a transfer kernl can track, and it is reported even when the user declines to leave. See [Bridges](https://kernlize.github.io/docs/concepts/bridges.md#hand-off-backends).
-- **Ratchet sessions.** No double-ratchet runtime ships, so `ratchet` reports `no-runtime` (the table above). See [Messaging](https://kernlize.github.io/docs/concepts/messaging.md).
+- **In-shell transfers for NZB, Soulseek and mail.** Magnet links download inside the shell page by default ([D-017](https://kernlize.github.io/docs/decisions.md#d-017)): a WebTorrent client loaded on the first download reaches browser peers over WebRTC, and the Downloads panel shows progress and lets the user pause, resume, remove and save. It reaches only peers that speak WebRTC, so a link whose swarm has none stays "Looking for peers"; the user can switch to "Open in an app on your device" in Settings. Downloads live in memory and end when the tab closes. NZB, Soulseek and mail still work only by hand-off, after the user confirms leaving kernl, because their protocols need raw TCP sockets a page cannot open. A `job` result from a hand-off is an id, not a transfer kernl can track, and it is reported even when the user declines to leave. See [Bridges](https://kernlize.github.io/docs/concepts/bridges.md#downloads-inside-kernl).
+- **Ratchet sessions, beyond one to one on a shared relay.** `ratchet` works in the live shell ([D-016](https://kernlize.github.io/docs/decisions.md#d-016)) but is experimental: sessions are one to one, both sides must share an `outbox` or `super` relay, the conversation list is in memory and empties on reload (sessions and keys survive, sealed to the account), the first use waits up to the library's 12 s for the account's device list, and an extension or remote signer is asked to decrypt each stored value once per page load and to encrypt each write. The preview reports it unavailable with `no-ratchet-runtime`. See [Messaging](https://kernlize.github.io/docs/concepts/messaging.md).
+- **Group sessions, beyond the basics.** `group` works in the live shell ([D-018](https://kernlize.github.io/docs/decisions.md#d-018)) but is experimental and runs an alpha library: messages are kept in memory, so a reload empties each group's history (membership and secrets survive, sealed to the account); an account is one member of a group, so only one of a person's devices joins it; people can be added only when they have published a key package, which kernl does when the provider is first used; there is no way yet to name a group, add or remove members after it starts, or leave it; and an extension or remote signer is asked to decrypt each sealed store once per page load and to encrypt each write. Relay-based groups (NIP-29) are not offered, because they are not end-to-end encrypted. The preview reports `group` as needing a sign-in. See [Messaging](https://kernlize.github.io/docs/concepts/messaging.md#protocol-inventory).
 - **Web fetch from the browser shell, beyond the simple case.** The HTTP bridge runs in the page, so it is subject to CORS, and an opaque redirect it cannot inspect is refused with `denied:redirect-unverifiable`. Web fetch works from the shell for `https` origins that permit cross-origin reads and answer without a redirect. Hostnames are checked as literals only; no resolver is wired. See [Bridges](https://kernlize.github.io/docs/concepts/bridges.md#the-http-bridge).
 - **Per-host bridge consent.** `createKernl` builds the bridge registry with `createDefaultBridges()` and no `authorize` hook, so a `resource` request from a granted applet is checked by the HTTP bridge's SSRF policy and nothing else. A host that wants a prompt per host or scheme passes its own registry in `KernlOptions.bridges`.
 - **Per-applet guard profiles.** `GuardFacade.setProfile` rebuilds the pipeline for the whole shell and is not persisted. The per-applet, remembered override [D-003](https://kernlize.github.io/docs/decisions.md#d-003) describes is not in this draft.
@@ -145,14 +147,27 @@ Each entry says what ships, per package and app. [Alpha status](https://kernlize
 
 ## Unreleased
 
+### `@kernl/bridges`
+
+- `createWebTorrentBackend({ client, trackers?, now?, progressIntervalMs? })`: a `TorrentBackend` that downloads inside the page through a structural `WebTorrentLike` client or a loader for one. It keeps only `wss://` trackers plus `DEFAULT_WEBRTC_TRACKERS` (`webTrackers` is the filter) and adds `jobs`, `subscribe`, `pause`, `resume`, `remove` and `files`. Errors: `invalid:info-hash`, `unavailable:<why>`, `unavailable:not-finished`, `denied:unknown-download` ([D-017](https://kernlize.github.io/docs/decisions.md#d-017)).
+- `BackendTraits.handoff` is typed `true | undefined` and is read on every availability check, so a backend may switch between moving data itself and handing off.
+
 ### `@kernl/core`
 
+- `createDefaultBridges` takes an optional `torrent` backend that replaces the hand-off for magnet links only; `KernlOptions.torrent` passes one through `createKernl`.
+
 - `createPrivateMessagesBackend`: NIP-17 messages over the account signer. The seal is signed by the account with `nip44`; the wrap is signed by an ephemeral key that lives inside an applesauce `PrivateKeySigner` and is discarded after the wrap. Sends go to the recipient's kind 10050 inbox relays, falling back to the user's `outbox` and `super` tiers, with a copy wrapped to the user ([D-015](https://kernlize.github.io/docs/decisions.md#d-015)).
+- `createRatchetMessagesBackend` and `createSealedRatchetStorage`: ratchet sessions over the `nostr-double-ratchet` library's `NdrRuntime`, with the account signer signing the device list and the library's device and session keys stored only as `nip44` ciphertext sealed to the account. `createKernl` wires it as the default `ratchet` backend, available while the signer has `nip44`; `ratchet` no longer reports `no-runtime` in the live shell, and applets reach it through the `dm` domain like the other providers ([D-016](https://kernlize.github.io/docs/decisions.md#d-016)).
+- `createGroupMessagesBackend`, `createSealedGroupStore` and `createGroupNetwork`: group sessions (Marmot, MLS over nostr) over `@internet-privacy/marmot-ts`, with the account signer for identity and invitations and every library store sealed to the account with `nip44`. `createDefaultMessaging` registers the `group` provider and `createKernl` wires it; `MessagingBackendFactories` gains `group`.
 - `createLegacyMessagesBackend`: NIP-04 kind 4 messages through `signer.nip04`, normalised the same way and still marked metadata-exposing.
 - `createKernl` wires both by default unless `KernlOptions.messagingBackends` overrides them, so `private` and `legacy` work in the live shell. Availability follows the active account: `private` needs a signer with `nip44`, `legacy` one with `nip04`.
 - **Breaking.** `MESSAGING_UNAVAILABLE_REASONS` now holds `sign-in-required`, `signer-cannot-encrypt` and `no-runtime`. `needs-local-key-signer` and `not-implemented` are removed. See [Error reasons](https://kernlize.github.io/docs/reference/errors.md).
 - **Breaking.** `planMount` enables kehto's released nested-context lock, `experimental: { nestedContextLock: true }` from `@kehto/shell` 0.30.0, in place of kernl's port of it. kehto now renders the Trusted Types directives, installs the `default` policy and pins the element factories; its `assertNappletHasNoFrame` still maps to `denied:nested-frame`. Frame creation inside an applet now throws `TypeError('kehto: napplets may not create nested browsing contexts')`; insertion still throws `denied:nested-frame` ([D-014](https://kernlize.github.io/docs/decisions.md#d-014)).
 - `@kehto/shell` is now `^0.30.0`. The other kehto packages are unchanged.
+
+### `@kernl/messaging`
+
+- `createGroupMessagesProvider`: the `group` provider, "Group sessions". Forward secrecy, post-compromise security and groups; experimental; specification `Marmot (MLS, RFC 9420; supersedes NIP-EE)`.
 
 ### `@kernl/guard`
 
@@ -160,6 +175,10 @@ Each entry says what ships, per package and app. [Alpha status](https://kernlize
 - **Breaking.** Removed `appletMarkupHasFrame`, `assertAppletHasNoFrame`, `TRUSTED_TYPES_DIRECTIVES` and the `trustedTypes` field of `AppletCsp`. `createAppletCsp` returns the 14 baseline directives only, and `@kernl/guard` no longer throws outside the applet realm.
 
 ### Shell and site (`apps/web`)
+
+- The Messages panel lists "Group sessions" beside the other providers, unranked; a send to someone who has not set it up says so in plain words. The site's vocabulary check also refuses the group protocol's names.
+
+- Magnet links download inside the shell. A Downloads panel lists each download with progress, peers and speed, and offers pause, resume, remove and Save. Settings has a Downloads choice, "Download in kernl" (the default where the browser can connect to peers) or "Open in an app on your device", remembered under `kernl:downloads:mode:v1`. The shell host page loads `webtorrent` 3.0.21 (browser build) on the first download only; applet frames are unchanged. The preview downloads from nobody and finishes each download with a short text file.
 
 - The Messages panel sends and receives private and legacy messages for an account whose signer can encrypt (browser extension, remote signer, password-protected local account). It opens the user's own messages without a consent prompt; applets still reach messages only through the `dm` grant.
 
@@ -514,7 +533,7 @@ The shell holds one `BridgeRegistry`, built with `createBridgeRegistry({ authori
 | authorise | `denied:bridge` | the bridge id |
 | resolve | whatever the bridge threw (`denied:…`, `unavailable:…`, `invalid:…`); a non-`Error` rejection is reported as its text | the bridge id |
 
-Every outcome, successful or not, is reported to `onResolve` as `{ bridge, scheme, ok, reason? }`, when the registry was given one. The composed shell gives none, so bridge outcomes reach neither the guard panel nor any other surface the user sees. The authoriser is a `BridgeAuthorizer`: `(locator, bridge, context) => boolean | Promise<boolean>`. Without one, every request is allowed. The composed shell has none: `createKernl` builds its registry with `createDefaultBridges({ handoff: (uri) => host.openLink(uri) })` and no `authorize`, so a `resource` request from an applet that holds the `resource` grant is checked by the HTTP bridge's policy and nothing else. There is no per-host consent prompt and no per-host grant in this draft ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#what-does-not-work-yet)); wiring one is on the [Roadmap](https://kernlize.github.io/docs/roadmap.md#_6-guard). A host can pass its own registry with an `authorize` hook in `KernlOptions.bridges`. See `registry.feature`.
+Every outcome, successful or not, is reported to `onResolve` as `{ bridge, scheme, ok, reason? }`, when the registry was given one. The composed shell gives none, so bridge outcomes reach neither the guard panel nor any other surface the user sees. The authoriser is a `BridgeAuthorizer`: `(locator, bridge, context) => boolean | Promise<boolean>`. Without one, every request is allowed. The composed shell has none: `createKernl` builds its registry with `createDefaultBridges({ handoff: (uri) => host.openLink(uri), torrent })` (the torrent backend only when `KernlOptions.torrent` is given) and no `authorize`, so a `resource` request from an applet that holds the `resource` grant is checked by the HTTP bridge's policy and nothing else. There is no per-host consent prompt and no per-host grant in this draft ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#what-does-not-work-yet)); wiring one is on the [Roadmap](https://kernlize.github.io/docs/roadmap.md#_6-guard). A host can pass its own registry with an `authorize` hook in `KernlOptions.bridges`. See `registry.feature`.
 
 ## The HTTP bridge
 
@@ -563,7 +582,7 @@ Four bridges are complete up to the backend interface they call. Each takes its 
 
 The first three return `{ kind: 'job', id, label: name }`; the mail bridge returns `{ kind: 'conversation', id, participants: addresses }`. Fields are read from the locator before the backend is called; a locator missing one rejects with `invalid:locator-missing-<field>` (`backend-bridges.feature`, scenario "a locator missing a required field is rejected before the backend is called").
 
-Every backend interface extends `BackendTraits`, whose one field is `handoff?: true`. A bridge reports:
+Every backend interface extends `BackendTraits`, whose one field is `handoff?: true`. The bridge reads it on every `availability()` call, so a backend that lets the user choose between moving data itself and handing off may switch it. A bridge reports:
 
 | Backend | `availability()` | `resolve()` |
 | --- | --- | --- |
@@ -593,9 +612,34 @@ What the user is exposed to:
 - **kernl's network sees nothing.** For a hand-off, kernl makes no connection: no swarm, indexer, news server, peer or mail provider is contacted by the shell or by any applet. The address is the only thing that leaves kernl, and it leaves to the device, not to the network.
 - **The device app's behaviour is outside kernl.** The torrent client, the Soulseek client, the mail program or the NZB downloader then does what it does, with its own settings and its own network. The exposure rows describe what that protocol normally exposes, which is why they stay the same as for an in-shell backend, but kernl cannot see, limit or revoke what the app does. If no app is registered for the scheme, the browser decides what happens.
 
-### In-shell backends
+### Downloads inside kernl
 
-A backend that moves the data inside the shell, such as a WebTorrent client, replaces the hand-off backend for its bridge: build the bridge with your backend in place of the hand-off one. The bridge then reports `{ available: true }`, the `Handled by` and `Sent through kernl` rows disappear, and the traffic is the shell's. Supplying one is a shell change plus a docs change; see [Add a bridge backend](https://kernlize.github.io/docs/how-tos/add-a-bridge-backend.md). The order in which in-shell backends are planned is in the [Roadmap](https://kernlize.github.io/docs/roadmap.md#_2-bridge-backends).
+Magnet links download inside the shell page ([D-017](https://kernlize.github.io/docs/decisions.md#d-017)). `createWebTorrentBackend({ client, trackers?, now?, progressIntervalMs? })` is a `TorrentBackend` over a WebTorrent client. `client` is a structural `WebTorrentLike` or a function that returns one (or a promise of one), so `@kernl/bridges` has no dependency on the library and the shell can load it on the first download. A loader that fails is tried again on the next download.
+
+| Step | What happens |
+| --- | --- |
+| hash | Lowercased; anything but 40 hex characters rejects with `invalid:info-hash` before the client loads. |
+| trackers | Only the link's `wss://` trackers are kept, then `DEFAULT_WEBRTC_TRACKERS` (`wss://tracker.openwebtorrent.com`, `wss://tracker.webtorrent.dev`, `wss://tracker.btorrent.xyz`) or the `trackers` option are appended, without duplicates. A page reaches peers only over WebRTC, and only a secure-socket tracker introduces it to them; `webTrackers(list, defaults?)` is the filter. |
+| add | The client gets `magnet:?xt=urn:btih:<hash>&dn=<name>&tr=…`. The same hash twice is one job. A client that fails to load or throws rejects with `unavailable:<why>`. |
+| job | Ids are `download:1`, `download:2`, and so on. The label is the link's name, else the hash, until the swarm sends the real name. |
+
+The backend also exposes what the Downloads panel needs:
+
+| Method | Does | Fails with |
+| --- | --- | --- |
+| `jobs()` | Every `DownloadJob` in the order added: `id`, `name`, `infoHash`, `state` (`connecting`, `downloading`, `paused`, `done`, `failed`), `progress` (0 to 1), `received`, `size` once known, `peers`, `speed` (bytes per second, 0 unless downloading), `error` once failed | |
+| `subscribe(listener)` | Calls the listener now and on every change; returns the function that stops it. Progress-only changes are reported at most once per `progressIntervalMs` (500 ms by default). | |
+| `pause(id)`, `resume(id)` | Pauses or resumes the transfer | `denied:unknown-download` |
+| `remove(id)` | Drops the job and asks the client to remove the torrent with its stored data | `denied:unknown-download` |
+| `files(id)` | `{ name, size, blob }` for each file of a finished job | `denied:unknown-download`, `unavailable:not-finished` |
+
+The backend has no `handoff` trait, so the bridge reports `{ available: true }` and `describeBridge` gives `Status: ready` without the `Handled by` and `Sent through kernl` rows. The exposure rows stay: peers see the user's network address, the transfer is not encrypted, and what the user fetches is visible to the swarm. See `webtorrent-backend.feature`.
+
+`createDefaultBridges({ handoff, torrent })` builds the torrent bridge over `torrent` when given, and over the hand-off otherwise; NZB, Soulseek and mail still hand off. `createKernl` passes `KernlOptions.torrent` through. The web shell supplies a backend that follows the user's choice in Settings: **Download in kernl**, the default when the browser has `RTCPeerConnection`, or **Open in an app on your device**, which uses the hand-off backend. The choice is stored under `kernl:downloads:mode:v1`. The WebTorrent library (`webtorrent` 3.0.21, browser build) loads only in the shell host page, and only when the first download starts. Applet frames never get it: their CSP and kehto's prelude still remove WebRTC from them.
+
+### Why NZB, Soulseek and mail still hand off
+
+A browser page can open HTTP requests, WebSockets and WebRTC connections, and nothing else. NZB downloads need NNTP to a news server, Soulseek its own protocol to a central server and to peers, and mail SMTP and IMAP; all of them run over raw TCP sockets, which no page can open. They stay hand-off until kernl can reach a companion service that opens those sockets for the user ([Roadmap](https://kernlize.github.io/docs/roadmap.md#_2-bridge-backends)). Supplying another backend is a shell change plus a docs change; see [Add a bridge backend](https://kernlize.github.io/docs/how-tos/add-a-bridge-backend.md).
 
 ## The resource resolver
 
@@ -609,6 +653,9 @@ kehto's resource service takes a `fetch(url, init)` function. `createBridgeResou
 | `invalid:magnet-missing-hash` | `parseLocator` for a magnet without a `urn:btih:` hash |
 | `invalid:locator-missing-<field>` | a backend-driven bridge whose locator lacks `infoHash`, `url`, `user`, `path` or `address` |
 | `invalid:nzb-not-https` | the NZB hand-off backend, for a document not served over `https` |
+| `invalid:info-hash` | the in-kernl download backend, for a hash that is not 40 hex characters |
+| `unavailable:<why>` | the in-kernl download backend, when the client cannot load or refuses the link |
+| `unavailable:not-finished`, `denied:unknown-download` | the in-kernl download backend's `files`, `pause`, `resume` and `remove` |
 | `invalid:duplicate-bridge <id>`, `invalid:scheme-taken <scheme>` | `BridgeRegistry.register` |
 | `invalid:redirect` | HTTP bridge, redirect without a usable `Location` |
 | `unavailable:no-bridge` | `BridgeRegistry.resolve`, no bridge serves the scheme |
@@ -620,7 +667,7 @@ kehto's resource service takes a `fetch(url, init)` function. `createBridgeResou
 
 ## Why bridges are shell-owned
 
-An applet could, in principle, be given a WebRTC or WebSocket path and speak these protocols itself. kernl does not allow that, because the CSP [never loosens](https://kernlize.github.io/docs/concepts/guard.md#why-csp-never-loosens). Routing every protocol through a shell service means every protocol gets the same grant, the same quota, the same exposure description and the same revocation, and a consent prompt per request, which this draft does not have, could be added in one place. The applet asks for a locator; the user's `resource` grant decides whether it may; the shell does the talking.
+An applet could, in principle, be given a WebRTC or WebSocket path and speak these protocols itself. kernl does not allow that, which is why in-kernl downloads run in the shell page and not in an applet frame, because the CSP [never loosens](https://kernlize.github.io/docs/concepts/guard.md#why-csp-never-loosens). Routing every protocol through a shell service means every protocol gets the same grant, the same quota, the same exposure description and the same revocation, and a consent prompt per request, which this draft does not have, could be added in one place. The applet asks for a locator; the user's `resource` grant decides whether it may; the shell does the talking.
 
 ## Related
 
@@ -993,7 +1040,24 @@ An embedding host that renders its own windows can pass any `LayoutStrategy`, in
 
 No encrypted messaging protocol is inherently superior. Each one trades metadata exposure, forward secrecy and reach against the others, and the right trade depends on who the user is writing to. kernl therefore supports several and ranks none ([D-009](https://kernlize.github.io/docs/decisions.md#d-009)). A provider describes its own properties truthfully; the shell shows the description and lets the user choose.
 
-In this alpha `private` and `legacy` work in the live shell when the signed-in account's signer can encrypt; `ratchet` needs a runtime that does not ship and is unavailable. The offline preview runs all three over the in-memory backend, and messages sent there go nowhere ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#messaging-providers-in-the-live-shell)).
+In this alpha `private`, `legacy` and `ratchet` work in the live shell when the signed-in account's signer can encrypt; `ratchet` is experimental. The offline preview runs `private` and `legacy` over the in-memory backend, and messages sent there go nowhere; it reports `ratchet` unavailable ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#messaging-providers-in-the-live-shell)).
+
+The live shell also runs `group` (group sessions, experimental) for a signed-in account whose signer has `nip44`; the preview reports it as needing a sign-in.
+
+## Protocol inventory
+
+kernl aims to carry every private-messaging protocol that runs over the identity layer, each as one provider behind the same contract ([D-018](https://kernlize.github.io/docs/decisions.md#d-018)). This is every messaging NIP in the [NIPs index](https://github.com/nostr-protocol/nips#readme) as of November 2026, plus the two session protocols specified outside it.
+
+| Protocol | Specification | What it is | Status in kernl |
+| --- | --- | --- | --- |
+| Encrypted direct messages | NIP-04 (deprecated upstream in favour of NIP-17) | Kind 4, shared-secret encryption, sender and recipient public | Shipped: `legacy` |
+| Private direct messages | NIP-17, with NIP-44 encryption and NIP-59 gift wrap | Kind 14 rumours sealed and gift-wrapped, one or many recipients | Shipped: `private` (text; kind 15 file messages are not read yet) |
+| Double-ratchet sessions | nostr-double-ratchet (draft, outside the NIPs) | One-to-one sessions whose keys change with every message | Shipped: `ratchet`, experimental |
+| MLS groups | Marmot protocol (MIP-00 to MIP-03; supersedes NIP-EE, marked unrecommended upstream) | MLS (RFC 9420) groups over kinds 30443, 444 and 445 | Shipped: `group`, experimental |
+| Relay-based groups | NIP-29 | Groups a relay enforces; content is readable by the relay, not end-to-end encrypted | Not a provider: no end-to-end encryption, and a group lives on one relay rather than among people, which the `dm` recipient model (people, by public key) does not express. Recorded in [D-018](https://kernlize.github.io/docs/decisions.md#d-018) |
+| Public chat channels | NIP-28 (unrecommended upstream) | Public channel messages, kind 42 | Not private messaging; out of scope |
+| Chats, public messages, voice messages | NIP-C7, NIP-A4, NIP-A0 | Public kinds 9, 24 and 1222 | Not private messaging; out of scope. NIP-C7's kind 9 is the chat convention `group` carries inside its encryption |
+| Ephemeral gift wrap | NIP-59 kind 21059 | A gift wrap relays need not store | A transport detail, not a protocol of its own; no provider sends it yet |
 
 ## The provider contract
 
@@ -1050,24 +1114,28 @@ The three built-in factories (`createPrivateMessagesProvider`, `createLegacyMess
 | `private` | Private messages | `'NIP-17'` | Gift-wrapped private messages: kind 14 rumours sealed in kind 13, wrapped in kind 1059 with a random key | no | no | `partial`: the wrap hides sender and timing from relays, the recipient's inbox relays still see delivery | no | yes | no |
 | `legacy` | Legacy messages | `'NIP-04'` | Direct messages: kind 4, shared-secret encryption | no | no | `none`: sender, recipient and timing are public on the event | no | no | no |
 | `ratchet` | Ratchet sessions | `'nostr-double-ratchet (draft)'` | A double-ratchet session protocol over nostr, still a draft | yes | yes | `partial`: per-message ephemeral keys hide the long-term identities, relays still see timing | yes | no | yes |
+| `group` | Group sessions | `'Marmot (MLS, RFC 9420; supersedes NIP-EE)'` | MLS groups over nostr: key packages (kind 30443), invitations gift-wrapped as kind 444 rumours, group events (kind 445) | yes | yes | `partial`: group events are signed by one-time keys and carry only the group's id, so relays see a group's activity and timing but not its members; a published key package says the account uses group sessions | yes | yes | yes |
 
-The descriptions the picker shows: `private` "Sealed messages that hide who is talking to whom from the network."; `legacy` "The original direct-message format. Readable by the widest range of apps, but who you talk to is visible on the network."; `ratchet` "Per-session keys that change with every message. Both sides need an app that supports it."
+The descriptions the picker shows: `private` "Sealed messages that hide who is talking to whom from the network."; `legacy` "The original direct-message format. Readable by the widest range of apps, but who you talk to is visible on the network."; `ratchet` "Per-session keys that change with every message. Both sides need an app that supports it."; `group` "Shared keys that change as the group talks and as people join or leave. Everyone needs an app that supports it."
 
 Three things the table says that the picker says too:
 
 - `legacy` is marked as metadata-exposing because it is. It exists because many correspondents can read nothing else, and the user is told that before choosing it.
 - `private` has no forward secrecy. A gift wrap protects metadata, not past messages, and the picker does not claim otherwise.
 - `private` and `legacy` are available only while the active account's signer can encrypt: `nip44` for `private`, `nip04` for `legacy`. Otherwise kernl reports `sign-in-required` (nobody is signed in) or `signer-cannot-encrypt` (a read-only account, or a signer without the method).
-- `ratchet` is available only when the shell's `available()` says so. The package does not decide the reason; kernl's `createDefaultMessaging` supplies `no-runtime` (`MESSAGING_UNAVAILABLE_REASONS.noRuntime`), `enable()` rethrows it as `unavailable:no-runtime`, and `list()` reports it so the picker can show the provider greyed with that reason. Its specification is a draft and the provider is flagged `experimental`.
+- `ratchet` is available only when the shell's `available()` says so. The package does not decide the reason; kernl's `createDefaultMessaging` reports `sign-in-required` or `signer-cannot-encrypt` like `private`, because the backend needs `nip44` to seal its state, and `no-runtime` (`MESSAGING_UNAVAILABLE_REASONS.noRuntime`) only when a host registers it without a backend; `enable()` rethrows the reason as `unavailable:<reason>`, and `list()` reports it so the picker can show the provider greyed with that reason. Its specification is a draft and the provider is flagged `experimental`.
+- `group` follows the signer the same way (`nip44` opens invitations and seals the library's state) and reports `no-runtime` only when a host registers it without a backend. Its library is an alpha release, so the provider is flagged `experimental`.
 
 ## The shell's backends
 
-`@kernl/core` ships the two network backends the live shell uses ([D-015](https://kernlize.github.io/docs/decisions.md#d-015)). Both take the shell's one `EventStore`, `RelayPool` and relay tiers, and read the signer and the user's public key through functions, so they follow the active account without being rebuilt:
+`@kernl/core` ships the three network backends the live shell uses ([D-015](https://kernlize.github.io/docs/decisions.md#d-015)). Both take the shell's one `EventStore`, `RelayPool` and relay tiers, and read the signer and the user's public key through functions, so they follow the active account without being rebuilt:
 
 - **`createPrivateMessagesBackend`** sends NIP-17 messages. The message is an unsigned kind 14 rumour; it is sealed in a kind 13 event that the account signer signs, encrypting with its `nip44`; the seal is wrapped in a kind 1059 event signed by a one-time key. That key is generated inside an applesauce `PrivateKeySigner`, used for one wrap and discarded; it is never stored. The wrap goes to the recipient's kind 10050 inbox relays, or to the sender's `outbox` and `super` tiers when the recipient publishes none, and a second wrap goes to the sender so their other devices see the message. The backend subscribes to kind 1059 events tagged with the user's public key on the user's own inbox relays, or the same tiers. A conversation id is applesauce's `createConversationIdentifier`: the participants' public keys, the user's included, sorted and joined by `:`, so both sides compute the same id. Decrypted messages are kept in memory per account, never in the `EventStore`, and are cleared when the account changes or signs out; the `EventStore` is read only for inbox relay lists.
 - **`createLegacyMessagesBackend`** sends NIP-04 kind 4 messages through `signer.nip04`, with the same conversation ids and message shape. It is the metadata-exposing provider: who writes to whom, and when, is public on the event.
+- **`createRatchetMessagesBackend`** runs the `nostr-double-ratchet` library's `NdrRuntime` for the signed-in account ([D-016](https://kernlize.github.io/docs/decisions.md#d-016)). The account signer signs the account's device list; the library generates and holds this browser's device key and every per-session ratchet key. Those secrets are written only through `createSealedRatchetStorage`, which encrypts each value to the account with its `nip44` under an opaque slot number, so storage holds no readable key and no correspondent's name. Opening the backend registers this browser as a device and publishes its invite; the other side starts a session from it. Traffic uses the user's `outbox` and `super` tiers, so both sides must share a relay. Sessions are one to one, only chat messages are filed (typing notices and receipts are dropped), and the conversation list is in memory: sessions survive a reload, the list does not.
+- **`createGroupMessagesBackend`** runs `@internet-privacy/marmot-ts`, the maintained TypeScript Marmot implementation, for the signed-in account ([D-018](https://kernlize.github.io/docs/decisions.md#d-018)). The account signer signs each member's identity proof and key package and opens invitations; the library generates and holds its own MLS signing keys and the group secrets, which move on with every commit. Every store the library keeps is written through `createSealedGroupStore`, which encrypts the whole store to the account with its `nip44`, so storage holds no readable key. Opening the backend publishes a key package (kind 30443) to the user's inbox relays and `outbox` tier, and a fresh one after an invitation uses it up. A send to people goes to the group with exactly those members, else founds one and invites each person by their newest key package; someone with none is refused with `unavailable:recipient-not-ready`. Group events go to the `outbox` and `super` tiers; invitations arrive as gift wraps on the user's inbox relays and are joined as they open. The conversation id is the group id in hex. An account is one member of a group, so only one of a person's devices joins it. Group membership and secrets survive a reload; the messages are kept in memory, so a reload starts each group's history afresh.
 
-Neither backend touches key bytes. Everything is signed and encrypted by the account's applesauce signer; an extension or remote signer may ask its own question per decryption, and kernl lets it.
+kernl holds no key bytes. The private and legacy backends sign and encrypt everything with the account's applesauce signer; the ratchet and group libraries' own keys stay inside the libraries and reach storage only sealed by that signer; an extension or remote signer may ask its own question per decryption, and kernl lets it.
 
 The Messages panel opens the user's own messages without a consent prompt from kernl: the shell is asking, for the user, to show the user their own mail. Applets are different. An applet reaches messages only through the NAP `dm` domain, which is a grant the user gives per applet and can revoke ([Identity and grants](https://kernlize.github.io/docs/concepts/identity-and-grants.md)).
 
@@ -1097,6 +1165,8 @@ The NAP `dm` domain is a projection over every enabled provider. `createComposit
 - `subscribe()` with a conversation id subscribes on that provider; without one it subscribes on every enabled provider and fans the messages in, prefixed. Subscription ids are `composite-<n>`. Unsubscribing skips providers disabled in the meantime, since disabling already closed their backend, and reports `ok: false` if any surviving provider did.
 - `status()` merges: `available` if any provider is, the first `ownerPubkey` found, the union of `implementations` and `capabilities`.
 - `close()` on the composite is a no-op. The registry owns backend lifetimes.
+
+Every provider is reachable this way, not only from the Messages panel: `kernl.feature` drives the `dm` domain over a real applet port for `ratchet` and for `group` (grant `dm`, then `dm.status`, `dm.send` with `provider`, `dm.subscribe`, `dm.conversations` and `dm.messages`) and checks the provider-namespaced ids. The fields that choose a provider are the `provider` hint on `dm.send` for a new conversation and the `<providerId>:` prefix of `conversationId` everywhere else; `dm.status` lists each enabled provider's implementation (`nip17`, `nip04`, `ndr`, `marmot`).
 
 An applet that uses `dm` therefore sees one inbox. Which provider carries a given conversation is visible in its id, and the shell shows it as a label the user can change for new conversations. See `composite.feature`.
 
@@ -1461,12 +1531,56 @@ With both locks, the probe sees every creation route throw, the four bypass rout
 - `createPrivateMessagesBackend({ store, pool, tiers, signer, selfPubkey, now? })` sends NIP-17 messages: the kind 14 rumour is sealed in a kind 13 event that the account signer signs, encrypting with its `nip44`, and the seal is wrapped in a kind 1059 event signed by an ephemeral key. The ephemeral key is generated inside an applesauce `PrivateKeySigner`, used for that one wrap, and dropped with the signer; it is never persisted and never leaves the class.
 - `createLegacyMessagesBackend(...)` sends NIP-04 kind 4 messages through `signer.nip04`, normalised the same way, and stays marked metadata-exposing (D-009).
 - Delivery goes to the recipient's kind 10050 inbox relays. A recipient who publishes none is reached through the sender's `outbox` and `super` tiers, because a message that is never sent protects nobody and those are the relays the user already chose. A copy is wrapped to the sender. The subscription reads kind 1059 addressed to the user from the user's own inbox relays, or the same tiers when there are none. A conversation id is the sorted participant set.
-- `createKernl` wires both unless `KernlOptions.messagingBackends` overrides them. Availability follows the active account: `private` needs a signer with `nip44`, `legacy` one with `nip04`. The reasons are `sign-in-required` with no active account and `signer-cannot-encrypt` when the signer lacks the method; `ratchet` keeps `no-runtime`. `needs-local-key-signer` is gone.
+- `createKernl` wires both unless `KernlOptions.messagingBackends` overrides them. Availability follows the active account: `private` needs a signer with `nip44`, `legacy` one with `nip04`. The reasons are `sign-in-required` with no active account and `signer-cannot-encrypt` when the signer lacks the method; `ratchet` keeps `no-runtime` (until D-016). `needs-local-key-signer` is gone.
 - The shell's own Messages panel decrypts the user's messages without a consent prompt. The request comes from the shell, on the user's behalf, to show the user their own messages; a prompt there would ask the user whether they may read their mail. An applet reaches messages only through the NAP `dm` domain, which is a grant the user gives and can revoke, and through the guard's `dm:send` rate.
 
 **Consequences.** Messaging works with every account type that can encrypt, including ones whose key kernl never sees. A remote signer or extension may ask its own question per decryption; kernl does not suppress it. A read-only account sees both providers unavailable with `signer-cannot-encrypt`. The inbox fallback means a recipient without inbox relays may never see a message sent to relays they do not read; the sender sees it delivered to those relays, not read. kehto's sealed-message adapter is not used; when it can take a signer instead of a key, the backend can be swapped behind `MessagingBackend` without a contract change (D-001).
 
 **Reversal cost.** Low; both backends sit behind `MessagingBackend` and `KernlOptions.messagingBackends`.
+
+## D-016 · Ratchet sessions run the library's runtime on the account signer, with its secrets sealed to the account
+
+**Context.** D-009 lists `ratchet` and D-015 left it `no-runtime`. The published `nostr-double-ratchet` package (0.0.183) ships `NdrRuntime`, which models an account (owner) and its devices. It needs four things from the host: `nostrSubscribe`, `nostrPublish`, an optional `nostrSign` for the owner's events, and a `StorageAdapter`. `ownerIdentityKey` (the raw account key) is optional: it is used only to sign a local device-list snapshot early and as a compatibility input the library no longer encrypts with. The owner signs one thing, the kind 37368 device list; everything else (invites, kind 1059 invite responses, kind 1060 session messages) is signed and encrypted by a device key the library's `DelegateManager` generates, and by per-session ratchet keys. The library writes that device key and every session's state into the `StorageAdapter` in the clear. kehto's `createNdrDmAdapter` wraps an `NdrRuntimeLike`, but files every session event as a message (typing notices included), never initialises or registers the runtime, and has no notion of the active account.
+
+**Decision.** `@kernl/core` runs the runtime without the account key and adapts it itself:
+
+- `createRatchetMessagesBackend` builds one `NdrRuntime` per signed-in account, with transport over kernl's pool on the user's `outbox` and `super` tiers, and signs the owner's events with the account signer from their template (the library leaves `pubkey` empty, which an applesauce account rejects). It calls `initForOwner`, `ensureCurrentDeviceRegistered` and `republishInvite`, files only kind 14 rumours into the shared conversation store, and closes the runtime when the account changes. It is the default `ratchet` backend and is available while the signer has `nip44`.
+- `createSealedRatchetStorage` is the library's `StorageAdapter`. Every value is encrypted to the account with the signer's `nip44` (chunked under the 64 KiB limit) and stored under an opaque slot number; the key-to-slot map, whose key names include correspondents' public keys, is sealed the same way. The library's device and session keys therefore exist in clear only inside the library's memory, never in kernl's storage and never in kernl code. This is the reading of `SOUL.md` opinion 1 this decision takes: kernl keeps and persists no raw key bytes; a library that must hold its own session keys may, and what it persists is ciphertext only the account can open.
+- kehto's `createNdrDmAdapter` is not used, because it would file typing notices as messages and cannot follow the account; its `NdrRuntimeLike` shape is what kernl's backend drives.
+
+**Consequences.** Ratchet sessions work with any account that can `nip44`, including extensions and remote signers, which may ask once per stored value per page load and on each write. Sessions are one to one; groups are not offered. Both sides must share a relay, because inbox relays are not consulted. The conversation list is in memory and empties on reload, while sessions and keys persist. The first use waits up to the library's device-list discovery timeouts (10 s and 2 s). Clearing site data ends this device's sessions. Applets reach ratchet through the `dm` domain with `ratchet:`-namespaced ids, like every provider.
+
+**Reversal cost.** Low; the backend sits behind `MessagingBackend` and `KernlOptions.messagingBackends.ratchet`. Swapping to kehto's adapter needs it to filter rumour kinds and follow the account.
+
+## D-017 · Magnet links download inside the shell; NZB, Soulseek and mail stay hand-off
+
+**Context.** D-010 shipped the downloads, sharing and mail bridges as hand-offs: kernl rebuilds the address and the device's own app does the transfer. That works, but it sends the user out of kernl for the most common case, a file shared by peers. A page has exactly the network primitives the browser gives it: `fetch`, WebSocket and WebRTC. WebTorrent speaks BitTorrent over WebRTC data channels and finds peers through `wss://` trackers, so a magnet link can download inside the page. The other three protocols cannot: NZB downloads speak NNTP to a news server over raw TCP, Soulseek is its own protocol over raw TCP to a central server and to peers, and mail needs SMTP and IMAP over TCP. A browser page cannot open a raw TCP socket, so no amount of client code inside the shell can reach any of them.
+
+**Decision.** `@kernl/bridges` adds `createWebTorrentBackend({ client, trackers?, now?, progressIntervalMs? })`. `client` is a structural `WebTorrentLike` (`add(magnet)`, `remove(torrent, { destroyStore })`) or a loader that returns one, so the package stays free of dependencies and the library loads only on the first download. The backend validates the hash (`invalid:info-hash`), keeps only the link's `wss://` trackers and appends `DEFAULT_WEBRTC_TRACKERS` (UDP and plain-TCP trackers are unreachable from a page), deduplicates by hash, and reports a client that fails to load or add as `unavailable:<why>`. Besides `add` it exposes `jobs()`, `subscribe(listener)`, `pause(id)`, `resume(id)`, `remove(id)` and `files(id)`, which hands finished files over as blobs; an unknown id is `denied:unknown-download` and an unfinished one `unavailable:not-finished`. Progress-only notifications are throttled to one per 500 ms. It carries no `handoff` trait, so `describeBridge` reports the transfer as kernl's own while keeping the torrent exposure: peers see the user's address, the transfer is not encrypted, and the activity is public.
+
+`createDefaultBridges` takes an optional `torrent` backend that wins over the hand-off for the torrent bridge only; `KernlOptions.torrent` passes one through `createKernl`. The shell host page (`/app/`) installs `webtorrent` 3.0.21 at an exact version and imports its browser build lazily on the first download. The shell's torrent backend follows the user's choice in Settings, "Download in kernl" (the default where the browser has `RTCPeerConnection`) or "Open in an app on your device", remembered under `kernl:downloads:mode:v1`; `BackendTraits.handoff` is read on every availability check so the bridge's description follows the choice. A Downloads panel lists jobs with progress, pause, resume, remove and Save, which hands each file to the browser through a blob URL. The preview uses a client that reaches nobody and fills each download in over a few seconds.
+
+NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something that can open TCP sockets on the user's behalf: a companion service the user runs or chooses, which the shell would reach over WebSocket. That is on the roadmap, not in this draft.
+
+**Consequences.** The WebRTC connections are the shell page's, never an applet's: applet frames keep the guard's CSP and kehto's prelude that removes WebRTC, and the host page's policy (`frame-src 'none'`, no `connect-src` limit) already permits WebRTC and `wss://`. A WebTorrent client in a browser reaches only WebRTC peers, which are fewer than a desktop client's, so a link whose swarm has no browser peers may never start; the job stays "Looking for peers" and the user can switch to the device app. Downloads live in memory for the page's lifetime; closing the tab drops them.
+
+**Reversal cost.** Low. The backend sits behind `TorrentBackend`; removing `KernlOptions.torrent` restores the D-010 hand-off.
+
+## D-018 · Every private-messaging protocol is a provider; group sessions run the Marmot library with its state sealed to the account
+
+**Context.** SOUL opinion 5 asks kernl to carry any reasonable private-messaging protocol behind the one Direct Messenger contract, unranked. The NIPs index (November 2026) lists NIP-04 and NIP-17 (with NIP-44 and NIP-59) for direct messages, NIP-29 relay-based groups, NIP-28, NIP-C7, NIP-A4 and NIP-A0 for public chat, and NIP-EE, now marked unrecommended and superseded by the Marmot protocol (MLS, RFC 9420, over kinds 30443, 444 and 445). The nostr-double-ratchet draft lives outside the index (D-016). The maintained TypeScript Marmot implementation is `@internet-privacy/marmot-ts` (0.9.0, alpha, wire-compatible with the reference implementation, built on applesauce 7 and a vendored `ts-mls`). kehto's `createCordnDmAdapter` was considered and not used: it adapts a Cordn/ContextVM coordinator client, which kernl would have to supply, not an MLS runtime.
+
+**Decision.**
+
+- Every private, end-to-end encrypted protocol in that inventory is a provider: `legacy` (NIP-04), `private` (NIP-17), `ratchet` (D-016) and `group` (Marmot). The concept page keeps the inventory and each protocol's status.
+- `group` runs `MarmotClient` per signed-in account. The account signer is the library's `EventSigner`: it signs identity proofs, key packages and invitation seals and opens invitations with `nip44`. The library generates and holds its MLS keys and group secrets. Every store it keeps goes through `createSealedGroupStore`, one value per store encrypted to the account with `nip44`, so `SOUL.md` opinion 1's key rule holds as in D-016. The network is an adapter over the shell's one pool.
+- Using the provider publishes a key package for the account, so others can invite it. That is an addition to the public record, not a replacement, so it is not a consent prompt (SOUL opinion 2); the docs say it happens.
+- A send to people reuses the group with exactly those members, else founds one. Messages are kept in memory: the library deletes per-message secrets once a message is read, so history cannot be read again, and keeping it sealed is roadmap work.
+- NIP-29 is not a provider: its groups are readable by the relay that hosts them, so it is not private messaging in the sense opinion 5 means, and a group addressed by relay and id does not fit the `dm` recipient model. The public chat NIPs are out of scope.
+
+**Consequences.** Group sessions work with any account that can `nip44`, including extensions and remote signers, which are asked once per sealed store per page load and on every write. An account is one member of a group, as the library enforces, so only one of a person's devices joins. Applets reach `group` like every provider, through the `dm` composite as `group:<group id>`. The vocabulary check also refuses "marmot" and "mls" on the public site.
+
+**Reversal cost.** Low; the backend sits behind `MessagingBackend` and `KernlOptions.messagingBackends.group`. A host can replace it, or drop the provider by registering its own registry.
 
 ---
 
@@ -1528,7 +1642,7 @@ pnpm site:dev
 
 # Add a bridge backend
 
-The four non-HTTP bridges are complete up to the backend interface they call. In the composed shell each already has a backend: the hand-off backend from `createHandoffBackends`, which opens the locator in an app on the user's device and moves no data through kernl ([Bridges](https://kernlize.github.io/docs/concepts/bridges.md#hand-off-backends)). Hand-off is the default. An in-shell backend, one that does the transfer inside the shell, replaces the hand-off backend for its bridge, without touching the parser or the registry, both of which the HTTP bridge already exercises. This how-to supplies an in-shell `TorrentBackend`; the others follow the same shape.
+The four non-HTTP bridges are complete up to the backend interface they call. In the composed shell each already has a backend: the hand-off backend from `createHandoffBackends`, which opens the locator in an app on the user's device and moves no data through kernl ([Bridges](https://kernlize.github.io/docs/concepts/bridges.md#hand-off-backends)). Hand-off is the default for NZB, Soulseek and mail. The torrent bridge already has an in-shell backend, `createWebTorrentBackend`, which the web shell passes as `KernlOptions.torrent` ([Downloads inside kernl](https://kernlize.github.io/docs/concepts/bridges.md#downloads-inside-kernl)). Another backend replaces the hand-off (or the in-page one) for its bridge, without touching the parser or the registry, both of which the HTTP bridge already exercises. This how-to supplies a `TorrentBackend` that sends links to a seedbox the user runs; the others follow the same shape. NZB, Soulseek and mail cannot be served from inside a page at all, because their protocols need raw TCP sockets; their backends will talk to a companion service ([Roadmap](https://kernlize.github.io/docs/roadmap.md#_2-bridge-backends)).
 
 ## 1. Pick the interface
 
@@ -1543,17 +1657,17 @@ The four non-HTTP bridges are complete up to the backend interface they call. In
 
 ## 2. Implement it outside the published packages
 
-A backend talks to something: a WebTorrent client, a downloader daemon, a mail account. That belongs in the host app (`apps/web`, or your own page) or in a package of its own with its own dependencies, not in `@kernl/bridges`, which stays dependency-free. The samples on this page are one module, read top to bottom, and are type-checked by `node scripts/check-doc-samples.mjs` as part of `pnpm docs:check`.
+A backend talks to something: a seedbox's web API, a downloader daemon, a mail account. That belongs in the host app (`apps/web`, or your own page) or in a package of its own with its own dependencies, not in `@kernl/bridges`, which stays dependency-free. The samples on this page are one module, read top to bottom, and are type-checked by `node scripts/check-doc-samples.mjs` as part of `pnpm docs:check`.
 
 ```ts
 import type { BridgeContext, TorrentBackend } from '@kernl/bridges';
 
-interface WebTorrentLike {
+interface SeedboxLike {
   add(magnet: string): { infoHash: string; name: string; ready: Promise<void> };
   remove(torrent: { infoHash: string }): void;
 }
 
-export function createWebTorrentBackend(client: WebTorrentLike): TorrentBackend {
+export function createSeedboxBackend(client: SeedboxLike): TorrentBackend {
   return {
     async add(infoHash, trackers, context: BridgeContext) {
       const magnet = `magnet:?xt=urn:btih:${infoHash}${trackers.map((t) => `&tr=${encodeURIComponent(t)}`).join('')}`;
@@ -1566,17 +1680,28 @@ export function createWebTorrentBackend(client: WebTorrentLike): TorrentBackend 
 }
 ```
 
-Return a stable `id`: it is the job's identity in the `202` body the applet receives, and what a future downloads view would use to show state and cancel. The `name` becomes the job's `label`. Reject with stable reasons (`unavailable:engine-offline`, `denied:…`); the registry reports and rethrows them unchanged (`registry.feature`, scenario "a bridge failure is reported and rethrown").
+Return a stable `id`: it is the job's identity in the `202` body the applet receives, and what a downloads view uses to show state and cancel. The `name` becomes the job's `label`. Reject with stable reasons (`unavailable:engine-offline`, `denied:…`); the registry reports and rethrows them unchanged (`registry.feature`, scenario "a bridge failure is reported and rethrown").
 
 ## 3. Hand it to the bridge
 
 `createTorrentBridge(backend?)` takes the backend as an optional argument. Without one it reports `{ available: false, reason: 'no-backend' }` and rejects every `resolve()` with `unavailable:no-backend`; with a hand-off backend it reports `{ available: true, handoff: true }`; with yours it reports `{ available: true }` and routes `resolve()` to `backend.add`.
 
-The shell's bridges are registered by `createDefaultBridges` in `packages/core/src/bridges/default-registry.ts`, which `createKernl` calls when `KernlOptions.bridges` is absent. Its options are the registry's `authorize` and `onResolve`, `http` for the web bridge, and an optional `handoff` opener; `createKernl` passes `host.openLink` as that opener, so the four bridges hand off by default. It takes no other backends, and a registry cannot replace a bridge it already holds (a second `torrent` throws `invalid:duplicate-bridge torrent`). So a host that supplies an in-shell backend builds the same five registrations itself, with its backend in place and hand-off backends for the rest, and passes the registry as `KernlOptions.bridges`:
+The shell's bridges are registered by `createDefaultBridges` in `packages/core/src/bridges/default-registry.ts`, which `createKernl` calls when `KernlOptions.bridges` is absent. Its options are the registry's `authorize` and `onResolve`, `http` for the web bridge, an optional `handoff` opener and an optional `torrent` backend; `createKernl` passes `host.openLink` as that opener and `KernlOptions.torrent` as the torrent backend. For a torrent backend whose exposure matches the stock bridge, that is all it takes:
 
 <!-- sample:continues -->
 ```ts
 import { createKernl, type KernlHost } from '@kernl/core';
+
+declare const host: KernlHost;
+declare const client: SeedboxLike;
+
+createKernl({ host, torrent: createSeedboxBackend(client) }).bridges.forScheme('magnet')?.availability(); // { available: true }
+```
+
+`createDefaultBridges` takes no other backends, and a registry cannot replace a bridge it already holds (a second `torrent` throws `invalid:duplicate-bridge torrent`). So a host that supplies a backend for another bridge, or a bridge with a different exposure, builds the same five registrations itself, with its backend in place and hand-off backends for the rest, and passes the registry as `KernlOptions.bridges`:
+
+<!-- sample:continues -->
+```ts
 import {
   createBridgeRegistry,
   createHandoffBackends,
@@ -1589,9 +1714,6 @@ import {
   type HandoffOpener,
 } from '@kernl/bridges';
 
-declare const host: KernlHost;
-declare const client: WebTorrentLike;
-
 export function createBridgesWithTorrent(torrent: TorrentBackend, open: HandoffOpener): BridgeRegistry {
   const handoff = createHandoffBackends(open);
   const registry = createBridgeRegistry({ onResolve: (event) => console.info('bridge', event) });
@@ -1603,11 +1725,11 @@ export function createBridgesWithTorrent(torrent: TorrentBackend, open: HandoffO
   return registry;
 }
 
-const kernl = createKernl({ host, bridges: createBridgesWithTorrent(createWebTorrentBackend(client), (uri) => host.openLink(uri)) });
+const kernl = createKernl({ host, bridges: createBridgesWithTorrent(createSeedboxBackend(client), (uri) => host.openLink(uri)) });
 kernl.bridges.forScheme('magnet')?.availability(); // { available: true }
 ```
 
-The web, NZB, Soulseek and mail bridges are the same as the defaults: the web bridge as before, the other three handing off through the host's confirm-before-leaving opener. To ship the backend inside kernl itself, change the torrent registration in `createDefaultBridges` instead.
+The web, NZB, Soulseek and mail bridges are the same as the defaults: the web bridge as before, the other three handing off through the host's confirm-before-leaving opener. To ship a backend for another bridge inside kernl itself, add an option to `createDefaultBridges` the way `torrent` was added ([D-017](https://kernlize.github.io/docs/decisions.md#d-017)).
 
 Check the bridge's `exposure`. The torrent bridge declares `revealsAddress: true`, `encryptedInTransit: false`, `publicActivity: true`, which is the truth for a client in a public swarm. The factory does not take an exposure argument, so if your backend changes the truth of any field (a backend that tunnels through a seedbox does not reveal the user's address), register a bridge object with the same `resolve` and a corrected `exposure`:
 
@@ -1627,14 +1749,14 @@ These three booleans are what the user reads about the bridge: `describeBridge` 
 
 ## 4. What already applies, and what does not yet
 
-`BridgeRegistry.resolve` checks `availability()`, then calls the registry's `authorize` hook if one was given, before any bridge runs; a denial rejects with `denied:bridge`. The composed shell wires no `BridgeAuthorizer`: `createKernl` uses `createDefaultBridges({ handoff: (uri) => host.openLink(uri) })` without `authorize`, so a request from an applet that holds the `resource` grant reaches your bridge without a per-request prompt. A host that wants one passes `authorize` to `createBridgeRegistry` in the sample above; a consent prompt per host in the shell is on the [Roadmap](https://kernlize.github.io/docs/roadmap.md#_6-guard) ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#what-does-not-work-yet)).
+`BridgeRegistry.resolve` checks `availability()`, then calls the registry's `authorize` hook if one was given, before any bridge runs; a denial rejects with `denied:bridge`. The composed shell wires no `BridgeAuthorizer`: `createKernl` uses `createDefaultBridges({ handoff: (uri) => host.openLink(uri), torrent })` without `authorize`, so a request from an applet that holds the `resource` grant reaches your bridge without a per-request prompt. A host that wants one passes `authorize` to `createBridgeRegistry` in the sample above; a consent prompt per host in the shell is on the [Roadmap](https://kernlize.github.io/docs/roadmap.md#_6-guard) ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#what-does-not-work-yet)).
 
-The guard's `resource:bytes` rate and hidden-window allowance apply to `resource.*` envelopes. A `job` result reaches kehto's resource service as a `202 Accepted` JSON body through `createBridgeResourceResolver`; the applet that asked receives it. The shell has no downloads list yet, so nothing shows job state to the user; that UI is roadmap work. Every outcome is also reported to the registry's `onResolve` as a `BridgeResolveEvent`, when your registry passes one, as the sample does; the shell's default registry passes none, and no outcome reaches the guard panel.
+The guard's `resource:bytes` rate and hidden-window allowance apply to `resource.*` envelopes. A `job` result reaches kehto's resource service as a `202 Accepted` JSON body through `createBridgeResourceResolver`; the applet that asked receives it. The shell's Downloads panel shows the jobs of its own in-page backend, through `WebTorrentBackend.jobs()` and `subscribe`; a backend of yours shows state to the user only if the host gives it a view. Every outcome is also reported to the registry's `onResolve` as a `BridgeResolveEvent`, when your registry passes one, as the sample does; the shell's default registry passes none, and no outcome reaches the guard panel.
 
 ## 5. Specify and document
 
 - `packages/bridges/features/backend-bridges.feature` already covers the contract with a fake backend: unavailable without a backend, fields handed through, missing fields rejected. Add scenarios for what your backend adds: an aborted context cancels the job; the engine's failure reasons surface unchanged.
-- Say in [Bridges](https://kernlize.github.io/docs/concepts/bridges.md#in-shell-backends) that the bridge now has an in-shell backend, and what it changes for the user, and strike it from the [Roadmap](https://kernlize.github.io/docs/roadmap.md#_2-bridge-backends).
+- Say in [Bridges](https://kernlize.github.io/docs/concepts/bridges.md#downloads-inside-kernl) that the bridge now has an in-shell backend, and what it changes for the user, and strike it from the [Roadmap](https://kernlize.github.io/docs/roadmap.md#_2-bridge-backends).
 - Add a changeset.
 
 The slop gate and the coverage threshold apply to the backend if it lives in `packages/`. If it lives in `apps/web`, the Playwright suite in `pnpm test:e2e` covers it.
@@ -2207,7 +2329,7 @@ kehto ships `@kehto/{acl,firewall,runtime,shell,services,nip,wm}` and deliberate
 | Containment | Opaque-origin `srcdoc` iframe, `sandbox="allow-scripts"`, zero-network CSP, every network path through a shell service the user can see, rate-limit and revoke. |
 | Mitigations | Every kehto mitigation ships on, in the `strict` [guard](https://kernlize.github.io/docs/concepts/guard.md) profile. kehto's runtime firewall refuses requests over the profile's rates and a startup burst, and refuses the oversized downloads and queries kernl measures; kernl's own layers observe every port message just before dispatch, report what they see and quarantine floods, which stops the message that crossed the limit. kehto's not-yet-released nested-frame lock is applied through a port in `@kernl/guard` ([D-014](https://kernlize.github.io/docs/decisions.md#d-014)). The hosted shell boots `strict`, and only the user loosens it there: shell-wide in this draft, reset to `strict` on every boot, per applet later. An embedding host may choose the starting profile (`KernlOptions.guard.profile`), which changes limits only; the sandbox, the CSP, the frame lock and consent are fixed. |
 | Protocols | One identity layer, many [bridges](https://kernlize.github.io/docs/concepts/bridges.md) named by what they do for the user, never by the wire format. Web fetch runs in the shell behind an SSRF policy. Downloads, sharing and mail hand the address to an app on the user's device after the user confirms leaving kernl: kernl connects to nothing for them, and the device app's own network behaviour is outside kernl. |
-| Messaging | Any reasonable private-messaging protocol, exposed through one contract. [Providers](https://kernlize.github.io/docs/concepts/messaging.md) describe their security properties truthfully and the shell does not rank them. `private` and `legacy` work in the live shell when the signed-in account's signer can encrypt; `ratchet` needs a runtime and is unavailable; the preview runs all three over the in-memory backend. |
+| Messaging | Any reasonable private-messaging protocol, exposed through one contract. [Providers](https://kernlize.github.io/docs/concepts/messaging.md) describe their security properties truthfully and the shell does not rank them. `private`, `legacy` and the experimental `ratchet` work in the live shell when the signed-in account's signer can encrypt; the preview runs `private` and `legacy` over the in-memory backend. |
 
 kernl does not fork kehto ([D-001](https://kernlize.github.io/docs/decisions.md#d-001)). When kehto lacks a hook kernl needs, kernl composes around it and takes the gap upstream. The four gaps found so far, filed upstream as kehto/web #397–#400, are listed in [Alpha status](https://kernlize.github.io/docs/alpha-status.md#upstream-gaps).
 
@@ -2268,7 +2390,7 @@ Locator parsing, the bridge contract, the registry that routes and authorises, a
 
 ## Purpose
 
-A bridge resolves a protocol-specific locator to bytes, a job or a conversation on the user's behalf, behind the same grant and quota as everything else (the composed shell wires no per-request consent), and is named by what it does rather than by its protocol. The HTTP bridge is complete. The torrent, NZB, Soulseek and mail bridges are complete up to the backend interface they call; `createHandoffBackends` supplies all four by handing the locator to an app on the user's device, and without any backend they report `unavailable`. The concepts are in [Bridges](https://kernlize.github.io/docs/concepts/bridges.md); the opinion is [D-010](https://kernlize.github.io/docs/decisions.md#d-010).
+A bridge resolves a protocol-specific locator to bytes, a job or a conversation on the user's behalf, behind the same grant and quota as everything else (the composed shell wires no per-request consent), and is named by what it does rather than by its protocol. The HTTP bridge is complete. The torrent, NZB, Soulseek and mail bridges are complete up to the backend interface they call; `createHandoffBackends` supplies all four by handing the locator to an app on the user's device, `createWebTorrentBackend` downloads magnet links inside the page instead ([D-017](https://kernlize.github.io/docs/decisions.md#d-017)), and without any backend they report `unavailable`. The concepts are in [Bridges](https://kernlize.github.io/docs/concepts/bridges.md); the opinion is [D-010](https://kernlize.github.io/docs/decisions.md#d-010).
 
 ## Exports
 
@@ -2320,7 +2442,7 @@ A bridge resolves a protocol-specific locator to bytes, a job or a conversation 
 | `createNzbBridge` | `(backend?: NzbBackend) => Bridge` | Id `nzb`, label `downloads`, scheme `nzb`. Exposure: reveals address, encrypted, not public. |
 | `createSoulseekBridge` | `(backend?: SoulseekBackend) => Bridge` | Id `soulseek`, label `sharing`, scheme `slsk`. Exposure: reveals address, not encrypted, public activity. |
 | `createMailBridge` | `(backend?: MailBackend) => Bridge` | Id `mail`, label `mail`, scheme `mailto`. Exposure: does not reveal address, encrypted, not public. |
-| `BackendTraits` | interface | `{ handoff?: true }`. Every backend interface extends it; a hand-off backend sets it, and its bridge then reports `{ available: true, handoff: true }`. |
+| `BackendTraits` | interface | `{ handoff?: true \| undefined }`. Every backend interface extends it; a hand-off backend sets it, and its bridge then reports `{ available: true, handoff: true }`. The bridge reads it on every availability check, so a backend may switch it, as the shell's does when the user changes where downloads go. |
 | `TorrentBackend` | interface | `add(infoHash: string, trackers: readonly string[], context: BridgeContext, name?: string): Promise<{ id: string; name: string }>`. `name` is the magnet's display name when it has one. |
 | `NzbBackend` | interface | `add(url: string, context: BridgeContext): Promise<{ id: string; name: string }>`. |
 | `SoulseekBackend` | interface | `download(user: string, path: string, context: BridgeContext): Promise<{ id: string; name: string }>`. |
@@ -2337,6 +2459,23 @@ Without a backend each of the four reports `{ available: false, reason: 'no-back
 | `HandoffBackends` | interface | `{ torrent: TorrentBackend; soulseek: SoulseekBackend; mail: MailBackend; nzb: NzbBackend }`. |
 
 A hand-off makes no connection from kernl; the app on the device does the transfer with its own network, which kernl cannot see or limit. See [Bridges](https://kernlize.github.io/docs/concepts/bridges.md#hand-off-backends).
+
+### Downloads inside kernl
+
+| Export | Signature | Description |
+| --- | --- | --- |
+| `createWebTorrentBackend` | `(options: WebTorrentBackendOptions) => WebTorrentBackend` | A `TorrentBackend` without a `handoff` trait that downloads through a WebTorrent client inside the page. Throws `invalid:info-hash` for a hash that is not 40 hex characters and `unavailable:<why>` when the client cannot load or refuses the link. The same hash twice is one job; ids are `download:1`, `download:2`, and so on. |
+| `WebTorrentBackendOptions` | interface | `{ client: WebTorrentLike \| (() => WebTorrentLike \| Promise<WebTorrentLike>); trackers?: readonly string[]; now?: () => number; progressIntervalMs?: number }`. A loader runs on the first download and again after a failure. `trackers` replaces `DEFAULT_WEBRTC_TRACKERS`; progress-only notifications are at most one per `progressIntervalMs` (500 by default). |
+| `WebTorrentBackend` | interface | `TorrentBackend` plus `jobs()`, `subscribe(listener) => stop`, `pause(id)`, `resume(id)`, `remove(id)` (drops the job and its stored data) and `files(id) => Promise<readonly DownloadedFile[]>`. An unknown id throws `denied:unknown-download`; `files` on an unfinished job rejects with `unavailable:not-finished`. |
+| `DownloadJob` | interface | `{ id, name, infoHash, state, progress, received, size?, peers, speed, error? }`. `progress` runs from 0 to 1; sizes are bytes; `speed` is bytes per second and 0 unless downloading. |
+| `DownloadState` | type | `'connecting' \| 'downloading' \| 'paused' \| 'done' \| 'failed'`. |
+| `DownloadedFile` | interface | `{ name: string; size: number; blob: Blob }`. |
+| `DownloadListener` | type | `(jobs: readonly DownloadJob[]) => void`. |
+| `WebTorrentLike`, `WebTorrentTorrentLike`, `WebTorrentFileLike` | interfaces | The parts of a WebTorrent client, torrent and file the backend uses, so the package has no dependency on the library: `add(magnet)`, `remove(torrent, { destroyStore })`; a torrent's `name`, `length`, `downloaded`, `progress`, `downloadSpeed`, `numPeers`, `done`, `files`, `on(event, listener)`, `pause()`, `resume()`; a file's `name`, `length`, `blob()`. |
+| `DEFAULT_WEBRTC_TRACKERS` | `readonly string[]` | `wss://tracker.openwebtorrent.com`, `wss://tracker.webtorrent.dev`, `wss://tracker.btorrent.xyz`. |
+| `webTrackers` | `(trackers: readonly string[], defaults?: readonly string[]) => readonly string[]` | The link's `wss://` trackers, then the defaults, without duplicates. A page cannot open the UDP or TCP sockets other trackers need. |
+
+NZB, Soulseek and mail have no in-page backend: their protocols need raw TCP sockets, which a browser page cannot open. See [Bridges](https://kernlize.github.io/docs/concepts/bridges.md#why-nzb-soulseek-and-mail-still-hand-off).
 
 ### Resource resolver
 
@@ -2388,7 +2527,7 @@ const fetchLike = createBridgeResourceResolver(registry, { requesterFor: (init) 
 
 ## Specification
 
-`packages/bridges/features/`: `locators.feature`, `registry.feature`, `http-bridge.feature`, `backend-bridges.feature`, `handoff-backends.feature`, `resource-resolver.feature`, `describe.feature`.
+`packages/bridges/features/`: `locators.feature`, `registry.feature`, `http-bridge.feature`, `backend-bridges.feature`, `handoff-backends.feature`, `webtorrent-backend.feature`, `resource-resolver.feature`, `describe.feature`.
 
 ## API reference
 
@@ -2444,7 +2583,7 @@ if (plan.missingRequired.length === 0) kernl.mount(plan, iframe);
 
 1. **Event layer.** `options.eventStore ?? new EventStore()`, `options.pool ?? new RelayPool()`, `options.accounts ?? createKernlAccounts(host.storage)`. A pool the shell created itself is closed by `destroy()`; a supplied pool is left open.
 2. **Relay tiers.** `createRelayTiers(host.storage, options.relays ?? {})`. Persisted choices at `kernl:relays:v1` win over `options.relays`, which only overrides `DEFAULT_RELAY_TIERS` on a fresh device.
-3. **Registries.** `options.messaging ?? createDefaultMessaging(...)`, with `createPrivateMessagesBackend` and `createLegacyMessagesBackend` as the `private` and `legacy` backends unless `options.messagingBackends` overrides them, and availability tracking the active account ([Messaging backends](#messaging-backends)), and `options.bridges ?? createDefaultBridges()`. The default bridge registry has no `authorize` hook, so in the composed shell a resource request is checked only by the HTTP bridge's SSRF policy and the applet's `resource` grant.
+3. **Registries.** `options.messaging ?? createDefaultMessaging(...)`, with `createPrivateMessagesBackend` and `createLegacyMessagesBackend` as the `private` and `legacy` backends unless `options.messagingBackends` overrides them, and availability tracking the active account ([Messaging backends](#messaging-backends)), and `options.bridges ?? createDefaultBridges({ handoff: host.openLink, torrent: options.torrent })`, so downloads, sharing and mail hand off through the host's confirm-before-leaving opener and a `KernlOptions.torrent` backend, when given, downloads magnet links inside kernl instead ([D-017](https://kernlize.github.io/docs/decisions.md#d-017)). The default bridge registry has no `authorize` hook, so in the composed shell a resource request is checked only by the HTTP bridge's SSRF policy and the applet's `resource` grant.
 4. **Guard pipeline.** `createGuardPipeline` with `createGuardConfig(options.guard?.profile ?? 'strict')`, the host's `now` when given, `onEvent` feeding `kernl.guard.events$`, `getVisibility` delegated to `host.getVisibility`, and `onQuarantine` marking the handle revoked with reason `quarantine` and calling `bridge.revokeNapplet(windowId, 'host')`.
 5. **Services.** `createKernlServices` registers `relay`, `identity`, `theme`, `notify`, `link`, `resource`, `dm` and `outbox` over the pool, the tiers, the event store, the active signer, the consent gate, the host, the bridge registry and the messaging registry. The `outbox` service is wrapped so that `outbox.publish` passes the consent gate first, because kehto's outbox service signs without naming the window. `options.theme` is used only when `isTheme` accepts it. `resolveIdentity` maps a live window to its verified identity so the resource service names the requesting applet to the bridges.
 6. **ShellAdapter.** `createShellAdapter` builds kehto's adapter from the relay-pool hooks, the relay-config hooks over the tiers, `createAuthHooks(accounts, consent)`, the service registry, `capabilities.resolveEnvironment` from `createEnvironmentResolver(grants)`, `onNappletRevoked` (removes the frame through the handle) and `onNappletMessage` (feeds `pipeline.observe` and refuses the envelope with `refuseCurrentDispatch` when it answers `defer` or `reject`). Choices kehto left open are fixed here: applets cannot create windows (`createWindow` returns null), hotkeys are not forwarded, there is no worker relay, update behaviour is `banner`, signatures are verified by applesauce's `verifyEvent`, `link.isAvailable` is true and `getNip66Suggestions` is null.
@@ -2510,7 +2649,7 @@ A frame without a `contentWindow` throws `invalid:frame-detached`. `handle.close
 
 ### Messaging backends
 
-`createKernl` registers all three providers through `createDefaultMessaging` and, unless `KernlOptions.messagingBackends` overrides them, wires two network backends built on the active account's signer ([D-015](https://kernlize.github.io/docs/decisions.md#d-015)). `KernlOptions.messagingBackends` is a `MessagingBackendFactories`: `{ private?: () => MessagingBackend; legacy?: () => MessagingBackend; ratchet?: () => MessagingBackend }`; a factory there replaces kernl's backend for that provider.
+`createKernl` registers all four providers through `createDefaultMessaging` and, unless `KernlOptions.messagingBackends` overrides them, wires four network backends built on the active account's signer ([D-015](https://kernlize.github.io/docs/decisions.md#d-015), [D-016](https://kernlize.github.io/docs/decisions.md#d-016)). `KernlOptions.messagingBackends` is a `MessagingBackendFactories`: `{ private?: () => MessagingBackend; legacy?: () => MessagingBackend; ratchet?: () => MessagingBackend; group?: () => MessagingBackend }`; a factory there replaces kernl's backend for that provider.
 
 `createPrivateMessagesBackend({ store, pool, tiers, signer, selfPubkey, now? })` is a `MessagingBackend` over NIP-17. `signer` and `selfPubkey` are functions, read on every call, so one backend follows sign-in and sign-out.
 
@@ -2520,7 +2659,14 @@ A frame without a `contentWindow` throws `invalid:frame-detached`. `handle.close
 
 `createLegacyMessagesBackend(...)` takes the same options and sends NIP-04 kind 4 events through `signer().nip04`, with the same normalisation into `DmConversation` and `DmMessage`. It is the metadata-exposing provider: sender, recipient and timing are public on the event.
 
-Neither backend holds key bytes; signing, encryption and decryption all go through the account's applesauce signer. The shell's own Messages panel decrypts the user's messages without a kernl prompt, because the request is the shell's, for the user; applets reach messages only through the `dm` domain grant.
+`createRatchetMessagesBackend({ pool, tiers, storage, signer, selfPubkey, accountChanges?, discoveryTimeouts? })` is a `MessagingBackend` over the `nostr-double-ratchet` library ([D-016](https://kernlize.github.io/docs/decisions.md#d-016)).
+
+- **Runtime.** One `NdrRuntime` per signed-in account, built on first use and closed when the account changes or signs out. The account signer signs the owner's device list (the library's unsigned owner events are re-signed from their template); the library generates and holds this browser's device key and the per-session ratchet keys. `discoveryTimeouts: { fetchMs, fastMs }` shortens how long it waits for relays to return the device list (library defaults 10 s and 2 s).
+- **Storage.** `createSealedRatchetStorage({ storage, signer, owner })` is the library's `StorageAdapter`. Each value is JSON, split into chunks that fit `nip44`, encrypted to `owner` with `signer.nip44`, and kept at `kernl:ratchet:v1:<owner>:<slot>`; the map from the library's key names to slots is one more sealed entry at `…:index`. Values are decrypted once per page load and writes are applied in order.
+- **Send and receive.** A send names exactly one other person (`invalid:groups-unsupported`, `invalid:no-recipients`, `invalid:unknown-conversation`); the library queues it until a session exists. Received rumours of kind 14 are filed with the same conversation ids as the other backends; typing notices, receipts and controls are dropped. Setup that cannot reach a relay fails with `unavailable:offline` and is retried on the next call.
+- **Relays.** Reads and writes use the user's `outbox` and `super` tiers, so both sides must share one.
+
+None of the backends holds key bytes outside a signer or a sealed store; signing, encryption and decryption all go through the account's applesauce signer. The shell's own Messages panel decrypts the user's messages without a kernl prompt, because the request is the shell's, for the user; applets reach messages only through the `dm` domain grant.
 
 Availability follows the active account. An unavailable provider reports a reason from `MESSAGING_UNAVAILABLE_REASONS`, and `enable(id)` throws it as `unavailable:<reason>`:
 
@@ -2528,7 +2674,19 @@ Availability follows the active account. An unavailable provider reports a reaso
 | --- | --- | --- |
 | `private` | The active signer exposes `nip44` | `sign-in-required` with no active account, `signer-cannot-encrypt` without `nip44` |
 | `legacy` | The active signer exposes `nip04` | `sign-in-required` with no active account, `signer-cannot-encrypt` without `nip04` |
-| `ratchet` | Never in this draft | `no-runtime` |
+| `ratchet` | The active signer exposes `nip44` | `sign-in-required` with no active account, `signer-cannot-encrypt` without `nip44`; `no-runtime` only when a host registers it without a backend |
+| `group` | The active signer exposes `nip44` | `sign-in-required` with no active account, `signer-cannot-encrypt` without `nip44`; `no-runtime` only when a host registers it without a backend |
+
+### Group sessions
+
+`createGroupMessagesBackend({ store, pool, tiers, storage, signer, selfPubkey, now?, accountChanges? })` is a `MessagingBackend` over `@internet-privacy/marmot-ts` ([D-018](https://kernlize.github.io/docs/decisions.md#d-018)), the maintained TypeScript implementation of the Marmot protocol (MLS over nostr).
+
+- **Client.** One `MarmotClient` per signed-in account, started on first use and dropped when the account changes or signs out. The account signer signs identity proofs and key packages and opens invitations; the library holds its MLS keys and group secrets.
+- **Storage.** `createSealedGroupStore({ storage, signer, owner }, name)` is the library's `GenericKeyValueStore`. Each store is one JSON value (bytes and big integers tagged), split into parts NIP-44 can carry and encrypted to the account with its `nip44`, under `kernl:group:v1:<owner>:<name>`. It is decrypted once per page load and served from memory; writes are applied in order.
+- **Network.** `createGroupNetwork(pool, inboxRelays)` adapts the shell's one relay pool to the library's `NostrNetworkInterface`. A publish no relay accepted answers with no acknowledgements, and a failed request with no events.
+- **Sending.** A send to people goes to the group with exactly those members, else founds one inviting each by their newest kind 30443 key package; `unavailable:recipient-not-ready` when someone has none. A send into a conversation needs a group this device belongs to (`invalid:unknown-conversation`), and a message no relay accepted is taken back with `unavailable:offline`.
+- **Types.** `GroupMessagingOptions` is `SignerMessagingOptions` plus `storage`; `SealedGroupStoreOptions` is `{ storage, signer, owner }`; `InboxRelays` is `(pubkey) => Promise<string[]>`, the resolver the private and group backends share.
+- **Ids.** The conversation id is the group id in hex; through the composite it is `group:<hex>`. Message ids are the kind 9 rumour id; other rumour kinds a group carries are not messages and are skipped.
 
 Preferences persist at `kernl:messaging:v1`.
 
@@ -2747,7 +2905,7 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `MessagingEncryption` | `'nip44' \| 'nip04'` | The signer method a backend needs. |
 | `SignerMessagingOptions` | `{ store, pool, tiers, signer, selfPubkey, now?, accountChanges? }` | Options for both backends. `accountChanges` clears the in-memory conversations when the account changes or signs out. |
 | `MESSAGING_UNAVAILABLE_REASONS` | `Readonly<Record<'signInRequired' \| 'signerCannotEncrypt' \| 'noRuntime', string>>` | `sign-in-required`, `signer-cannot-encrypt`, `no-runtime`. |
-| `createDefaultBridges` | `(options?: DefaultBridgesOptions) => BridgeRegistry` | The HTTP bridge plus torrent, nzb, soulseek and mail, which report `no-backend` ([D-010](https://kernlize.github.io/docs/decisions.md#d-010)). `options.http` goes to the HTTP bridge; the rest to the registry. |
+| `createDefaultBridges` | `(options?: DefaultBridgesOptions) => BridgeRegistry` | The HTTP bridge plus torrent, nzb, soulseek and mail. Without `options.handoff` the last four report `no-backend` ([D-010](https://kernlize.github.io/docs/decisions.md#d-010)); with it they hand off to an app on the device. `options.torrent` replaces the hand-off for the torrent bridge only ([D-017](https://kernlize.github.io/docs/decisions.md#d-017)). `options.http` goes to the HTTP bridge; the rest to the registry. |
 | `floatingLayout`, `createDwindleLayout`, `createColumnsLayout`, `createMasterStackLayout` | `LayoutStrategy` and `(options?) => LayoutStrategy` | The layouts above. |
 | `createNamespacedStore` | `(storage: StorageLike, prefix: string) => NamespacedStore` | `getJson`, `setJson`, `remove` under `<prefix>:`; corrupt JSON reads as the fallback. |
 | `DefaultMessagingOptions`, `DefaultBridgesOptions`, `LayoutOptions`, `MasterStackOptions`, `NamespacedStore` | types | |
@@ -2962,7 +3120,7 @@ Messaging provider contract, registry, composite direct-message backend and an i
 
 > **Network backends live in `@kernl/core`**
 >
-> This package ships no backend that sends anything over a network; the only backend in it is `createMemoryBackend`. The network backends for `private` and `legacy` are `createPrivateMessagesBackend` and `createLegacyMessagesBackend` in [`@kernl/core`](https://kernlize.github.io/docs/packages/core.md#messaging-backends), because they need the shell's event store, connection pool and account signer. `createKernl` wires them by default, so both providers work in the live shell while the signed-in account's signer can encrypt; `ratchet` stays unavailable with `no-runtime` ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#messaging-providers-in-the-live-shell)). The offline preview (`?preview=1`) runs the same providers over the in-memory backend with a scripted correspondent, so messages sent there go nowhere.
+> This package ships no backend that sends anything over a network; the only backend in it is `createMemoryBackend`. The network backends for `private`, `legacy` and `ratchet` are `createPrivateMessagesBackend`, `createLegacyMessagesBackend` and `createRatchetMessagesBackend` in [`@kernl/core`](https://kernlize.github.io/docs/packages/core.md#messaging-backends), because they need the shell's event store, connection pool and account signer. `createKernl` wires them by default, so all three work in the live shell while the signed-in account's signer can encrypt; `ratchet` is experimental ([Alpha status](https://kernlize.github.io/docs/alpha-status.md#messaging-providers-in-the-live-shell)). The offline preview (`?preview=1`) runs the same providers over the in-memory backend with a scripted correspondent, so messages sent there go nowhere.
 
 | Field | Value |
 | --- | --- |
@@ -3036,7 +3194,8 @@ One contract for every private-messaging protocol, truthful self-description ins
 | `createPrivateMessagesProvider` | `(deps: ProviderDeps) => MessagingProvider` | Id `private`, name "Private messages". NIP-17. |
 | `createLegacyMessagesProvider` | `(deps: ProviderDeps) => MessagingProvider` | Id `legacy`, name "Legacy messages". NIP-04. |
 | `createRatchetMessagesProvider` | `(deps: ProviderDeps) => MessagingProvider` | Id `ratchet`, name "Ratchet sessions". nostr-double-ratchet draft; `experimental: true`. |
-| `defineProvider` | `(definition: ProviderDefinition, deps: ProviderDeps) => MessagingProvider` | Joins fixed copy and properties with the shell's backend constructor and availability check. The three built-ins are made with it. |
+| `createGroupMessagesProvider` | `(deps: ProviderDeps) => MessagingProvider` | Id `group`, name "Group sessions". Marmot (MLS, RFC 9420; supersedes NIP-EE); forward secrecy, post-compromise security, groups; `experimental: true`. |
+| `defineProvider` | `(definition: ProviderDefinition, deps: ProviderDeps) => MessagingProvider` | Joins fixed copy and properties with the shell's backend constructor and availability check. The built-ins are made with it. |
 | `ProviderDeps` | interface | `{ createBackend: () => MessagingBackend; available: () => ProviderAvailability }`. |
 | `ProviderDefinition` | interface | `{ id; name; description; properties: SecurityProperties }`. |
 | `describeProvider` | `(provider: MessagingProvider) => readonly ProviderDescriptionRow[]` | Six label/value rows for the picker, in a fixed order; `specification` is left out so no protocol name reaches the UI. |
@@ -3341,7 +3500,7 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 | `invalid:event-kind` | `@kernl/core` | `createSigningConsent` | The event's `kind` is not a number. |
 | `unavailable:sign-in-required` | `@kernl/core` | `createDefaultMessaging`'s `createBackend`; `MessagingRegistry.enable` | `private` or `legacy` while no account is active (`MESSAGING_UNAVAILABLE_REASONS`). |
 | `unavailable:signer-cannot-encrypt` | `@kernl/core` | `createDefaultMessaging`'s `createBackend`; `MessagingRegistry.enable` | The active account's signer has no `nip44` (`private`) or no `nip04` (`legacy`); a read-only account is the usual case. |
-| `unavailable:no-runtime` | `@kernl/core` | `createDefaultMessaging`'s `createBackend`; `MessagingRegistry.enable` | `ratchet`: no double-ratchet runtime is supplied. |
+| `unavailable:no-runtime` | `@kernl/core` | `createDefaultMessaging`'s `createBackend`; `MessagingRegistry.enable` | `ratchet` registered by a host without a backend; `createKernl` always supplies one. |
 | `invalid:duplicate-provider` | `@kernl/messaging` | `MessagingRegistry.register` | A provider with this id is already registered. |
 | `invalid:unknown-provider` | `@kernl/messaging` | `MessagingRegistry.enable`, `disable`; the composite backend | No provider has this id, or a namespaced id, cursor or `provider` hint names no enabled provider. |
 | `unavailable:<reason>` | `@kernl/messaging` | `MessagingRegistry.enable` | The provider's `availability()` is false; `<reason>` is the bare word it reported. |
@@ -3419,20 +3578,24 @@ Filed as [kehto/web #397](https://github.com/kehto/web/issues/397), [#398](https
 
 ## 2. Bridge backends
 
-Today the torrent, NZB, Soulseek and mail bridges hand the locator to an app on the user's device ([Bridges](https://kernlize.github.io/docs/concepts/bridges.md#hand-off-backends)). An in-shell backend replaces the hand-off for its bridge and plugs into the path the HTTP bridge already exercises end to end. In-shell transfers would put the traffic under the shell's grants, guard and revocation, and would also make it the shell's to expose, so each needs its exposure description checked. Order reflects how much of the user's exposure each one changes.
+Magnet links download inside the shell page through WebTorrent, with the device app as a choice in Settings ([D-017](https://kernlize.github.io/docs/decisions.md#d-017)). The NZB, Soulseek and mail bridges still hand the locator to an app on the user's device ([Bridges](https://kernlize.github.io/docs/concepts/bridges.md#hand-off-backends)), because each of their protocols runs over raw TCP sockets and a browser page cannot open one ([Why they still hand off](https://kernlize.github.io/docs/concepts/bridges.md#why-nzb-soulseek-and-mail-still-hand-off)).
+
+The next step is a **companion service**: a small program the user runs on their own device, or a service they choose, that opens those sockets on the user's behalf and that the shell reaches over a WebSocket. Each bridge then gets an in-shell backend that talks to it. In-shell transfers put the traffic under the shell's grants, guard and revocation, and make it the shell's to expose, so each needs its exposure description checked. Order reflects how much of the user's exposure each one changes.
 
 | Backend | Interface | Notes |
 | --- | --- | --- |
-| Mail | `MailBackend` | Opens or creates a conversation for a `mailto:` locator inside the shell. Candidate for a shell-side IMAP/JMAP client. Today the device's mail program opens. |
-| NZB | `NzbBackend` | Hands an `nzb:` locator to a configured downloader the shell can query. The downloader runs outside the browser; the bridge reports job state. Today the `https` document URL opens on the device. |
-| Torrent | `TorrentBackend` | Adds an info hash with its trackers. WebTorrent in the shell, or a configured external client the shell can query. Marked as public activity in the exposure description. Today the magnet link opens on the device. |
-| Soulseek | `SoulseekBackend` | Requests one file from one peer. Requires a daemon; the bridge reports job state. Today the `slsk://` address opens on the device. |
+| Mail | `MailBackend` | Opens or creates a conversation for a `mailto:` locator inside the shell. Needs the companion service for IMAP and SMTP, or a provider with a JMAP endpoint that allows cross-origin requests. Today the device's mail program opens. |
+| NZB | `NzbBackend` | Hands an `nzb:` locator to the companion service, which fetches from the user's news server; the bridge reports job state in the Downloads panel. Today the `https` document URL opens on the device. |
+| Soulseek | `SoulseekBackend` | Requests one file from one peer through the companion service; the bridge reports job state. Today the `slsk://` address opens on the device. |
+| Torrent | `TorrentBackend` | Done for browser peers ([Downloads inside kernl](https://kernlize.github.io/docs/concepts/bridges.md#downloads-inside-kernl)). A companion service could also reach peers that only speak TCP and UDP, which browser peers cannot. |
 
-The shell also needs a downloads view that shows the state of each `job` result and lets the user cancel it; there is none today. A hand-off job cannot be tracked at all, because the transfer belongs to the device app.
+The Downloads panel shows in-kernl jobs only; a hand-off job cannot be tracked, because the transfer belongs to the device app. Downloads live in memory and end when the tab closes; keeping them across reloads is open.
 
 ## 3. Messaging
 
-- Supply the double-ratchet runtime so the `ratchet` provider reports `available`. Its properties are already described; see [Messaging](https://kernlize.github.io/docs/concepts/messaging.md).
+- Ratchet sessions: persist the conversation list sealed like the session state, read correspondents' inbox relays, and offer groups ([D-016](https://kernlize.github.io/docs/decisions.md#d-016)).
+- Group sessions: keep each group's history sealed across reloads, let the user name a group, add and remove members and leave, read correspondents' key-package relay lists (kind 10051), and follow the group library out of alpha ([D-018](https://kernlize.github.io/docs/decisions.md#d-018)).
+- Private messages: read NIP-17 kind 15 file messages, which `private` skips today.
 - Inbox setup: offer to publish the user's kind 10050 inbox relays when they have none, so `private` stops falling back to the `outbox` and `super` tiers ([D-015](https://kernlize.github.io/docs/decisions.md#d-015)).
 - Per-conversation provider migration: move a correspondent from `legacy` to `private` when both clients can read it, shown as a reversible choice.
 

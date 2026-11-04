@@ -16,13 +16,14 @@
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="createdefaultmessaging"><span class="tsd-kind-call-signature">createDefaultMessaging</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">options</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/_kernl_core.DefaultMessagingOptions.html" class="tsd-signature-type tsd-kind-interface">DefaultMessagingOptions</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">MessagingRegistry</span><a href="#createdefaultmessaging" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>The shell's messaging registry with kernl's three providers registered and
+<div class="tsd-comment tsd-typography"><p>The shell's messaging registry with kernl's four providers registered and
 preferences persisted at <code>kernl:messaging:v1</code>.</p>
-<p><code>createKernl</code> passes the account-signer backends for <code>private</code> and
-<code>legacy</code> and the active account's signer, so those two follow the account:
+<p><code>createKernl</code> passes the account-signer backends for all four providers
+and the active account's signer, so each follows the account:
 <code>sign-in-required</code> while nobody is signed in, <code>signer-cannot-encrypt</code> while
-the signer lacks the encryption the format needs. <code>ratchet</code> is <code>no-runtime</code>
-until a host supplies a backend: the shell describes, it does not pretend.</p>
+the signer lacks the encryption the format needs. A provider given no
+backend stays unavailable: <code>no-runtime</code> for <code>ratchet</code> and <code>group</code>, <code>sign-in-required</code>
+for the others. The shell describes, it does not pretend.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
@@ -34,7 +35,7 @@ until a host supplies a backend: the shell describes, it does not pretend.</p>
 
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-example">
-<h4 class="tsd-anchor-link" id="example">Example<a href="#example" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="ts"><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-0">messaging</span><span class="hl-1"> = </span><span class="hl-5">createDefaultMessaging</span><span class="hl-1">({ </span><span class="hl-2">storage:</span><span class="hl-1"> </span><span class="hl-2">localStorage</span><span class="hl-1"> });</span><br/><span class="hl-2">messaging</span><span class="hl-1">.</span><span class="hl-5">get</span><span class="hl-1">(</span><span class="hl-7">&#39;private&#39;</span><span class="hl-1">)?.</span><span class="hl-2">availability</span><span class="hl-1">; </span><span class="hl-3">// { available: false, reason: &#39;sign-in-required&#39; }</span><br/><span class="hl-2">messaging</span><span class="hl-1">.</span><span class="hl-5">get</span><span class="hl-1">(</span><span class="hl-7">&#39;ratchet&#39;</span><span class="hl-1">)?.</span><span class="hl-2">availability</span><span class="hl-1">; </span><span class="hl-3">// { available: false, reason: &#39;no-runtime&#39; }</span>
+<h4 class="tsd-anchor-link" id="example">Example<a href="#example" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="ts"><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-0">messaging</span><span class="hl-1"> = </span><span class="hl-5">createDefaultMessaging</span><span class="hl-1">({ </span><span class="hl-2">storage:</span><span class="hl-1"> </span><span class="hl-2">localStorage</span><span class="hl-1"> });</span><br/><span class="hl-2">messaging</span><span class="hl-1">.</span><span class="hl-5">get</span><span class="hl-1">(</span><span class="hl-7">&#39;private&#39;</span><span class="hl-1">)?.</span><span class="hl-2">availability</span><span class="hl-1">; </span><span class="hl-3">// { available: false, reason: &#39;sign-in-required&#39; }</span><br/><span class="hl-2">messaging</span><span class="hl-1">.</span><span class="hl-5">get</span><span class="hl-1">(</span><span class="hl-7">&#39;ratchet&#39;</span><span class="hl-1">)?.</span><span class="hl-2">availability</span><span class="hl-1">; </span><span class="hl-3">// { available: false, reason: &#39;no-runtime&#39; }</span><br/><span class="hl-2">messaging</span><span class="hl-1">.</span><span class="hl-5">get</span><span class="hl-1">(</span><span class="hl-7">&#39;group&#39;</span><span class="hl-1">)?.</span><span class="hl-2">availability</span><span class="hl-1">; </span><span class="hl-3">// { available: false, reason: &#39;no-runtime&#39; }</span>
 </code><button type="button">Copy</button></pre>
 
 </div></div></div></li></ul></section></div>
